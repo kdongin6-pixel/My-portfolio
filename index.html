@@ -123,22 +123,24 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 <body>
 <div id="app"></div>
 <script>
+// 이미지 기준 최신 자산 정보 업데이트 완료
 const INIT=[
-  {id:1,name:"GE베르노바",qty:16,avg:813.8956,cur:1042.85,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:2,name:"알파벳 A",qty:41,avg:239.1231,cur:390.34,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:3,name:"버크셔 해서웨이 B",qty:4,avg:472.9925,cur:479.24,curr:"USD",tag:"방어주",acct:"메리츠증권"},
-  {id:4,name:"iSh 0-3M T-Bond",qty:113,avg:100.5327,cur:100.585,curr:"USD",tag:"현금/채권",acct:"메리츠증권"},
-  {id:5,name:"나비타스 세미컨덕터",qty:577,avg:16.2949,cur:24.755,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:6,name:"TRADR NVTS Daily 2X",qty:77,avg:107.20,cur:118.15,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:7,name:"팔란티어 테크",qty:43,avg:116.9074,cur:137.76,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:8,name:"네비우스 그룹",qty:21,avg:205.5523,cur:221.45,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:9,name:"버티브 홀딩스",qty:8,avg:295.10,cur:328.61,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:10,name:"Direxion GOOGL 2X",qty:10,avg:117.17,cur:139.50,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:11,name:"TEMA Space Innovators",qty:32,avg:36.39,cur:36.365,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:12,name:"Direxion Gold 2X",qty:2,avg:174.94,cur:162.47,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:13,name:"아이온큐",qty:1,avg:48.94,cur:58.37,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:14,name:"IREN",qty:1,avg:56.68,cur:47.72,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:15,name:"💵 현금(USD)",qty:2557,avg:1,cur:1,curr:"USD",tag:"현금/채권",acct:"메리츠증권"},
+  {id:1,name:"나비타스 세미컨덕터",qty:877,avg:20.3280,cur:28.4150,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:2,name:"GE베르노바",qty:16,avg:813.8956,cur:1052.5000,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:3,name:"알파벳 A",qty:41,avg:239.1231,cur:386.8000,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:4,name:"ISHARES 0-3M TREASURY BOND",qty:143,avg:100.5520,cur:100.6265,curr:"USD",tag:"현금/채권",acct:"메리츠증권"},
+  {id:5,name:"팔란티어 테크",qty:43,avg:116.9074,cur:136.5350,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:6,name:"네비우스 그룹",qty:21,avg:205.5523,cur:219.5250,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:7,name:"버티브 홀딩스",qty:8,avg:295.1000,cur:329.6400,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:8,name:"버크셔 해서웨이 B",qty:4,avg:472.9925,cur:484.3700,curr:"USD",tag:"방어주",acct:"메리츠증권"},
+  {id:9,name:"DIREXION GOOGL DAILY 2X",qty:10,avg:117.1700,cur:136.9400,curr:"USD",tag:"기타",acct:"메리츠증권"},
+  {id:10,name:"TEMA SPACE INNOVATORS",qty:32,avg:36.3900,cur:38.5538,curr:"USD",tag:"기타",acct:"메리츠증권"},
+  {id:11,name:"DIREXION GOLD MINERS DAILY 2X",qty:2,avg:174.9400,cur:155.5400,curr:"USD",tag:"기타",acct:"메리츠증권"},
+  {id:12,name:"아이온큐",qty:1,avg:48.9400,cur:63.6788,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:13,name:"IREN",qty:1,avg:56.6800,cur:57.1800,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:14,name:"💵 현금(USD)",qty:2656,avg:1,cur:1,curr:"USD",tag:"현금/채권",acct:"메리츠증권"},
+  {id:15,name:"💵 현금(KRW)",qty:45435,avg:1,cur:1,curr:"KRW",tag:"현금/채권",acct:"메리츠증권"},
+  // ISA 계좌는 캡처본에 없으므로 기존 데이터 유지
   {id:16,name:"KoAct 팔란티어 밸류체인",qty:720,avg:14198,cur:18840,curr:"KRW",tag:"성장주",acct:"ISA"},
   {id:17,name:"KODEX 미국서학개미",qty:189,avg:21478,cur:27175,curr:"KRW",tag:"기타",acct:"ISA"},
   {id:18,name:"TIME 미국나스닥100",qty:345,avg:42639,cur:53315,curr:"KRW",tag:"기타",acct:"ISA"},
@@ -156,6 +158,7 @@ let S={stocks:[],txns:[],rate:1380,tab:"list",acct:"전체",modal:null,sheetsId:
 
 function load(){
   try{const d=JSON.parse(localStorage.getItem("pf_v2")||"{}");
+    // 로컬 데이터가 있으면 사용하되, 최신 이미지 반영을 원하시면 localStorage.removeItem("pf_v2")를 먼저 개발자 도구에서 실행하거나 시크릿 모드에서 켜주세요.
     S.stocks=d.stocks||JSON.parse(JSON.stringify(INIT));
     S.txns=d.txns||[];S.rate=d.rate||1380;S.sheetsId=d.sheetsId||"";
   }catch(e){S.stocks=JSON.parse(JSON.stringify(INIT));}
@@ -170,8 +173,9 @@ const evK=s=>(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur);
 const totK=list=>list.reduce((a,s)=>a+evK(s),0);
 const getCash=()=>{
   const fl=S.acct==="전체"?S.stocks:S.stocks.filter(s=>s.acct===S.acct);
-  const usd=fl.find(s=>s.name==="💵 현금(USD)")?.qty*S.rate||0;
-  const krw=fl.find(s=>s.name==="💵 현금(KRW)")?.qty||0;
+  // 현금 항목 필터링 합산 로직 강화
+  const usd=fl.filter(s=>s.name.includes("현금") && s.curr==="USD").reduce((a,s)=>a+(s.qty*S.rate),0);
+  const krw=fl.filter(s=>s.name.includes("현금") && s.curr==="KRW").reduce((a,s)=>a+(s.qty),0);
   return usd+krw;
 };
 const filt=()=>S.acct==="전체"?S.stocks:S.stocks.filter(s=>s.acct===S.acct);
@@ -184,7 +188,7 @@ function parseCSV(csv){
   });
 }
 
-// === 구글 시트 연동 핵심 로직 (B3 셀 환율 강제 타겟팅 포함) ===
+// === 구글 시트 연동 핵심 로직 (B3 셀 환율 타겟팅 및 신규 종목 추가 기능) ===
 async function syncSheets(){
   if(!S.sheetsId){S.modal={type:"sync"};render();return;}
   S.syncMsg="⏳ 연동 중...";render();
@@ -203,11 +207,11 @@ async function syncSheets(){
         const val=parseFloat(rRows[0]?.[0]?.replace(/[^0-9.]/g,""));
         if(!isNaN(val) && val > 1000 && val < 2000) {
             foundRate = val;
-            S.rate = val; // 시스템 환율 덮어쓰기
+            S.rate = val; // 시스템 환율 즉시 덮어쓰기
         }
     }
 
-    // 2. 종목 데이터 업데이트
+    // 2. 종목 데이터 업데이트 (현재가 및 신규 종목)
     for(const [acct,sheetName] of Object.entries(sheets)){
       const url=`https://docs.google.com/spreadsheets/d/${S.sheetsId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
       const res=await fetch(url);
@@ -238,11 +242,11 @@ function execTrade(id,mode,qty,price){
   const s=S.stocks.find(x=>x.id===id);
   const q=parseFloat(qty),p=parseFloat(price);
   if(!s||isNaN(q)||isNaN(p)||q<=0||p<=0)return alert("수량/가격 확인");
-  const cashStock = S.stocks.find(x=>x.name.includes("현금("+s.curr+")") && x.acct===s.acct);
+  const cashStock = S.stocks.find(x=>x.name.includes("현금") && x.curr===s.curr && x.acct===s.acct);
   if(!cashStock)return alert("해당 계좌에 현금 자산 항목이 존재하지 않습니다.");
   
   if(mode==="buy"){
-    if(cashStock.qty < q*p)return alert("잔여 현금이 부족합니다.");
+    if(cashStock.qty < q*p)return alert("매수를 위한 잔여 현금이 부족합니다.");
     cashStock.qty -= q*p;
     const t=s.qty*s.avg+q*p;s.qty+=q;s.avg=t/s.qty;
   } else {
@@ -260,11 +264,11 @@ function execCashInOut(acct, curr, type, amt) {
   const value = parseFloat(amt);
   if(isNaN(value) || value <= 0) return alert("올바른 금액을 입력해 주세요.");
   
-  const cashStock = S.stocks.find(x => x.name.includes("현금(" + curr + ")") && x.acct === acct);
+  const cashStock = S.stocks.find(x => x.name.includes("현금") && x.curr === curr && x.acct === acct);
   if(!cashStock) return alert("해당 계좌 및 통화의 현금 항목을 찾을 수 없습니다.");
   
   if(type === "withdraw") {
-    if(cashStock.qty < value) return alert("출금 가능한 현금 잔고가 부족합니다.");
+    if(cashStock.qty < value) return alert("출금 가능한 잔고가 부족합니다.");
     cashStock.qty -= value;
   } else {
     cashStock.qty += value;
@@ -520,7 +524,7 @@ function bind(){
     if(tIdx === -1) return;
     const t = S.txns[tIdx];
 
-    if(confirm(`해당 내역을 삭제하고 자산을 원래 상태로 역계산 복구하시겠습니까?`)){
+    if(confirm(`해당 내역을 삭제하고 자산을 원래 상태로 복구하시겠습니까?`)){
       if(t.mode === "deposit" || t.mode === "withdraw") {
         const cashStock = S.stocks.find(x => x.id === t.stockId);
         if(cashStock) {
@@ -529,7 +533,7 @@ function bind(){
         }
       } else {
         const s = S.stocks.find(x => x.id === t.stockId);
-        const cashStock = S.stocks.find(x => x.name.includes("현금("+t.curr+")") && x.acct===(s?.acct || '메리츠증권'));
+        const cashStock = S.stocks.find(x => x.name.includes("현금") && x.curr===(s?.curr) && x.acct===(s?.acct || '메리츠증권'));
         if(s && cashStock){
           if(t.mode === "buy"){
             cashStock.qty += t.qty * t.price;
