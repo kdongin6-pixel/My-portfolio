@@ -123,22 +123,21 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 <body>
 <div id="app"></div>
 <script>
-// 이미지 기준 최신 자산 정보 업데이트 완료
 const INIT=[
-  {id:1,name:"GE베르노바",qty:16,avg:313.8956,cur:342.85,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:2,name:"알파벳 A",qty:41,avg:169.1231,cur:190.34,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:1,name:"GE베르노바",qty:16,avg:813.8956,cur:1042.85,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:2,name:"알파벳 A",qty:41,avg:239.1231,cur:390.34,curr:"USD",tag:"성장주",acct:"메리츠증권"},
   {id:3,name:"버크셔 해서웨이 B",qty:4,avg:472.9925,cur:479.24,curr:"USD",tag:"방어주",acct:"메리츠증권"},
   {id:4,name:"iSh 0-3M T-Bond",qty:113,avg:100.5327,cur:100.585,curr:"USD",tag:"현금/채권",acct:"메리츠증권"},
-  {id:5,name:"나비타스 세미컨덕터",qty:577,avg:4.2949,cur:4.755,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:6,name:"TRADR NVTS Daily 2X",qty:77,avg:7.20,cur:8.15,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:7,name:"팔란티어 테크",qty:43,avg:36.9074,cur:37.76,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:8,name:"네비우스 그룹",qty:21,avg:15.5523,cur:21.45,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:9,name:"버티브 홀딩스",qty:8,avg:95.10,cur:128.61,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:10,name:"Direxion GOOGL 2X",qty:10,avg:67.17,cur:89.50,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:11,name:"TEMA Space Innovators",qty:32,avg:26.39,cur:36.365,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:12,name:"Direxion Gold 2X",qty:2,avg:14.94,cur:12.47,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:13,name:"아이온큐",qty:1,avg:28.94,cur:28.37,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:14,name:"IREN",qty:1,avg:6.68,cur:7.72,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:5,name:"나비타스 세미컨덕터",qty:577,avg:16.2949,cur:24.755,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:6,name:"TRADR NVTS Daily 2X",qty:77,avg:107.20,cur:118.15,curr:"USD",tag:"기타",acct:"메리츠증권"},
+  {id:7,name:"팔란티어 테크",qty:43,avg:116.9074,cur:137.76,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:8,name:"네비우스 그룹",qty:21,avg:205.5523,cur:221.45,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:9,name:"버티브 홀딩스",qty:8,avg:295.10,cur:328.61,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:10,name:"Direxion GOOGL 2X",qty:10,avg:117.17,cur:139.50,curr:"USD",tag:"기타",acct:"메리츠증권"},
+  {id:11,name:"TEMA Space Innovators",qty:32,avg:36.39,cur:36.365,curr:"USD",tag:"기타",acct:"메리츠증권"},
+  {id:12,name:"Direxion Gold 2X",qty:2,avg:174.94,cur:162.47,curr:"USD",tag:"기타",acct:"메리츠증권"},
+  {id:13,name:"아이온큐",qty:1,avg:48.94,cur:58.37,curr:"USD",tag:"성장주",acct:"메리츠증권"},
+  {id:14,name:"IREN",qty:1,avg:56.68,cur:47.72,curr:"USD",tag:"성장주",acct:"메리츠증권"},
   {id:15,name:"💵 현금(USD)",qty:2557,avg:1,cur:1,curr:"USD",tag:"현금/채권",acct:"메리츠증권"},
   {id:16,name:"KoAct 팔란티어 밸류체인",qty:720,avg:14198,cur:18840,curr:"KRW",tag:"성장주",acct:"ISA"},
   {id:17,name:"KODEX 미국서학개미",qty:189,avg:21478,cur:27175,curr:"KRW",tag:"기타",acct:"ISA"},
@@ -147,7 +146,7 @@ const INIT=[
   {id:20,name:"TIGER 미국초단기",qty:761,avg:9963,cur:10430,curr:"KRW",tag:"현금/채권",acct:"ISA"},
   {id:21,name:"TIGER 글로벌비만치료제",qty:235,avg:10250,cur:10675,curr:"KRW",tag:"기타",acct:"ISA"},
   {id:22,name:"KODEX 미국AI전력인프라",qty:307,avg:26408,cur:25710,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:23,name:"한화",qty:1,avg:32000,cur:34600,curr:"KRW",tag:"방어주",acct:"ISA"},
+  {id:23,name:"한화",qty:1,avg:132000,cur:134600,curr:"KRW",tag:"방어주",acct:"ISA"},
   {id:24,name:"💵 현금(KRW)",qty:223229,avg:1,cur:1,curr:"KRW",tag:"현금/채권",acct:"ISA"},
 ];
 const TC={"성장주":"#6366f1","방어주":"#10b981","중소형주":"#f59e0b","현금/채권":"#06b6d4","기타":"#94a3b8"};
@@ -185,30 +184,36 @@ function parseCSV(csv){
   });
 }
 
+// === 구글 시트 연동 핵심 로직 (B3 셀 환율 강제 타겟팅 포함) ===
 async function syncSheets(){
   if(!S.sheetsId){S.modal={type:"sync"};render();return;}
   S.syncMsg="⏳ 연동 중...";render();
   const sheets={메리츠증권:"메리츠증권",ISA:"ISA"};
+  
   try{
-    let updated=0,added=0,rateFound=null;
+    let updated=0,added=0,foundRate=0;
+    
+    // 1. 환율 가져오기: 메리츠증권 탭의 'B3' 셀을 강제로 읽어옵니다.
+    const rateUrl=`https://docs.google.com/spreadsheets/d/${S.sheetsId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent('메리츠증권')}&range=B3:B3`;
+    const rRes=await fetch(rateUrl);
+    if(rRes.ok){
+        const rText=await rRes.text();
+        const rRows=parseCSV(rText);
+        // B3 셀의 값을 숫자로 파싱 (예: "1,380.50" -> 1380.5)
+        const val=parseFloat(rRows[0]?.[0]?.replace(/[^0-9.]/g,""));
+        if(!isNaN(val) && val > 1000 && val < 2000) {
+            foundRate = val;
+            S.rate = val; // 시스템 환율 덮어쓰기
+        }
+    }
+
+    // 2. 종목 데이터 업데이트
     for(const [acct,sheetName] of Object.entries(sheets)){
       const url=`https://docs.google.com/spreadsheets/d/${S.sheetsId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
       const res=await fetch(url);
       if(!res.ok)throw new Error(`${acct} 로드 실패`);
       const rows=parseCSV(await res.text());
       
-      rows.forEach(r => {
-        r.forEach(cell => {
-          const clean = cell.replace(/"/g,"").trim();
-          if((clean.includes("USDKRW") || clean.includes("USD/KRW") || clean.includes("환율")) && r[1]) {
-            const parsedRate = parseFloat(r[1].replace(/[^0-9.]/g,""));
-            if(!isNaN(parsedRate) && parsedRate > 1000 && parsedRate < 2000) {
-              rateFound = parsedRate;
-            }
-          }
-        });
-      });
-
       for(let i=2;i<rows.length;i+=2){
         const name=rows[i][0]?.replace(/"/g,"").trim();
         const v=parseFloat(rows[i][2]?.replace(/[^0-9.\-]/g,""));
@@ -216,17 +221,19 @@ async function syncSheets(){
         const s=S.stocks.find(x=>x.name===name&&x.acct===acct);
         if(s){s.cur=v;updated++;} 
         else if(!name.includes("현금")){
-          S.stocks.push({id:Math.max(0,...S.stocks.map(x=>x.id))+1,name:name,acct:acct,curr:(acct==="ISA"?"KRW":"USD"),qty:0,avg:0,cur:v,tag:"기타"});
+          // 구글 시트에만 있는 새로운 종목 자동 추가
+          S.stocks.push({id:Date.now()+i,name:name,acct:acct,curr:(acct==="ISA"?"KRW":"USD"),qty:0,avg:0,cur:v,tag:"기타"});
           added++;
         }
       }
     }
-    if(rateFound){S.rate = rateFound;}
-    save();S.syncMsg=`✅ 업데이트: ${updated}개, 신규: ${added}개 ${rateFound?`[환율 ₩${rateFound} 자동반영]`:''} (${new Date().toLocaleTimeString()})`;
-  }catch(e){S.syncMsg=`❌ ${e.message}`;}
+    save();
+    S.syncMsg=`✅ 업데이트: ${updated}개, 신규: ${added}개 ${foundRate?`[환율 ₩${foundRate} 자동반영]`:''} (${new Date().toLocaleTimeString()})`;
+  }catch(e){S.syncMsg=`❌ 오류: ${e.message}`;}
   render();
 }
 
+// 일반 매매 로직 (수량/평단가 변동 및 손익 계산)
 function execTrade(id,mode,qty,price){
   const s=S.stocks.find(x=>x.id===id);
   const q=parseFloat(qty),p=parseFloat(price);
@@ -248,7 +255,7 @@ function execTrade(id,mode,qty,price){
   save();S.modal=null;render();
 }
 
-// 순수 현금 입금/출금 처리 함수 (투자 손익 추이 계산에서 왜곡 방지)
+// 순수 현금 입출금 로직 (투자 손익 PnL에 반영되지 않음)
 function execCashInOut(acct, curr, type, amt) {
   const value = parseFloat(amt);
   if(isNaN(value) || value <= 0) return alert("올바른 금액을 입력해 주세요.");
@@ -263,15 +270,15 @@ function execCashInOut(acct, curr, type, amt) {
     cashStock.qty += value;
   }
   
-  // 거래내역 장부에 독립적인 'deposit' / 'withdraw' 형태로 로깅
+  // 거래내역 장부에 'deposit' / 'withdraw' 형태로 로깅
   S.txns.unshift({
     id: Date.now(),
     stockId: cashStock.id,
     name: `💵 현금 ${type === 'deposit' ? '입금' : '출금'} (${acct})`,
-    mode: type, // 'deposit' 또는 'withdraw'
+    mode: type,
     qty: value,
     price: 1,
-    pnl: 0, // 순수 입출금이므로 매매 손익은 0으로 처리
+    pnl: 0,
     curr: curr,
     date: new Date().toLocaleDateString("ko-KR")
   });
@@ -379,16 +386,14 @@ function mkTxn(){
   let html=`<button class="btn-clear-txn" id="btnClearTxn">🗑️ 내역서 전체 초기화</button><div class="txn-list">`;
   S.txns.forEach(t=>{
     if(t.mode === "deposit" || t.mode === "withdraw") {
-      // 순수 입출금 레이아웃
       html+=`<div class="txn" style="border-left: 4px solid #06b6d4;">
         <div class="txn-head">
           <div class="txn-title-wrap"><span class="txn-name">${t.mode==='deposit'?'💰':'💸'} ${t.name}</span><span class="txn-date">${t.date}</span></div>
           <button class="cbtn cbtn-del txn-del" data-txnid="${t.id}">취소</button>
         </div>
-        <div class="txn-det" style="color: #22d3ee">${t.mode==='deposit'?'순수 입금':'순수 출금'} 완료: ${fM(t.qty, t.curr)} (투자 손익 제외 항목)</div>
+        <div class="txn-det" style="color: #22d3ee">${t.mode==='deposit'?'순수 입금':'순수 출금'}: ${fM(t.qty, t.curr)} (투자손익 제외)</div>
       </div>`;
     } else {
-      // 주식 매매 거래 레이아웃
       const yieldPct = t.mode==='sell' ? (t.pnl / (t.qty * t.price) * 100) : 0;
       html+=`<div class="txn">
         <div class="txn-head">
@@ -407,18 +412,16 @@ function mkTxn(){
 function mkModal(){
   const d=document.createElement("div");d.className="modal-bg";d.id="mbg";
   
-  // 1. 현금 입출금 모달
   if(S.modal.type==="cashInOut") {
     d.innerHTML=`<div class="modal"><div class="modal-title">💰 순수 현금 입금/출금<button class="modal-close" id="mc">×</button></div>
       <div class="field"><label>입출금 구분</label><select id="coType"><option value="deposit">입금 (+)</option><option value="withdraw">출금 (-)</option></select></div>
       <div class="field"><label>대상 계좌</label><select id="coAcct"><option>메리츠증권</option><option>ISA</option></select></div>
       <div class="field"><label>통화 구분</label><select id="coCurr"><option>USD</option><option>KRW</option></select></div>
       <div class="field"><label>금액</label><input type="number" id="coAmt" placeholder="0" min="0"></div>
-      <div class="sync-step" style="margin-bottom:12px; color:#94a3b8;">* 본 기능으로 기입된 현금 자산의 변동은 단순 자본금 변동으로 로깅되며, 매매 평가 손익 추이에 산입되지 않습니다.</div>
+      <div class="sync-step" style="margin-bottom:12px; color:#94a3b8;">* 본 기능으로 기입된 현금 변동은 매매 손익에 반영되지 않습니다.</div>
       <button class="mbtn mbtn-pri" id="execCash">확인 및 적용</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
   }
-  // 2. 일반 매매 모달
   if(S.modal.type==="trade"){
     const s=S.stocks.find(x=>x.id===S.modal.stockId);
     d.innerHTML=`<div class="modal"><div class="modal-title">${S.modal.mode==='buy'?'📈 매수':'📉 매도'} - ${s?.name}<button class="modal-close" id="mc">×</button></div>
@@ -428,7 +431,6 @@ function mkModal(){
       <button class="mbtn mbtn-pri" id="exec">${S.modal.mode==='buy'?'매수 확인':'매도 확인'}</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
   }
-  // 3. 종목 추가 모달
   if(S.modal.type==="add"){
     d.innerHTML=`<div class="modal"><div class="modal-title">+ 종목 추가<button class="modal-close" id="mc">×</button></div>
       <div class="field"><label>종목명</label><input type="text" id="an" placeholder="종목명"></div>
@@ -441,7 +443,6 @@ function mkModal(){
       <button class="mbtn mbtn-pri" id="exec">추가</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
   }
-  // 4. 일괄 현재가 입력 모달
   if(S.modal.type==="bulk"){
     const rows=S.stocks.filter(s=>!s.name.includes("현금")).map(s=>`<div class="bulk-row">
       <div class="bulk-name">${s.name}<br><span class="bulk-sub">${s.curr} · ${s.acct}</span></div>
@@ -453,7 +454,6 @@ function mkModal(){
       <button class="mbtn mbtn-pri" id="exec">적용</button>
       <button class="mbtn mbtn-sec" id="mc2">닫기</button></div>`;
   }
-  // 5. 시트 연동 모달
   if(S.modal.type==="sync"){
     d.innerHTML=`<div class="modal"><div class="modal-title">🔄 Google Sheets 연동<button class="modal-close" id="mc">×</button></div>
       <div class="sync-box">
@@ -463,7 +463,6 @@ function mkModal(){
       <button class="mbtn mbtn-pri" id="exec">연동 시작</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
   }
-  // 6. 백업 모달
   if(S.modal.type==="backup"){
     const currentData = JSON.stringify({stocks:S.stocks, txns:S.txns, rate:S.rate, sheetsId:S.sheetsId});
     d.innerHTML=`<div class="modal"><div class="modal-title">💾 데이터 보관/복구<button class="modal-close" id="mc">×</button></div>
@@ -472,7 +471,6 @@ function mkModal(){
       <button class="mbtn mbtn-pri" id="btnRestore">📥 데이터 복구하기</button>
       <button class="mbtn mbtn-sec" id="mc2">닫기</button></div>`;
   }
-  // 7. 내보내기 모달
   if(S.modal.type==="export"){
     const csvContent = "종목명,보유수량,현재가,평균단가,태그,계좌\n" + S.stocks.map(s => `"${s.name}",${s.qty},${s.cur},${s.avg},"${s.tag}","${s.acct}"`).join("\n");
     d.innerHTML=`<div class="modal"><div class="modal-title">📤 구글 시트로 내보내기<button class="modal-close" id="mc">×</button></div>
@@ -513,7 +511,7 @@ function bind(){
 
   qa("[data-del]").forEach(b=>b.addEventListener("click",()=>{
     const s=S.stocks.find(x=>x.id===+b.dataset.del);
-    if(s&&confirm(`'${s.name}' 삭제할까요?`)){S.stocks=S.stocks.filter(x!==+b.dataset.del);save();render();}
+    if(s&&confirm(`'${s.name}' 삭제할까요?`)){S.stocks=S.stocks.filter(x=>x.id!==+b.dataset.del);save();render();}
   }));
 
   qa(".txn-del").forEach(btn=>btn.addEventListener("click", e=>{
@@ -524,14 +522,12 @@ function bind(){
 
     if(confirm(`해당 내역을 삭제하고 자산을 원래 상태로 역계산 복구하시겠습니까?`)){
       if(t.mode === "deposit" || t.mode === "withdraw") {
-        // 입출금 취소 복구 원복 계산
         const cashStock = S.stocks.find(x => x.id === t.stockId);
         if(cashStock) {
           if(t.mode === "deposit") cashStock.qty -= t.qty;
           else if(t.mode === "withdraw") cashStock.qty += t.qty;
         }
       } else {
-        // 일반 매매 취소 복구 계산
         const s = S.stocks.find(x => x.id === t.stockId);
         const cashStock = S.stocks.find(x => x.name.includes("현금("+t.curr+")") && x.acct===(s?.acct || '메리츠증권'));
         if(s && cashStock){
@@ -572,7 +568,6 @@ function bind(){
   q("#tq")?.addEventListener("input",upPrev);
   q("#tp")?.addEventListener("input",upPrev);
 
-  // 실행 통합 바인딩
   q("#execCash")?.addEventListener("click", () => {
     execCashInOut(q("#coAcct").value, q("#coCurr").value, q("#coType").value, q("#coAmt").value);
   });
