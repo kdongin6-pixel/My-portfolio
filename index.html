@@ -9,7 +9,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{background:#0d1117;color:#e6edf3;font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;font-size:15px;min-height:100vh}
 button{cursor:pointer;font-family:inherit;border:none;outline:none;background:none}
-input,select{font-family:inherit;outline:none;color:#e6edf3}
+input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 
 /* 헤더 */
 .hdr{background:linear-gradient(160deg,#1e1b4b 0%,#0f172a 100%);padding:16px;border-bottom:1px solid #30363d}
@@ -28,6 +28,7 @@ input,select{font-family:inherit;outline:none;color:#e6edf3}
 .hdr-btn{flex:1;padding:9px 0;border-radius:10px;font-size:.82em;font-weight:700;text-align:center}
 .btn-bulk{background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#fbbf24}
 .btn-add{background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);color:#34d399}
+.btn-backup{background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);color:#60a5fa}
 
 /* 탭 */
 .tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;position:sticky;top:0;z-index:10}
@@ -85,6 +86,7 @@ input,select{font-family:inherit;outline:none;color:#e6edf3}
 .field{margin-bottom:12px}
 .field label{display:block;font-size:.78em;color:#8b949e;margin-bottom:5px;font-weight:600}
 .field input,.field select{width:100%;background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:10px;padding:11px 13px;font-size:.93em;color:#e6edf3}
+.field textarea{width:100%;background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:10px;padding:11px 13px;font-size:.85em;color:#e6edf3;height:120px;resize:none;word-break:break-all}
 .mbtn{width:100%;padding:13px;border-radius:12px;font-size:.95em;font-weight:800;margin-top:4px}
 .mbtn-pri{background:#6366f1;color:#fff;border:none}
 .mbtn-sec{background:rgba(255,255,255,.07);color:#e6edf3;border:1px solid #30363d;margin-top:8px}
@@ -116,9 +118,12 @@ input,select{font-family:inherit;outline:none;color:#e6edf3}
 .l-pct{font-size:.88em;color:#8b949e;font-weight:700}
 
 /* 거래내역 */
-.txn-list{padding:12px;display:flex;flex-direction:column;gap:8px}
+.txn-container{padding:12px;display:flex;flex-direction:column;gap:10px}
+.btn-clear-txn{width:100%;padding:11px;background:rgba(244,63,94,.1);border:1px solid rgba(244,63,94,.25);color:#f43f5e;border-radius:10px;font-size:.85em;font-weight:700;text-align:center;margin-bottom:4px}
+.txn-list{display:flex;flex-direction:column;gap:8px}
 .txn{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:13px}
 .txn-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.txn-title-wrap{display:flex;align-items:center;gap:8px}
 .txn-name{font-weight:800;font-size:.9em}
 .txn-date{font-size:.75em;color:#8b949e}
 .txn-det{font-size:.8em;color:#8b949e}
@@ -197,7 +202,6 @@ async function syncSheets(){
       const res=await fetch(url);
       if(!res.ok)throw new Error(`${acct} 로드 실패`);
       const rows=parseCSV(await res.text());
-      // v6 구조: 헤더2줄 + 종목(홀수행=행1, 0-indexed: 2,4,6,...)
       for(let i=2;i<rows.length;i+=2){
         const name=rows[i][0]?.replace(/"/g,"").trim();
         const v=parseFloat(rows[i][2]?.replace(/[^0-9.\-]/g,""));
@@ -255,6 +259,7 @@ function mkHdr(){
     <div class="btn-row">
       <button class="hdr-btn btn-bulk" id="btnBulk">📝 일괄 가격 입력</button>
       <button class="hdr-btn btn-add" id="btnAdd">+ 종목 추가</button>
+      <button class="hdr-btn btn-backup" id="btnBackup">💾 데이터 보관</button>
     </div>`;
   return d;
 }
@@ -368,14 +373,24 @@ function drawChart(){
 
 function mkTxn(){
   const d=document.createElement("div");
+  d.className="txn-container";
   if(!S.txns.length){d.innerHTML='<div class="empty">📭 거래 내역이 없어요</div>';return d;}
-  d.className="txn-list";
+  
+  let html=`<button class="btn-clear-txn" id="btnClearTxn">🗑️ 거래내역 전체 삭제</button><div class="txn-list">`;
   S.txns.forEach(t=>{
-    const el=document.createElement("div");el.className="txn";
-    el.innerHTML=`<div class="txn-head"><span class="txn-name">${t.mode==='buy'?'📈':'📉'} ${t.name}</span><span class="txn-date">${t.date}</span></div>
-      <div class="txn-det">${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}${t.mode==='sell'?` | 실현손익: <span class="${t.pnl>=0?'pos':'neg'}">${t.pnl>=0?'+':''}${t.pnl.toFixed(2)}</span>`:''}`;
-    d.appendChild(el);
+    html+=`<div class="txn">
+      <div class="txn-head">
+        <div class="txn-title-wrap">
+          <span class="txn-name">${t.mode==='buy'?'📈':'📉'} ${t.name}</span>
+          <span class="txn-date">${t.date}</span>
+        </div>
+        <button class="cbtn cbtn-del txn-del" data-txnid="${t.id}">취소</button>
+      </div>
+      <div class="txn-det">${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}${t.mode==='sell'?` | 실현손익: <span class="${t.pnl>=0?'pos':'neg'}">${t.pnl>=0?'+':''}${t.pnl.toFixed(2)}</span>`:''}</div>
+    </div>`;
   });
+  html+=`</div>`;
+  d.innerHTML=html;
   return d;
 }
 
@@ -422,6 +437,14 @@ function mkModal(){
       <button class="mbtn mbtn-pri" id="exec">연동 시작</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
   }
+  if(S.modal.type==="backup"){
+    const currentData = JSON.stringify({stocks:S.stocks, txns:S.txns, rate:S.rate, sheetsId:S.sheetsId});
+    d.innerHTML=`<div class="modal"><div class="modal-title">💾 텍스트로 데이터 보관/복구<button class="modal-close" id="mc">×</button></div>
+      <div class="sync-step" style="margin-bottom:10px"><b>[백업]</b> 아래 텍스트를 모두 복사해서 카카오톡 나에게 보내기나 메모장에 저장해두세요.<br><b>[복구]</b> 보관해둔 텍스트를 아래 칸에 붙여넣고 데이터 복구 버튼을 누르세요.</div>
+      <div class="field"><textarea id="bkText">${currentData}</textarea></div>
+      <button class="mbtn mbtn-pri" id="btnRestore">📥 이 텍스트로 데이터 복구하기</button>
+      <button class="mbtn mbtn-sec" id="mc2">닫기</button></div>`;
+  }
   return d;
 }
 
@@ -433,6 +456,7 @@ function bind(){
   q("#btnSync")?.addEventListener("click",()=>{S.modal={type:"sync"};render();});
   q("#btnBulk")?.addEventListener("click",()=>{S.modal={type:"bulk"};render();});
   q("#btnAdd")?.addEventListener("click",()=>{S.modal={type:"add"};render();});
+  q("#btnBackup")?.addEventListener("click",()=>{S.modal={type:"backup"};render();});
   q("#mc")?.addEventListener("click",close);
   q("#mc2")?.addEventListener("click",close);
   q("#mbg")?.addEventListener("click",e=>{if(e.target===q("#mbg"))close();});
@@ -455,6 +479,67 @@ function bind(){
     const s=S.stocks.find(x=>x.id===+b.dataset.del);
     if(s&&confirm(`'${s.name}' 삭제할까요?`)){S.stocks=S.stocks.filter(x=>x.id!==+b.dataset.del);save();render();}
   }));
+
+  // 거래내역 개별 항목 취소(롤백) 바인딩
+  qa(".txn-del").forEach(btn=>btn.addEventListener("click", e=>{
+    const txId = parseInt(e.target.dataset.txnid);
+    const tIdx = S.txns.findIndex(x => x.id === txId);
+    if(tIdx === -1) return;
+    const t = S.txns[tIdx];
+
+    if(confirm(`'${t.name}'의 ${t.mode==='buy'?'매수':'매도'} 내역을 삭제하고 해당 거래를 취소하시겠습니까?`)){
+      const s = S.stocks.find(x => x.id === t.stockId);
+      if(s){
+        if(t.mode === "buy"){
+          const prevQty = s.qty - t.qty;
+          if(prevQty <= 0){
+            s.qty = 0;
+            s.avg = 0;
+          } else {
+            // 매수 이전의 평단가로 롤백 계산
+            s.avg = (s.qty * s.avg - t.qty * t.price) / prevQty;
+            s.qty = prevQty;
+          }
+        } else if(t.mode === "sell"){
+          // 매도 이전 수량 복구 (평단가는 변하지 않음)
+          s.qty += t.qty;
+        }
+      }
+      S.txns.splice(tIdx, 1);
+      save();
+      render();
+    }
+  }));
+
+  // 거래내역 전체 삭제 버튼 바인딩
+  q("#btnClearTxn")?.addEventListener("click",()=>{
+    if(confirm("모든 거래 내역을 삭제하시겠습니까? (이 작업은 보유 수량이나 평단가를 되돌리지 않습니다. 내역만 비웁니다.)")) {
+      S.txns=[];
+      save();
+      render();
+    }
+  });
+
+  // 데이터 텍스트 복구 실행 버튼
+  q("#btnRestore")?.addEventListener("click",()=>{
+    try {
+      const restoredData = JSON.parse(q("#bkText").value);
+      if(restoredData && restoredData.stocks) {
+        S.stocks = restoredData.stocks;
+        S.txns = restoredData.txns || [];
+        S.rate = restoredData.rate || 1510;
+        S.sheetsId = restoredData.sheetsId || "";
+        save();
+        S.modal = null;
+        alert("데이터가 성공적으로 복구되었습니다!");
+        render();
+      } else {
+        alert("올바르지 않은 데이터 형식입니다.");
+      }
+    } catch(err) {
+      alert("텍스트를 분석하는 중 오류가 발생했습니다. 내용을 다시 확인해주세요.");
+    }
+  });
 
   // 거래 미리보기
   const upPrev=()=>{
