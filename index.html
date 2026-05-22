@@ -4,66 +4,82 @@
 <meta charset="UTF-8">
 <title>포트폴리오</title>
 <style>
-body { background: #0d1117; color: white; font-family: sans-serif; }
-.hdr { padding: 20px; background: #161b22; }
-.card { background: #21262d; padding: 15px; margin: 10px; border-radius: 10px; }
-.btn { padding: 10px; background: #238636; color: white; border: none; border-radius: 5px; margin: 5px; }
+/* 기본 다크 테마 스타일 */
+body{background:#0d1117;color:#e6edf3;font-family:sans-serif;padding:10px}
+.hdr{background:#161b22;padding:15px;border-radius:10px;margin-bottom:10px}
+.card{background:#21262d;padding:15px;margin-bottom:10px;border-radius:10px}
+.btn{padding:8px 12px;background:#238636;color:white;border:none;border-radius:5px;cursor:pointer}
 </style>
 </head>
 <body>
 <div id="app"></div>
 
 <script>
-// 1. 데이터 세팅
+// 1. 데이터 구조 및 초기값 (이미지 데이터 기반)
 let S = {
     stocks: [
         {id:1, name:"나비타스 세미컨덕터", qty:877, avg:20.3280, cur:28.4150, curr:"USD", tag:"성장주", acct:"메리츠증권"},
         {id:2, name:"GE베르노바", qty:16, avg:813.8956, cur:1052.5000, curr:"USD", tag:"성장주", acct:"메리츠증권"},
         {id:3, name:"알파벳 A", qty:41, avg:239.1231, cur:386.8000, curr:"USD", tag:"성장주", acct:"메리츠증권"},
-        {id:4, name:"현금(USD)", qty:2656, avg:1, cur:1, curr:"USD", tag:"현금", acct:"메리츠증권"}
+        {id:4, name:"💵 현금(USD)", qty:2656, avg:1, cur:1, curr:"USD", tag:"현금", acct:"메리츠증권"}
     ],
     rate: 1380,
-    sheetsId: ""
+    sheetsId: "",
+    tab: "list"
 };
 
-// 2. 환율 연동 (B3 셀 타겟)
-async function syncRate() {
+// 2. 로컬 저장소 로드/저장
+function load(){
+    const d=JSON.parse(localStorage.getItem("pf_v2")||"{}");
+    if(d.stocks) S={...S,...d};
+}
+function save(){localStorage.setItem("pf_v2",JSON.stringify(S));}
+
+// 3. 환율 연동 (B3 셀 타겟)
+async function syncSheets(){
     if(!S.sheetsId) S.sheetsId = prompt("구글 시트 ID를 입력하세요:");
     try {
         const res = await fetch(`https://docs.google.com/spreadsheets/d/${S.sheetsId}/gviz/tq?tqx=out:csv&sheet=메리츠증권&range=B3:B3`);
         const text = await res.text();
         const val = parseFloat(text.split('\n')[1]?.replace(/[^0-9.]/g,""));
-        if(!isNaN(val)) { S.rate = val; alert("환율 연동 완료: " + val); }
-        render();
-    } catch(e) { alert("연동 실패"); }
+        if(!isNaN(val)) { S.rate = val; alert("환율 연동 성공: ₩" + val); }
+        save(); render();
+    } catch(e) { alert("연동 실패: " + e.message); }
 }
 
-// 3. 화면 그리기
-function render() {
+// 4. 화면 렌더링
+function render(){
     const app = document.getElementById("app");
     app.innerHTML = `
         <div class="hdr">
             <h2>총 자산: ₩${Math.round(S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0)).toLocaleString()}</h2>
-            <button class="btn" onclick="syncRate()">🔄 환율 연동</button>
+            <button class="btn" onclick="syncSheets()">🔄 환율 연동</button>
         </div>
         <div id="list"></div>
     `;
     
-    document.getElementById("list").innerHTML = S.stocks.map(s => `
+    // 종목 목록 렌더링
+    document.getElementById("list").innerHTML = S.stocks.filter(s=>!s.name.includes("현금")).map(s => `
         <div class="card">
-            <div>${s.name} | 수량: ${s.qty} | 현재가: ${s.cur}</div>
-            <button onclick="editTag(${s.id})">📝 태그수정</button>
+            <div style="font-weight:bold">${s.name} (${s.tag})</div>
+            <div style="font-size:0.9em;color:#8b949e">수량: ${s.qty} | 평단: ${s.avg} | 현재가: ${s.cur}</div>
+            <button onclick="editStock(${s.id})" class="btn" style="background:#3b82f6;font-size:0.7em">📝 수정</button>
+            <button onclick="deleteStock(${s.id})" class="btn" style="background:#f43f5e;font-size:0.7em">🗑 삭제</button>
         </div>
     `).join('');
 }
 
-window.editTag = (id) => {
+// 5. 기능 함수
+window.editStock = (id) => {
     const s = S.stocks.find(x => x.id === id);
-    s.tag = prompt("태그 수정:", s.tag);
-    render();
+    s.tag = prompt("태그 수정:", s.tag) || s.tag;
+    save(); render();
+};
+window.deleteStock = (id) => {
+    if(confirm("삭제할까요?")) { S.stocks = S.stocks.filter(x => x.id !== id); save(); render(); }
 };
 
-render();
+load(); render();
 </script>
 </body>
 </html>
