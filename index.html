@@ -2,85 +2,85 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>포트폴리오</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
-/* CSS 스타일은 이전과 동일 */
-body{background:#0d1117;color:#e6edf3;font-family:sans-serif;margin:0}
-.hdr{background:#161b22;padding:20px;border-bottom:1px solid #30363d}
-.card{background:#1c2128;margin:10px;padding:15px;border-radius:10px;border:1px solid #30363d}
-.btn{padding:8px 12px;margin:5px;background:#238636;color:white;border:none;border-radius:5px;cursor:pointer}
-</style>
-</head>
-<body>
-<div id="app"></div>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;font-size:15px;min-height:100vh}
+button{cursor:pointer;font-family:inherit;border:none;outline:none;background:none}
+input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 
-<script>
-// 1. 데이터 관리 (앱이 로드될 때 실행)
-let S = {
-    stocks: JSON.parse(localStorage.getItem("pf_v2_stocks") || "[]"),
-    rate: parseFloat(localStorage.getItem("pf_rate")) || 1380,
-    sheetsId: localStorage.getItem("pf_sheetsId") || ""
-};
+/* 헤더 */
+.hdr{background:linear-gradient(160deg,#1e1b4b 0%,#0f172a 100%);padding:16px;border-bottom:1px solid #30363d}
+.hdr-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.hdr-title{font-size:1.15em;font-weight:800;color:#a5b4fc;letter-spacing:-.3px}
+.sync-btn{background:rgba(99,102,241,.25);border:1px solid rgba(99,102,241,.5);color:#a5b4fc;padding:8px 14px;border-radius:10px;font-size:.82em;font-weight:700}
 
-// 2. 환율 연동 (B3 셀 타겟)
-async function syncRate() {
-    if(!S.sheetsId) S.sheetsId = prompt("구글 시트 ID를 입력하세요:");
-    localStorage.setItem("pf_sheetsId", S.sheetsId);
-    try {
-        const res = await fetch(`https://docs.google.com/spreadsheets/d/${S.sheetsId}/gviz/tq?tqx=out:csv&sheet=메리츠증권&range=B3:B3`);
-        const text = await res.text();
-        const val = parseFloat(text.split('\n')[1]?.replace(/[^0-9.]/g,""));
-        if(!isNaN(val)) { 
-            S.rate = val; 
-            localStorage.setItem("pf_rate", val);
-            alert("환율 연동 완료: ₩" + val); 
-            render(); 
-        }
-    } catch(e) { alert("연동 실패"); }
-}
+/* 총자산 카드 */
+.asset-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.asset-card{background:rgba(255,255,255,.06);border:1px solid #30363d;border-radius:12px;padding:10px 12px}
+.ac-lbl{font-size:.7em;color:#8b949e;margin-bottom:3px}
+.ac-val{font-size:1.05em;font-weight:800;line-height:1.2}
 
-// 3. 화면 렌더링 (DOM이 로드된 후 실행되도록 보장)
-function render() {
-    const app = document.getElementById("app");
-    if(!app) return; // 안전장치
+/* 버튼 행 */
+.btn-row{display:flex;gap:6px;margin-bottom:4px;flex-wrap:nowrap;overflow-x:auto}
+.btn-row::-webkit-scrollbar{display:none}
+.hdr-btn{flex:1;padding:9px 8px;border-radius:10px;font-size:.78em;font-weight:700;text-align:center;white-space:nowrap}
+.btn-bulk{background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#fbbf24}
+.btn-add{background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);color:#34d399}
+.btn-cash{background:rgba(6,182,212,.2);border:1px solid rgba(6,182,212,.4);color:#22d3ee}
+.btn-backup{background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);color:#60a5fa}
+.btn-export{background:rgba(236,72,153,.2);border:1px solid rgba(236,72,153,.4);color:#f472b6}
 
-    app.innerHTML = `
-        <div class="hdr">
-            <h2>총 자산: ₩${Math.round(S.stocks.reduce((a,s)=>a+(s.qty*s.cur*S.rate),0)).toLocaleString()}</h2>
-            <button class="btn" onclick="syncRate()">🔄 B3 환율 연동</button>
-        </div>
-        <div id="list"></div>
-    `;
+/* 탭 */
+.tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;position:sticky;top:0;z-index:10}
+.tab{flex:1;padding:13px 0;text-align:center;font-size:.82em;font-weight:700;color:#8b949e;border-bottom:2px solid transparent;transition:.15s}
+.tab.on{color:#a5b4fc;border-bottom-color:#6366f1;background:rgba(99,102,241,.06)}
 
-    document.getElementById("list").innerHTML = S.stocks.map(s => `
-        <div class="card">
-            <div><b>${s.name}</b> (${s.tag || '기타'})</div>
-            <div style="font-size:0.85em;color:#8b949e">수량: ${s.qty} | 평단: ${s.avg} | 현재가: ${s.cur}</div>
-            <button class="btn" onclick="editStock(${s.id})">📝 수정</button>
-            <button class="btn" onclick="deleteStock(${s.id})" style="background:#f43f5e">🗑 삭제</button>
-        </div>
-    `).join('');
-}
+/* 필터 */
+.filters{display:flex;gap:8px;padding:12px 14px;background:#161b22;border-bottom:1px solid #30363d;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.filters::-webkit-scrollbar{display:none}
+.flt{padding:7px 16px;border-radius:20px;font-size:.82em;font-weight:700;border:1px solid #30363d;color:#8b949e;white-space:nowrap;background:transparent}
+.flt.on{background:rgba(99,102,241,.2);border-color:rgba(99,102,241,.5);color:#a5b4fc}
+.rate-inp{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:8px;padding:6px 10px;font-size:.82em;width:90px;margin-left:auto;flex-shrink:0}
 
-// 4. 기능 함수
-window.editStock = (id) => {
-    const s = S.stocks.find(x => x.id === id);
-    s.tag = prompt("태그 수정:", s.tag || "") || s.tag;
-    localStorage.setItem("pf_v2_stocks", JSON.stringify(S.stocks));
-    render();
-};
-window.deleteStock = (id) => {
-    if(confirm("삭제할까요?")) { 
-        S.stocks = S.stocks.filter(x => x.id !== id); 
-        localStorage.setItem("pf_v2_stocks", JSON.stringify(S.stocks));
-        render(); 
-    }
-};
+/* 종목 카드 */
+.cards{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:14px;transition:.1s}
 
-// 5. 앱 실행
-window.onload = render;
-</script>
-</body>
-</html>
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.card-name{font-size:1em;font-weight:800;color:#e6edf3;flex:1;margin-right:8px;line-height:1.3}
+.card-pct{font-size:1em;font-weight:800}
+.card-chips{display:flex;gap:5px;margin-top:4px}
+.chip{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.7em;font-weight:700}
+.chip-m{background:rgba(99,102,241,.2);color:#a5b4fc}
+.chip-i{background:rgba(16,185,129,.2);color:#34d399}
+.chip-tag{border-radius:20px}
+
+.card-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px}
+.cg-item{background:rgba(255,255,255,.04);border-radius:8px;padding:7px 9px}
+.cg-lbl{font-size:.68em;color:#8b949e;margin-bottom:2px}
+.cg-val{font-size:.88em;font-weight:700;color:#e6edf3}
+
+.card-bottom{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.cur-wrap{display:flex;align-items:center;gap:5px;flex:1}
+.cur-lbl{font-size:.75em;color:#8b949e;white-space:nowrap}
+.cur-inp{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:8px;padding:7px 10px;font-size:.88em;font-weight:700;color:#e6edf3;width:110px;text-align:right}
+.card-btns{display:flex;gap:5px;flex-shrink:0}
+.cbtn{padding:6px 11px;border-radius:8px;font-size:.78em;font-weight:800}
+.cbtn-buy{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#10b981}
+.cbtn-sell{background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.3);color:#f43f5e}
+.cbtn-del{background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);color:#94a3b8;padding:6px 9px}
+
+.pos{color:#10b981}
+.neg{color:#f43f5e}
+
+/* 모달 */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:flex-end;justify-content:center;z-index:100;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.modal{background:#1c2128;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 18px;max-height:88vh;overflow-y:auto}
+.modal-title{font-size:1.05em;font-weight:800;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;color:#e6edf3}
+.modal-close{color:#8b949e;font-size:1.5em;padding:0 4px;background:none;border:none}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:.78em;color:#8b949e;margin-bottom:5px;font-weight:600}
+.field input
