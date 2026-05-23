@@ -161,13 +161,13 @@ const INIT=[
   {id:12,name:"Direxion Gold 2X",qty:2,avg:174.94,cur:162.47,curr:"USD",tag:"기타",acct:"메리츠증권"},
   {id:13,name:"아이온큐",qty:1,avg:48.94,cur:58.37,curr:"USD",tag:"성장주",acct:"메리츠증권"},
   {id:14,name:"IREN",qty:1,avg:56.68,cur:47.72,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:16,name:"KoAct 팔란티어 밸류체인",qty:720,avg:14198,cur:18840,curr:"KRW",tag:"성장주",acct:"ISA"},
+  {id:16,name:"KoAct 팔란티어밸류체인액티브",qty:720,avg:14198,cur:18840,curr:"KRW",tag:"성장주",acct:"ISA"},
   {id:17,name:"KODEX 미국서학개미",qty:189,avg:21478,cur:27175,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:18,name:"TIME 미국나스닥100",qty:345,avg:42639,cur:53315,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:19,name:"KODEX 미국배당커버드콜",qty:490,avg:11997,cur:13245,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:20,name:"TIGER 미국초단기",qty:761,avg:9963,cur:10430,curr:"KRW",tag:"현금/채권",acct:"ISA"},
-  {id:21,name:"TIGER 글로벌비만치료제",qty:235,avg:10250,cur:10675,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:22,name:"KODEX 미국AI전력인프라",qty:307,avg:26408,cur:25710,curr:"KRW",tag:"기타",acct:"ISA"},
+  {id:18,name:"TIMEFOLIO 미국나스닥100액티브",qty:345,avg:42639,cur:53315,curr:"KRW",tag:"기타",acct:"ISA"},
+  {id:19,name:"KODEX 미국배당커버드콜액티브",qty:490,avg:11997,cur:13245,curr:"KRW",tag:"기타",acct:"ISA"},
+  {id:20,name:"TIGER 미국초단기(3개월이하)국채",qty:761,avg:9963,cur:10430,curr:"KRW",tag:"현금/채권",acct:"ISA"},
+  {id:21,name:"TIGER 글로벌비만치료제TOP2Plus",qty:235,avg:10250,cur:10675,curr:"KRW",tag:"기타",acct:"ISA"},
+  {id:22,name:"KODEX 미국AI전력핵심인프라",qty:307,avg:26408,cur:25710,curr:"KRW",tag:"기타",acct:"ISA"},
   {id:23,name:"한화",qty:1,avg:132000,cur:134600,curr:"KRW",tag:"방어주",acct:"ISA"},
 ];
 const TC_DEFAULT={"성장주":"#6366f1","방어주":"#10b981","중소형주":"#f59e0b","현금/채권":"#06b6d4","기타":"#94a3b8"};
@@ -579,11 +579,17 @@ function mkTxn(){
   d.className="txn-list";
   S.txns.forEach(t=>{
     const el=document.createElement("div");el.className="txn";
+    let detail=`${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}`;
+    if(t.mode==='sell'){
+      const inv=t.prevAvg*t.qty;
+      const pct=inv>0?t.pnl/inv*100:0;
+      detail+=` · 실현손익 <span class="${t.pnl>=0?'pos':'neg'}">${t.pnl>=0?'+':''}${t.pnl.toFixed(2)} (${pct>=0?'+':''}${pct.toFixed(2)}%)</span>`;
+    }
     el.innerHTML=`<div class="txn-head">
       <span class="txn-name">${t.mode==='buy'?'📈':'📉'} ${t.name}</span>
       <span class="txn-date">${t.date} ${t.time||''}</span>
     </div>
-    <div class="txn-det">${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}${t.mode==='sell'?` · 실현손익 <span class="${t.pnl>=0?'pos':'neg'}">${t.pnl>=0?'+':''}${t.pnl.toFixed(2)}</span>`:''}</div>
+    <div class="txn-det">${detail}</div>
     <div class="txn-actions"><button class="cbtn cbtn-undo" data-txn-undo="${t.id}">↩️ 거래 취소</button></div>`;
     d.appendChild(el);
   });
