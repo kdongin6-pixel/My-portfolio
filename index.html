@@ -137,7 +137,26 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .txn-actions{display:flex;justify-content:flex-end}
 
 .msg-sync{font-size:.8em;text-align:center;padding:8px;margin-bottom:10px;border-radius:8px}
-.empty{padding:50px 20px;text-align:center;color:#8b949e;font-size:.9em}
+.empty{padding:50px 20px;text-align:center;color:#8b949e;font-size:.9em;line-height:1.6}
+
+/* 📈 추이 탭 */
+.trend-wrap{padding:14px}
+.trend-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
+.ts-item{background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.25);border-radius:12px;padding:10px 12px}
+.ts-lbl{font-size:.7em;color:#8b949e;margin-bottom:3px}
+.ts-val{font-size:.95em;font-weight:800;line-height:1.2}
+.trend-chart-box{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:14px;margin-bottom:12px}
+.trend-chart-title{font-size:.85em;font-weight:700;color:#a5b4fc;margin-bottom:10px;padding:0 4px}
+
+/* 📓 일지 탭 */
+.journal-list{padding:12px;display:flex;flex-direction:column;gap:8px}
+.journal-item{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:13px}
+.journal-head{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.journal-cat{font-size:.72em;padding:3px 9px;border-radius:6px;font-weight:700}
+.journal-stock{font-size:.82em;font-weight:800;color:#a5b4fc}
+.journal-date{font-size:.72em;color:#8b949e;margin-left:auto}
+.journal-content{font-size:.88em;color:#e6edf3;line-height:1.5;white-space:pre-wrap;margin-bottom:8px}
+.journal-actions{display:flex;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -183,10 +202,14 @@ let S={
   cash:{메리츠증권:{USD:0,KRW:0},ISA:{USD:0,KRW:0}},  // 계좌별 통화별 현금
   cashTxns:[],  // 현금 입출금 내역 (손익 계산 제외)
   txns:[],      // 거래내역 (취소를 위해 prevQty/prevAvg 저장)
+  snapshots:[], // 일간 스냅샷 [{date,totalKRW,stockKRW,cashKRW,pnl,pct,rate,byStock:{}}]
+  journal:[],   // 매매일지 [{id,date,time,stockId,stockName,category,content}]
   tags:[...DEFAULT_TAGS],
   tagColors:{...TC_DEFAULT},
   rate:1510,
   tab:"list",acct:"전체",wMode:"stock",modal:null,syncMsg:"",
+  trendPeriod:"1M",  // 1W | 1M | 3M | 1Y | ALL
+  jFilter:"전체",    // 일지 필터 (종목명 or "전체")
   // 클라우드 동기화
   cloudStatus:"",  // "" | "saving" | "saved" | "error"
   lastCloudSync:null,
@@ -201,6 +224,8 @@ function load(){
       S.cash=d.cash||{메리츠증권:{USD:0,KRW:0},ISA:{USD:0,KRW:0}};
       S.cashTxns=d.cashTxns||[];
       S.txns=d.txns||[];
+      S.snapshots=d.snapshots||[];
+      S.journal=d.journal||[];
       S.tags=d.tags||[...DEFAULT_TAGS];
       S.tagColors=d.tagColors||{...TC_DEFAULT};
       S.rate=d.rate||1510;
@@ -241,12 +266,45 @@ function migrateFromV2(){
 }
 
 function save(){
+  // 매번 저장 시 오늘 스냅샷 갱신
+  updateTodaySnapshot();
   localStorage.setItem("pf_v3",JSON.stringify({
     stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
+    snapshots:S.snapshots,journal:S.journal,
     tags:S.tags,tagColors:S.tagColors,rate:S.rate
   }));
   // 클라우드 자동 저장 (debounce 2초)
   scheduleCloudSave();
+}
+
+// ═══════════════════════════════════════════
+// 일간 스냅샷
+// ═══════════════════════════════════════════
+function todayKey(){
+  const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function updateTodaySnapshot(){
+  if(!S.stocks||!S.stocks.length)return;
+  const today=todayKey();
+  const stockKRW=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0);
+  const inv=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
+  const cashKRW=Object.values(S.cash).reduce((a,c)=>a+(c.USD||0)*S.rate+(c.KRW||0),0);
+  const pnl=stockKRW-inv;
+  const pct=inv>0?pnl/inv*100:0;
+  const byStock={};
+  S.stocks.forEach(s=>{byStock[s.name]=Math.round(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur);});
+  const snap={date:today,totalKRW:Math.round(stockKRW+cashKRW),stockKRW:Math.round(stockKRW),
+    cashKRW:Math.round(cashKRW),pnl:Math.round(pnl),pct:Number(pct.toFixed(2)),rate:S.rate,byStock};
+  const idx=S.snapshots.findIndex(x=>x.date===today);
+  if(idx>=0)S.snapshots[idx]=snap;
+  else S.snapshots.push(snap);
+  S.snapshots.sort((a,b)=>a.date.localeCompare(b.date));
+  // 1년 초과 정리
+  const cutoff=new Date();cutoff.setFullYear(cutoff.getFullYear()-1);
+  const cutoffStr=cutoff.toISOString().slice(0,10);
+  S.snapshots=S.snapshots.filter(x=>x.date>=cutoffStr);
 }
 
 // ═══════════════════════════════════════════
@@ -262,6 +320,7 @@ async function saveToCloud(){
   try{
     const payload={
       stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
+      snapshots:S.snapshots,journal:S.journal,
       tags:S.tags,tagColors:S.tagColors,rate:S.rate,
       updatedAt:new Date().toISOString()
     };
@@ -307,6 +366,8 @@ async function loadFromCloud(showAlert){
       if(a.cash)S.cash=a.cash;
       if(a.cashTxns)S.cashTxns=a.cashTxns;
       if(a.txns)S.txns=a.txns;
+      if(a.snapshots)S.snapshots=a.snapshots;
+      if(a.journal)S.journal=a.journal;
       if(a.tags)S.tags=a.tags;
       if(a.tagColors)S.tagColors=a.tagColors;
       if(a.rate)S.rate=a.rate;
@@ -323,6 +384,7 @@ async function loadFromCloud(showAlert){
       
       localStorage.setItem("pf_v3",JSON.stringify({
         stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
+        snapshots:S.snapshots,journal:S.journal,
         tags:S.tags,tagColors:S.tagColors,rate:S.rate
       }));
     }
@@ -487,10 +549,13 @@ function render(){
   if(S.tab==="list")app.appendChild(mkList());
   if(S.tab==="cash")app.appendChild(mkCash());
   if(S.tab==="chart")app.appendChild(mkChart());
+  if(S.tab==="trend")app.appendChild(mkTrend());
+  if(S.tab==="journal")app.appendChild(mkJournal());
   if(S.tab==="txn")app.appendChild(mkTxn());
   if(S.modal)app.appendChild(mkModal());
   bind();
   if(S.tab==="chart")drawChart();
+  if(S.tab==="trend")drawTrend();
 }
 
 function mkHdr(){
@@ -524,6 +589,8 @@ function mkTabs(){
     <div class="tab ${S.tab==='list'?'on':''}" data-tab="list">📋 종목</div>
     <div class="tab ${S.tab==='cash'?'on':''}" data-tab="cash">💰 현금</div>
     <div class="tab ${S.tab==='chart'?'on':''}" data-tab="chart">📊 비중</div>
+    <div class="tab ${S.tab==='trend'?'on':''}" data-tab="trend">📈 추이</div>
+    <div class="tab ${S.tab==='journal'?'on':''}" data-tab="journal">📓 일지</div>
     <div class="tab ${S.tab==='txn'?'on':''}" data-tab="txn">📒 내역</div>
   </div>`;
   return d;
@@ -649,29 +716,20 @@ function mkChart(){
     </div>`;
   return d;
 }
+
 function drawChart(){
   const fl=filt(),tot=totK(fl);
   let labels=[],vals=[],colors=[];
-  
-  // 🎨 [추가된 부분] 종목별로 다르게 표시할 고유 색상 팔레트
-  const stockPalette = [
-    "#f87171", "#fb923c", "#fbbf24", "#a3e635", "#4ade80", "#34d399", 
-    "#2dd4bf", "#38bdf8", "#60a5fa", "#818cf8", "#a78bfa", "#e879f9", 
-    "#f472b6", "#fb7185", "#fcd34d", "#bbf7d0", "#99f6e4", "#bae6fd"
-  ];
-
+  // 종목별 고유 색상 팔레트
+  const stockPalette=["#f87171","#fb923c","#fbbf24","#a3e635","#4ade80","#34d399",
+    "#2dd4bf","#38bdf8","#60a5fa","#818cf8","#a78bfa","#e879f9",
+    "#f472b6","#fb7185","#fcd34d","#bbf7d0","#99f6e4","#bae6fd"];
   if(S.wMode==="stock"){
-    fl.forEach((s, i)=>{
-      labels.push(s.name);
-      vals.push(evK(s));
-      // 태그 색상이 아닌 순번(i)에 맞는 팔레트 색상 적용
-      colors.push(stockPalette[i % stockPalette.length]);
-    });
+    fl.forEach((s,i)=>{labels.push(s.name);vals.push(evK(s));colors.push(stockPalette[i%stockPalette.length]);});
   }else{
     const m={};fl.forEach(s=>{const t=s.tag||"기타";m[t]=(m[t]||0)+evK(s);});
     Object.entries(m).forEach(([t,v])=>{labels.push(t);vals.push(v);colors.push(S.tagColors[t]||"#94a3b8");});
   }
-  
   const ctx=document.getElementById("donut");
   if(!ctx||!labels.length)return;
   new Chart(ctx,{type:"doughnut",data:{labels,datasets:[{data:vals,backgroundColor:colors.map(c=>c+"99"),borderColor:colors,borderWidth:2}]},
@@ -682,6 +740,183 @@ function drawChart(){
     el.innerHTML=`<div class="l-dot" style="background:${colors[i]}"></div><div class="l-name">${l}</div><div class="l-pct">${(tot>0?vals[i]/tot*100:0).toFixed(1)}%</div>`;
     lg.appendChild(el);
   });
+}
+
+// ═══════════════════════════════════════════
+// 📈 추이 탭
+// ═══════════════════════════════════════════
+function mkTrend(){
+  const d=document.createElement("div");
+  const periods=[["1W","1주"],["1M","1달"],["3M","3달"],["1Y","1년"],["ALL","전체"]];
+  const btns=periods.map(([k,l])=>`<button class="flt ${S.trendPeriod===k?'on':''}" data-period="${k}">${l}</button>`).join('');
+  
+  if(!S.snapshots||S.snapshots.length<1){
+    d.innerHTML=`<div class="filters">${btns}</div>
+      <div class="empty">📭 스냅샷 데이터가 없어요<br><br><span style="font-size:.85em">매일 페이지에 한 번씩 방문하면<br>자동으로 기록돼서 추이를 볼 수 있어요</span></div>`;
+    return d;
+  }
+  
+  // 기간 필터링
+  const now=new Date();
+  let cutoff=new Date(0);
+  if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
+  else if(S.trendPeriod==="1M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-1);}
+  else if(S.trendPeriod==="3M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-3);}
+  else if(S.trendPeriod==="1Y"){cutoff=new Date(now);cutoff.setFullYear(cutoff.getFullYear()-1);}
+  const cutoffStr=cutoff.toISOString().slice(0,10);
+  const filtered=S.snapshots.filter(s=>s.date>=cutoffStr);
+  
+  // 통계 계산
+  let summary='';
+  if(filtered.length>=2){
+    const first=filtered[0],last=filtered[filtered.length-1];
+    const change=last.totalKRW-first.totalKRW;
+    const changePct=first.totalKRW>0?change/first.totalKRW*100:0;
+    summary=`<div class="trend-summary">
+      <div class="ts-item"><div class="ts-lbl">현재 총자산</div><div class="ts-val">₩${fK(last.totalKRW)}</div></div>
+      <div class="ts-item"><div class="ts-lbl">기간 변화</div><div class="ts-val ${change>=0?'pos':'neg'}">${change>=0?'+':''}₩${fK(change)}</div></div>
+      <div class="ts-item"><div class="ts-lbl">기간 수익률</div><div class="ts-val ${changePct>=0?'pos':'neg'}">${fP(changePct)}</div></div>
+    </div>`;
+  }
+  
+  d.innerHTML=`
+    <div class="filters">${btns}</div>
+    <div class="trend-wrap">
+      ${summary}
+      <div class="trend-chart-box">
+        <div class="trend-chart-title">💰 총 자산 추이 (KRW)</div>
+        <canvas id="trendTotal" height="200"></canvas>
+      </div>
+      <div class="trend-chart-box">
+        <div class="trend-chart-title">📈 누적 수익률 (%)</div>
+        <canvas id="trendPct" height="180"></canvas>
+      </div>
+      <div style="font-size:.75em;color:#8b949e;text-align:center;padding:10px">기록된 일수: ${filtered.length}일 / 전체 ${S.snapshots.length}일</div>
+    </div>`;
+  return d;
+}
+
+function drawTrend(){
+  const now=new Date();
+  let cutoff=new Date(0);
+  if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
+  else if(S.trendPeriod==="1M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-1);}
+  else if(S.trendPeriod==="3M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-3);}
+  else if(S.trendPeriod==="1Y"){cutoff=new Date(now);cutoff.setFullYear(cutoff.getFullYear()-1);}
+  const cutoffStr=cutoff.toISOString().slice(0,10);
+  const data=S.snapshots.filter(s=>s.date>=cutoffStr);
+  if(!data.length)return;
+  
+  const labels=data.map(s=>s.date.slice(5));
+  const totals=data.map(s=>s.totalKRW);
+  const pcts=data.map(s=>s.pct);
+  
+  // 총자산 차트
+  const ctx1=document.getElementById("trendTotal");
+  if(ctx1){
+    new Chart(ctx1,{type:"line",data:{labels,datasets:[{
+      label:"총자산",data:totals,borderColor:"#a5b4fc",backgroundColor:"rgba(99,102,241,.15)",
+      fill:true,tension:.3,pointRadius:data.length<=14?3:0,pointHoverRadius:5,borderWidth:2
+    }]},options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`₩${fK(c.parsed.y)}`}}},
+      scales:{
+        x:{ticks:{color:"#8b949e",maxTicksLimit:6,font:{size:10}},grid:{color:"rgba(48,54,61,.5)"}},
+        y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>"₩"+(v/1000000).toFixed(0)+"M"},grid:{color:"rgba(48,54,61,.5)"}}
+      }
+    }});
+  }
+  
+  // 수익률 차트
+  const ctx2=document.getElementById("trendPct");
+  if(ctx2){
+    const positive=pcts.map((v,i)=>v>=0?v:null);
+    new Chart(ctx2,{type:"line",data:{labels,datasets:[{
+      label:"수익률",data:pcts,
+      borderColor:ctx=>{const v=ctx.parsed?.y;return v>=0?"#10b981":"#f43f5e";},
+      segment:{borderColor:c=>(c.p1.parsed.y>=0?"#10b981":"#f43f5e")},
+      backgroundColor:"rgba(16,185,129,.1)",
+      fill:{target:"origin",above:"rgba(16,185,129,.15)",below:"rgba(244,63,94,.15)"},
+      tension:.3,pointRadius:data.length<=14?3:0,pointHoverRadius:5,borderWidth:2
+    }]},options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fP(c.parsed.y)}}},
+      scales:{
+        x:{ticks:{color:"#8b949e",maxTicksLimit:6,font:{size:10}},grid:{color:"rgba(48,54,61,.5)"}},
+        y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>v.toFixed(1)+"%"},grid:{color:"rgba(48,54,61,.5)"}}
+      }
+    }});
+  }
+}
+
+// ═══════════════════════════════════════════
+// 📓 매매일지 탭
+// ═══════════════════════════════════════════
+const JOURNAL_CATEGORIES={
+  buy_thesis:{label:"📈 매수논리",color:"#10b981"},
+  sell_thesis:{label:"📉 매도논리",color:"#f43f5e"},
+  news:{label:"📰 뉴스/이슈",color:"#3b82f6"},
+  thought:{label:"💭 생각",color:"#a78bfa"},
+  earnings:{label:"📊 실적",color:"#f59e0b"},
+  etc:{label:"📌 기타",color:"#94a3b8"}
+};
+
+function mkJournal(){
+  const d=document.createElement("div");
+  const stockNames=["전체",...new Set(S.journal.map(j=>j.stockName).filter(Boolean))];
+  const filtBtns=stockNames.map(n=>`<button class="flt ${S.jFilter===n?'on':''}" data-jfilt="${n}">${n}</button>`).join('');
+  
+  let journalCards='';
+  const items=S.jFilter==="전체"?S.journal:S.journal.filter(j=>j.stockName===S.jFilter);
+  
+  if(items.length===0){
+    journalCards='<div class="empty">📭 일지가 없어요<br><br><span style="font-size:.85em">"+ 일지 추가" 버튼으로<br>매수 사유, 뉴스, 생각을 기록해보세요</span></div>';
+  }else{
+    journalCards=items.map(j=>{
+      const cat=JOURNAL_CATEGORIES[j.category]||JOURNAL_CATEGORIES.etc;
+      return `<div class="journal-item" style="border-left:3px solid ${cat.color}">
+        <div class="journal-head">
+          <span class="journal-cat" style="background:${cat.color}22;color:${cat.color}">${cat.label}</span>
+          ${j.stockName?`<span class="journal-stock">${j.stockName}</span>`:''}
+          <span class="journal-date">${j.date} ${j.time||''}</span>
+        </div>
+        <div class="journal-content">${j.content}</div>
+        <div class="journal-actions">
+          <button class="cbtn cbtn-del" data-jdel="${j.id}">🗑 삭제</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  
+  d.innerHTML=`
+    <div class="filters">${filtBtns}</div>
+    <div style="padding:12px 12px 0">
+      <button class="mbtn mbtn-pri" id="btnAddJournal">+ 일지 추가</button>
+    </div>
+    <div class="journal-list">${journalCards}</div>`;
+  return d;
+}
+
+function execJournal(stockId,category,content){
+  if(!content||!content.trim())return alert("내용 입력");
+  const stock=stockId?S.stocks.find(x=>x.id===+stockId):null;
+  S.journal.unshift({
+    id:Date.now(),
+    stockId:stockId||null,
+    stockName:stock?.name||"",
+    category:category||"thought",
+    content:content.trim(),
+    date:new Date().toLocaleDateString("ko-KR"),
+    time:new Date().toLocaleTimeString("ko-KR",{hour:'2-digit',minute:'2-digit'})
+  });
+  save();S.modal=null;render();
+}
+
+function delJournal(id){
+  const j=S.journal.find(x=>x.id===id);
+  if(!j||!confirm("이 일지를 삭제할까요?"))return;
+  S.journal=S.journal.filter(x=>x.id!==id);
+  save();render();
 }
 
 function mkTxn(){
@@ -730,13 +965,12 @@ function mkModal(){
     const tagOpts=S.tags.map(t=>`<option>${t}</option>`).join('');
     d.innerHTML=`<div class="modal">
       <div class="modal-title">+ 종목 추가<button class="modal-close" id="mc">×</button></div>
-      <div class="field"><label>종목명</label><input type="text" id="an" placeholder="예: 애플"></div>
-      <div class="field"><label>티커 (선택)</label><input type="text" id="aticker" placeholder="예: AAPL (ISA는 005930)"></div>
+      <div class="field"><label>종목명</label><input type="text" id="an" placeholder="종목명"></div>
       <div class="field"><label>계좌</label><select id="aa"><option>메리츠증권</option><option>ISA</option></select></div>
       <div class="field"><label>통화</label><select id="ac"><option>USD</option><option>KRW</option></select></div>
-      <div class="field"><label>수량</label><input type="number" id="aq" placeholder="0"></div>
-      <div class="field"><label>평균단가</label><input type="number" id="aavg" placeholder="0"></div>
-      <div class="field"><label>현재가</label><input type="number" id="acur" placeholder="0"></div>
+      <div class="field"><label>수량</label><input type="number" id="aq"></div>
+      <div class="field"><label>평균단가</label><input type="number" id="aavg"></div>
+      <div class="field"><label>현재가</label><input type="number" id="acur"></div>
       <div class="field"><label>태그</label><select id="at">${tagOpts}</select></div>
       <button class="mbtn mbtn-pri" id="exec">추가</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
@@ -790,6 +1024,20 @@ function mkModal(){
     </div>`;
   }
   
+  if(S.modal.type==="addJournal"){
+    const stockOpts=`<option value="">선택 안 함</option>`+S.stocks.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    const catOpts=Object.entries(JOURNAL_CATEGORIES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+    const preStockId=S.modal.stockId||"";
+    d.innerHTML=`<div class="modal">
+      <div class="modal-title">📓 일지 추가<button class="modal-close" id="mc">×</button></div>
+      <div class="field"><label>카테고리</label><select id="jcat">${catOpts}</select></div>
+      <div class="field"><label>관련 종목 (선택)</label><select id="jstock">${stockOpts.replace(`value="${preStockId}"`,`value="${preStockId}" selected`)}</select></div>
+      <div class="field"><label>내용</label><textarea id="jcontent" placeholder="예: AIP 모멘텀 지속 + 정부 계약 확대 기대..."></textarea></div>
+      <button class="mbtn mbtn-pri" id="exec">저장</button>
+      <button class="mbtn mbtn-sec" id="mc2">취소</button>
+    </div>`;
+  }
+  
   if(S.modal.type==="export"){
     const tsv=[
       "종목명\t계좌\t통화\t수량\t평단가\t현재가\t태그",
@@ -831,6 +1079,13 @@ function bind(){
   qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{S.acct=el.dataset.acct;render();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{S.tab=el.dataset.tab;render();}));
   qa(".flt[data-wmode]").forEach(el=>el.addEventListener("click",()=>{S.wMode=el.dataset.wmode;render();}));
+  qa(".flt[data-period]").forEach(el=>el.addEventListener("click",()=>{S.trendPeriod=el.dataset.period;render();}));
+  qa(".flt[data-jfilt]").forEach(el=>el.addEventListener("click",()=>{S.jFilter=el.dataset.jfilt;render();}));
+  
+  // 일지 추가
+  q("#btnAddJournal")?.addEventListener("click",()=>{S.modal={type:"addJournal"};render();});
+  // 일지 삭제
+  qa("[data-jdel]").forEach(b=>b.addEventListener("click",()=>delJournal(+b.dataset.jdel)));
 
   qa(".cur-inp").forEach(inp=>inp.addEventListener("change",e=>{
     const s=S.stocks.find(x=>x.id===+e.target.dataset.id);
@@ -922,9 +1177,8 @@ function bind(){
     if(S.modal.type==="trade")execTrade(S.modal.stockId,S.modal.mode,q("#tq").value,q("#tp").value);
     if(S.modal.type==="add"){
       const name=q("#an").value.trim();
-      const ticker=q("#aticker").value.trim(); // ✨ 티커 데이터 변수 추가
       if(!name)return alert("종목명 입력");
-      S.stocks.push({id:Math.max(0,...S.stocks.map(s=>s.id))+1,name,ticker,acct:q("#aa").value,curr:q("#ac").value,
+      S.stocks.push({id:Math.max(0,...S.stocks.map(s=>s.id))+1,name,acct:q("#aa").value,curr:q("#ac").value,
         qty:parseFloat(q("#aq").value)||0,avg:parseFloat(q("#aavg").value)||0,cur:parseFloat(q("#acur").value)||0,tag:q("#at").value});
       save();S.modal=null;render();
     }
@@ -936,6 +1190,9 @@ function bind(){
     if(S.modal.type==="cashIn"||S.modal.type==="cashOut"){
       const [acct,curr]=S.modal.target.split("|");
       execCash(acct,curr,S.modal.type==="cashIn"?"in":"out",q("#cashAmt").value,q("#cashMemo").value);
+    }
+    if(S.modal.type==="addJournal"){
+      execJournal(q("#jstock").value,q("#jcat").value,q("#jcontent").value);
     }
     if(S.modal.type==="export"){
       const ta=q("#exportTxt");
