@@ -730,12 +730,13 @@ function mkModal(){
     const tagOpts=S.tags.map(t=>`<option>${t}</option>`).join('');
     d.innerHTML=`<div class="modal">
       <div class="modal-title">+ 종목 추가<button class="modal-close" id="mc">×</button></div>
-      <div class="field"><label>종목명</label><input type="text" id="an" placeholder="종목명"></div>
+      <div class="field"><label>종목명</label><input type="text" id="an" placeholder="예: 애플"></div>
+      <div class="field"><label>티커 (선택)</label><input type="text" id="aticker" placeholder="예: AAPL (ISA는 005930)"></div>
       <div class="field"><label>계좌</label><select id="aa"><option>메리츠증권</option><option>ISA</option></select></div>
       <div class="field"><label>통화</label><select id="ac"><option>USD</option><option>KRW</option></select></div>
-      <div class="field"><label>수량</label><input type="number" id="aq"></div>
-      <div class="field"><label>평균단가</label><input type="number" id="aavg"></div>
-      <div class="field"><label>현재가</label><input type="number" id="acur"></div>
+      <div class="field"><label>수량</label><input type="number" id="aq" placeholder="0"></div>
+      <div class="field"><label>평균단가</label><input type="number" id="aavg" placeholder="0"></div>
+      <div class="field"><label>현재가</label><input type="number" id="acur" placeholder="0"></div>
       <div class="field"><label>태그</label><select id="at">${tagOpts}</select></div>
       <button class="mbtn mbtn-pri" id="exec">추가</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
@@ -921,8 +922,9 @@ function bind(){
     if(S.modal.type==="trade")execTrade(S.modal.stockId,S.modal.mode,q("#tq").value,q("#tp").value);
     if(S.modal.type==="add"){
       const name=q("#an").value.trim();
+      const ticker=q("#aticker").value.trim(); // ✨ 티커 데이터 변수 추가
       if(!name)return alert("종목명 입력");
-      S.stocks.push({id:Math.max(0,...S.stocks.map(s=>s.id))+1,name,acct:q("#aa").value,curr:q("#ac").value,
+      S.stocks.push({id:Math.max(0,...S.stocks.map(s=>s.id))+1,name,ticker,acct:q("#aa").value,curr:q("#ac").value,
         qty:parseFloat(q("#aq").value)||0,avg:parseFloat(q("#aavg").value)||0,cur:parseFloat(q("#acur").value)||0,tag:q("#at").value});
       save();S.modal=null;render();
     }
