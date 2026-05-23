@@ -649,16 +649,29 @@ function mkChart(){
     </div>`;
   return d;
 }
-
 function drawChart(){
   const fl=filt(),tot=totK(fl);
   let labels=[],vals=[],colors=[];
+  
+  // 🎨 [추가된 부분] 종목별로 다르게 표시할 고유 색상 팔레트
+  const stockPalette = [
+    "#f87171", "#fb923c", "#fbbf24", "#a3e635", "#4ade80", "#34d399", 
+    "#2dd4bf", "#38bdf8", "#60a5fa", "#818cf8", "#a78bfa", "#e879f9", 
+    "#f472b6", "#fb7185", "#fcd34d", "#bbf7d0", "#99f6e4", "#bae6fd"
+  ];
+
   if(S.wMode==="stock"){
-    fl.forEach(s=>{labels.push(s.name);vals.push(evK(s));colors.push(S.tagColors[s.tag]||"#94a3b8");});
+    fl.forEach((s, i)=>{
+      labels.push(s.name);
+      vals.push(evK(s));
+      // 태그 색상이 아닌 순번(i)에 맞는 팔레트 색상 적용
+      colors.push(stockPalette[i % stockPalette.length]);
+    });
   }else{
     const m={};fl.forEach(s=>{const t=s.tag||"기타";m[t]=(m[t]||0)+evK(s);});
     Object.entries(m).forEach(([t,v])=>{labels.push(t);vals.push(v);colors.push(S.tagColors[t]||"#94a3b8");});
   }
+  
   const ctx=document.getElementById("donut");
   if(!ctx||!labels.length)return;
   new Chart(ctx,{type:"doughnut",data:{labels,datasets:[{data:vals,backgroundColor:colors.map(c=>c+"99"),borderColor:colors,borderWidth:2}]},
