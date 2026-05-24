@@ -1225,13 +1225,15 @@ function bind(){
 
   // 실행
   q("#exec")?.addEventListener("click",()=>{
-    if(S.modal.type==="trade")execTrade(S.modal.stockId,S.modal.mode,q("#tq").value,q("#tp").value);
     if(S.modal.type==="add"||S.modal.type==="edit"){
       const name = q("#an").value.trim();
       if(!name) return alert("종목명 입력");
       
       const isEdit = S.modal.type === "edit";
-      const tickerVal = isEdit ? "" : (q("#aticker")?.value.trim() || "");
+      const s = isEdit ? S.stocks.find(x=>x.id===S.modal.stockId) : null;
+      
+      // 💡 [핵심 수정] 수정(edit) 모드일 때는 기존 종목이 가지고 있던 원래 ticker를 그대로 유지합니다.
+      const tickerVal = isEdit ? (s?.ticker || "") : (q("#aticker")?.value.trim() || "");
 
       const data = {
         name,
@@ -1240,15 +1242,14 @@ function bind(){
         qty: parseFloat(q("#aq").value)||0,
         avg: parseFloat(q("#aavg").value)||0,
         cur: parseFloat(q("#acur").value)||0,
-        tag: q("#at").value
+        tag: q("#at").value,
+        ticker: tickerVal // 💡 언제나 티커를 포함하여 구글 시트로 전송합니다.
       };
       
       if(isEdit){
-        const s = S.stocks.find(x=>x.id===S.modal.stockId);
         if(s) Object.assign(s, data);
       } else {
         data.id = Math.max(0,...S.stocks.map(s=>s.id))+1;
-        data.ticker = tickerVal; // 💡 티커 주입하여 구글 시트로 전송
         S.stocks.push(data);
       }
       save(); S.modal=null; render();
