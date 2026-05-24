@@ -988,17 +988,19 @@ function mkModal(){
   }
   
   if(S.modal.type==="add"||S.modal.type==="edit"){
-    const isEdit=S.modal.type==="edit";
-    const s=isEdit?S.stocks.find(x=>x.id===S.modal.stockId):null;
-    const tagOpts=S.tags.map(t=>`<option ${s?.tag===t?'selected':''}>${t}</option>`).join('');
+    const isEdit = S.modal.type==="edit";
+    const s = isEdit ? S.stocks.find(x=>x.id===S.modal.stockId) : null;
+    const tagOpts = S.tags.map(t=>`<option ${s?.tag===t?'selected':''}>${t}</option>`).join('');
+    
     d.innerHTML=`<div class="modal">
       <div class="modal-title">${isEdit?'✏️ 종목 수정':'+ 종목 추가'}<button class="modal-close" id="mc">×</button></div>
-      <div class="field"><label>종목명</label><input type="text" id="an" placeholder="종목명" value="${s?.name||''}"></div>
+      <div class="field"><label>종목명</label><input type="text" id="an" placeholder="예: 일라이 릴리" value="${s?.name||''}"></div>
+      ${!isEdit ? `<div class="field"><label>티커명 (구글파이낸스용)</label><input type="text" id="aticker" placeholder="예: LLY 또는 005930" value=""></div>` : ''}
       <div class="field"><label>계좌</label><select id="aa"><option ${s?.acct==='메리츠증권'?'selected':''}>메리츠증권</option><option ${s?.acct==='ISA'?'selected':''}>ISA</option></select></div>
       <div class="field"><label>통화</label><select id="ac"><option ${s?.curr==='USD'?'selected':''}>USD</option><option ${s?.curr==='KRW'?'selected':''}>KRW</option></select></div>
       <div class="field"><label>수량</label><input type="number" id="aq" value="${s?.qty??''}" step="any"></div>
       <div class="field"><label>평균단가</label><input type="number" id="aavg" value="${s?.avg??''}" step="any"></div>
-      <div class="field"><label>현재가</label><input type="number" id="acur" value="${s?.cur??''}" step="any"></div>
+      <div class="field"><label>현재가 (최초 기준가)</label><input type="number" id="acur" value="${s?.cur??''}" step="any"></div>
       <div class="field"><label>태그</label><select id="at">${tagOpts}</select></div>
       <button class="mbtn mbtn-pri" id="exec">${isEdit?'저장':'추가'}</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
@@ -1225,25 +1227,31 @@ function bind(){
   q("#exec")?.addEventListener("click",()=>{
     if(S.modal.type==="trade")execTrade(S.modal.stockId,S.modal.mode,q("#tq").value,q("#tp").value);
     if(S.modal.type==="add"||S.modal.type==="edit"){
-      const name=q("#an").value.trim();
-      if(!name)return alert("종목명 입력");
-      const data={
+      const name = q("#an").value.trim();
+      if(!name) return alert("종목명 입력");
+      
+      const isEdit = S.modal.type === "edit";
+      const tickerVal = isEdit ? "" : (q("#aticker")?.value.trim() || "");
+
+      const data = {
         name,
-        acct:q("#aa").value,
-        curr:q("#ac").value,
-        qty:parseFloat(q("#aq").value)||0,
-        avg:parseFloat(q("#aavg").value)||0,
-        cur:parseFloat(q("#acur").value)||0,
-        tag:q("#at").value
+        acct: q("#aa").value,
+        curr: q("#ac").value,
+        qty: parseFloat(q("#aq").value)||0,
+        avg: parseFloat(q("#aavg").value)||0,
+        cur: parseFloat(q("#acur").value)||0,
+        tag: q("#at").value
       };
-      if(S.modal.type==="edit"){
-        const s=S.stocks.find(x=>x.id===S.modal.stockId);
-        if(s)Object.assign(s,data);
-      }else{
-        data.id=Math.max(0,...S.stocks.map(s=>s.id))+1;
+      
+      if(isEdit){
+        const s = S.stocks.find(x=>x.id===S.modal.stockId);
+        if(s) Object.assign(s, data);
+      } else {
+        data.id = Math.max(0,...S.stocks.map(s=>s.id))+1;
+        data.ticker = tickerVal; // 💡 티커 주입하여 구글 시트로 전송
         S.stocks.push(data);
       }
-      save();S.modal=null;render();
+      save(); S.modal=null; render();
     }
     if(S.modal.type==="bulk"){
       const r=parseFloat(q("#br").value);if(r>0)S.rate=r;
