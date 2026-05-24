@@ -995,7 +995,7 @@ function mkModal(){
     d.innerHTML=`<div class="modal">
       <div class="modal-title">${isEdit?'✏️ 종목 수정':'+ 종목 추가'}<button class="modal-close" id="mc">×</button></div>
       <div class="field"><label>종목명</label><input type="text" id="an" placeholder="예: 일라이 릴리" value="${s?.name||''}"></div>
-      ${!isEdit ? `<div class="field"><label>티커명 (구글파이낸스용)</label><input type="text" id="aticker" placeholder="예: LLY 또는 005930" value=""></div>` : ''}
+      <div class="field"><label>티커명 (구글파이낸스용)</label><input type="text" id="aticker" placeholder="예: LLY 또는 005930" value="${s?.ticker||''}"></div>
       <div class="field"><label>계좌</label><select id="aa"><option ${s?.acct==='메리츠증권'?'selected':''}>메리츠증권</option><option ${s?.acct==='ISA'?'selected':''}>ISA</option></select></div>
       <div class="field"><label>통화</label><select id="ac"><option ${s?.curr==='USD'?'selected':''}>USD</option><option ${s?.curr==='KRW'?'selected':''}>KRW</option></select></div>
       <div class="field"><label>수량</label><input type="number" id="aq" value="${s?.qty??''}" step="any"></div>
@@ -1230,10 +1230,7 @@ function bind(){
       if(!name) return alert("종목명 입력");
       
       const isEdit = S.modal.type === "edit";
-      const s = isEdit ? S.stocks.find(x=>x.id===S.modal.stockId) : null;
-      
-      // 💡 [핵심 수정] 수정(edit) 모드일 때는 기존 종목이 가지고 있던 원래 ticker를 그대로 유지합니다.
-      const tickerVal = isEdit ? (s?.ticker || "") : (q("#aticker")?.value.trim() || "");
+      const tickerVal = q("#aticker")?.value.trim() || ""; // 💡 추가/수정 관계없이 입력된 티커를 수집합니다.
 
       const data = {
         name,
@@ -1243,10 +1240,11 @@ function bind(){
         avg: parseFloat(q("#aavg").value)||0,
         cur: parseFloat(q("#acur").value)||0,
         tag: q("#at").value,
-        ticker: tickerVal // 💡 언제나 티커를 포함하여 구글 시트로 전송합니다.
+        ticker: tickerVal // 💡 언제나 데이터에 티커를 포함합니다.
       };
       
       if(isEdit){
+        const s = S.stocks.find(x=>x.id===S.modal.stockId);
         if(s) Object.assign(s, data);
       } else {
         data.id = Math.max(0,...S.stocks.map(s=>s.id))+1;
