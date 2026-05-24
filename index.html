@@ -772,9 +772,13 @@ function drawChart(){
 // ═══════════════════════════════════════════
 // 📈 추이 탭
 // ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// 📈 추이 탭 (그래프 무한 늘어남 방지 & 1일 탭 추가)
+// ═══════════════════════════════════════════
 function mkTrend(){
   const d=document.createElement("div");
-  const periods=[["1W","1주"],["1M","1달"],["3M","3달"],["1Y","1년"],["ALL","전체"]];
+  // 💡 1일(1D) 필터를 맨 앞에 추가했습니다.
+  const periods=[["1D","1일"],["1W","1주"],["1M","1달"],["3M","3달"],["1Y","1년"],["ALL","전체"]];
   const btns=periods.map(([k,l])=>`<button class="flt ${S.trendPeriod===k?'on':''}" data-period="${k}">${l}</button>`).join('');
   
   if(!S.snapshots||S.snapshots.length<1){
@@ -786,7 +790,9 @@ function mkTrend(){
   // 기간 필터링
   const now=new Date();
   let cutoff=new Date(0);
-  if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
+  // 💡 1D 로직 추가 (어제와 오늘 데이터 비교)
+  if(S.trendPeriod==="1D"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-1);}
+  else if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
   else if(S.trendPeriod==="1M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-1);}
   else if(S.trendPeriod==="3M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-3);}
   else if(S.trendPeriod==="1Y"){cutoff=new Date(now);cutoff.setFullYear(cutoff.getFullYear()-1);}
@@ -806,17 +812,22 @@ function mkTrend(){
     </div>`;
   }
   
+  // 💡 [핵심] canvas를 감싸는 div에 position:relative와 고정 height(220px, 180px)를 주어 무한 늘어남을 차단합니다.
   d.innerHTML=`
     <div class="filters">${btns}</div>
     <div class="trend-wrap">
       ${summary}
       <div class="trend-chart-box">
         <div class="trend-chart-title">💰 총 자산 추이 (KRW)</div>
-        <canvas id="trendTotal" height="200"></canvas>
+        <div style="position:relative; height:220px; width:100%">
+          <canvas id="trendTotal"></canvas>
+        </div>
       </div>
       <div class="trend-chart-box">
         <div class="trend-chart-title">📈 누적 수익률 (%)</div>
-        <canvas id="trendPct" height="180"></canvas>
+        <div style="position:relative; height:180px; width:100%">
+          <canvas id="trendPct"></canvas>
+        </div>
       </div>
       <div style="font-size:.75em;color:#8b949e;text-align:center;padding:10px">기록된 일수: ${filtered.length}일 / 전체 ${S.snapshots.length}일</div>
     </div>`;
@@ -826,7 +837,9 @@ function mkTrend(){
 function drawTrend(){
   const now=new Date();
   let cutoff=new Date(0);
-  if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
+  // 💡 그리기 로직에도 1D 추가
+  if(S.trendPeriod==="1D"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-1);}
+  else if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
   else if(S.trendPeriod==="1M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-1);}
   else if(S.trendPeriod==="3M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-3);}
   else if(S.trendPeriod==="1Y"){cutoff=new Date(now);cutoff.setFullYear(cutoff.getFullYear()-1);}
@@ -853,6 +866,27 @@ function drawTrend(){
       }
     }});
   }
+  
+  // 수익률 차트
+  const ctx2=document.getElementById("trendPct");
+  if(ctx2){
+    new Chart(ctx2,{type:"line",data:{labels,datasets:[{
+      label:"수익률",data:pcts,
+      borderColor:ctx=>{const v=ctx.parsed?.y;return v>=0?"#10b981":"#f43f5e";},
+      segment:{borderColor:c=>(c.p1.parsed.y>=0?"#10b981":"#f43f5e")},
+      backgroundColor:"rgba(16,185,129,.1)",
+      fill:{target:"origin",above:"rgba(16,185,129,.15)",below:"rgba(244,63,94,.15)"},
+      tension:.3,pointRadius:data.length<=14?3:0,pointHoverRadius:5,borderWidth:2
+    }]},options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fP(c.parsed.y)}}},
+      scales:{
+        x:{ticks:{color:"#8b949e",maxTicksLimit:6,font:{size:10}},grid:{color:"rgba(48,54,61,.5)"}},
+        y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>v.toFixed(1)+"%"},grid:{color:"rgba(48,54,61,.5)"}}
+      }
+    }});
+  }
+}
   
   // 수익률 차트
   const ctx2=document.getElementById("trendPct");
