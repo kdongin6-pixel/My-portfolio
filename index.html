@@ -361,19 +361,9 @@ async function loadFromCloud(showAlert){
     if(!res.ok)throw new Error("로드 실패");
     const data=await res.json();
     
-    // 가격 정보 업데이트
     let priceCount=0;
-    if(data.rate&&data.rate>0)S.rate=data.rate;
-    (data.meritz||[]).forEach(item=>{
-      const s=S.stocks.find(x=>x.name===item.name&&x.acct==='메리츠증권');
-      if(s&&item.cur>0){s.cur=item.cur;priceCount++;}
-    });
-    (data.isa||[]).forEach(item=>{
-      const s=S.stocks.find(x=>x.name===item.name&&x.acct==='ISA');
-      if(s&&item.cur>0){s.cur=item.cur;priceCount++;}
-    });
     
-    // 클라우드 앱 데이터 (있으면)
+    // 1. 클라우드 앱 데이터(기본틀)를 먼저 덮어씁니다.
     if(data.appData){
       const a=data.appData;
       if(a.stocks)S.stocks=a.stocks;
@@ -385,27 +375,38 @@ async function loadFromCloud(showAlert){
       if(a.tags)S.tags=a.tags;
       if(a.tagColors)S.tagColors=a.tagColors;
       if(a.rate)S.rate=a.rate;
-      
-      // 가격은 다시 적용
-      (data.meritz||[]).forEach(item=>{
-        const s=S.stocks.find(x=>x.name===item.name&&x.acct==='메리츠증권');
-        if(s&&item.cur>0)s.cur=item.cur;
-      });
-      (data.isa||[]).forEach(item=>{
-        const s=S.stocks.find(x=>x.name===item.name&&x.acct==='ISA');
-        if(s&&item.cur>0)s.cur=item.cur;
-      });
-      
-      localStorage.setItem("pf_v3",JSON.stringify({
-        stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
-        snapshots:S.snapshots,journal:S.journal,
-        tags:S.tags,tagColors:S.tagColors,rate:S.rate
-      }));
     }
+
+    // 2. 그 위에 구글 시트에서 긁어온 '실시간 가격'과 '티커(수식 파싱)'를 최종 덮어씌웁니다!
+    if(data.rate&&data.rate>0)S.rate=data.rate;
+    
+    (data.meritz||[]).forEach(item=>{
+      const s=S.stocks.find(x=>x.name===item.name&&x.acct==='메리츠증권');
+      if(s){
+        if(item.cur>0) { s.cur=item.cur; priceCount++; }
+        if(item.ticker) s.ticker = item.ticker; // 💡 구글 시트 수식에서 빼온 티커 주입
+      }
+    });
+    
+    (data.isa||[]).forEach(item=>{
+      const s=S.stocks.find(x=>x.name===item.name&&x.acct==='ISA');
+      if(s){
+        if(item.cur>0) { s.cur=item.cur; priceCount++; }
+        if(item.ticker) s.ticker = item.ticker; // 💡 구글 시트 수식에서 빼온 티커 주입
+      }
+    });
+
+    // 3. 완성된 데이터를 브라우저 로컬 저장소에 갱신
+    localStorage.setItem("pf_v3",JSON.stringify({
+      stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
+      snapshots:S.snapshots,journal:S.journal,
+      tags:S.tags,tagColors:S.tagColors,rate:S.rate
+    }));
     
     S.cloudStatus="saved";
     S.lastCloudSync=new Date();
-    S.syncMsg=`✅ ${priceCount}개 가격${data.appData?' + 클라우드 데이터':''} 로드 (${new Date().toLocaleTimeString()})`;
+    S.syncMsg=`✅ ${priceCount}개 가격 및 티커 동기화 완료 (${new Date().toLocaleTimeString()})`;
+    
     if(showAlert)render();
     else renderCloudBadge();
   }catch(e){
