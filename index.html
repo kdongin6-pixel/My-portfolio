@@ -139,20 +139,20 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 
 .msg-sync{font-size:.8em;text-align:center;padding:8px;margin-bottom:10px;border-radius:8px}
 .view-tog{background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;padding:7px 12px;border-radius:20px;font-size:.78em;font-weight:700;margin-left:auto;flex-shrink:0;white-space:nowrap}
-.cmp-wrap{padding:8px 12px;display:flex;flex-direction:column;gap:6px}
-.cmp-row{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:11px 13px}
-.cmp-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px}
-.cmp-name{font-size:.93em;font-weight:800;color:#e6edf3;line-height:1.3}
-.cmp-pct{font-size:.97em;font-weight:800;flex-shrink:0}
-.cmp-mid{display:flex;gap:0;margin-bottom:9px;background:rgba(255,255,255,.04);border-radius:8px;overflow:hidden}
-.cmp-stat{flex:1;padding:7px 6px;text-align:center;border-right:1px solid #30363d}
-.cmp-stat:last-child{border-right:none}
-.cmp-stat-lbl{font-size:.63em;color:#8b949e;margin-bottom:2px}
-.cmp-stat-val{font-size:.82em;font-weight:800}
-.cmp-bot{display:flex;align-items:center;gap:5px}
-.cmp-cur-lbl{font-size:.75em;color:#8b949e;white-space:nowrap}
-.cmp-cur-inp{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:8px;padding:6px 8px;font-size:.85em;font-weight:700;color:#e6edf3;width:105px;text-align:right;flex-shrink:0}
-.cmp-btns{display:flex;gap:4px;margin-left:auto;flex-shrink:0}
+.xl-wrap{padding:4px 12px 10px}
+.xl-col-hdr{display:flex;align-items:center;padding:5px 10px;margin-bottom:3px}
+.xl-col-hdr span{font-size:.65em;font-weight:700;color:#8b949e;text-align:right}
+.xl-row{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:7px 10px;margin-bottom:3px;transition:.1s}
+.xl-row:active{opacity:.8}
+.xl-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.xl-name{flex:1;font-size:.88em;font-weight:800;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.xl-pct{font-size:.88em;font-weight:800;flex-shrink:0;width:68px;text-align:right}
+.xl-more{background:rgba(255,255,255,.06);border:1px solid #30363d;border-radius:5px;color:#8b949e;padding:1px 7px;font-size:.95em;flex-shrink:0;line-height:1.6}
+.xl-bot{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden}
+.xl-chips{display:flex;gap:3px;flex-shrink:0}
+.xl-divider{color:#30363d;flex-shrink:0}
+.xl-val{font-size:.75em;font-weight:700;flex-shrink:0}
+.xl-muted{font-size:.72em;color:#8b949e;flex-shrink:0}
 .empty{padding:50px 20px;text-align:center;color:#8b949e;font-size:.9em;line-height:1.6}
 
 /* 📈 추이 탭 */
@@ -708,38 +708,35 @@ function mkList(){
       const spnl=evk-sinvK,spct=sinvK>0?spnl/sinvK*100:0;
       const wt=stockTot>0?evk/stockTot*100:0;
       const tc=S.tagColors[s.tag]||"#94a3b8";
-      return `<div class="cmp-row">
-        <div class="cmp-top">
-          <div style="flex:1;min-width:0">
-            <div class="cmp-name">${s.name}</div>
-            <div class="card-chips" style="margin-top:3px">
-              <span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}">${s.acct==='ISA'?'ISA':'메리츠'}</span>
-              <span class="chip chip-tag" style="background:${tc}22;color:${tc}" data-edit-tag="${s.id}">${s.tag||'태그없음'} ✏️</span>
-            </div>
-          </div>
-          <div class="cmp-pct ${spct>=0?'pos':'neg'}">${fP(spct)}</div>
+      return `<div class="xl-row">
+        <div class="xl-top">
+          <div class="xl-name">${s.name}</div>
+          <div class="xl-pct ${spct>=0?'pos':'neg'}">${fP(spct)}</div>
+          <button class="xl-more" data-action="${s.id}">⋮</button>
         </div>
-        <div class="cmp-mid">
-          <div class="cmp-stat"><div class="cmp-stat-lbl">평가금액</div><div class="cmp-stat-val">₩${fK(evk)}</div></div>
-          <div class="cmp-stat"><div class="cmp-stat-lbl">손익</div><div class="cmp-stat-val ${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</div></div>
-          <div class="cmp-stat"><div class="cmp-stat-lbl">비중</div><div class="cmp-stat-val">${wt.toFixed(1)}%</div></div>
-          <div class="cmp-stat"><div class="cmp-stat-lbl">수량</div><div class="cmp-stat-val">${s.qty.toLocaleString()}</div></div>
-          <div class="cmp-stat"><div class="cmp-stat-lbl">평단가</div><div class="cmp-stat-val">${fM(s.avg,s.curr)}</div></div>
-        </div>
-        <div class="cmp-bot">
-          <span class="cmp-cur-lbl">현재가</span>
-          <input class="cmp-cur-inp cur-inp" data-id="${s.id}" type="number" value="${s.cur}" step="0.01">
-          <div class="cmp-btns">
-            <button class="cbtn cbtn-buy" data-id="${s.id}" data-mode="buy">매수</button>
-            <button class="cbtn cbtn-sell" data-id="${s.id}" data-mode="sell">매도</button>
-            <button class="cbtn cbtn-edit" data-edit="${s.id}">✏️</button>
-            <button class="cbtn cbtn-del" data-del="${s.id}">🗑</button>
+        <div class="xl-bot">
+          <div class="xl-chips">
+            <span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}" style="font-size:.6em;padding:1px 5px">${s.acct==='ISA'?'ISA':'메리츠'}</span>
+            <span class="chip" style="font-size:.6em;padding:1px 5px;background:${tc}22;color:${tc}">${s.tag||'-'}</span>
           </div>
+          <span class="xl-divider">·</span>
+          <span class="xl-val">₩${fK(evk)}</span>
+          <span class="xl-divider">·</span>
+          <span class="xl-val ${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</span>
+          <span class="xl-divider">·</span>
+          <span class="xl-muted">${wt.toFixed(1)}%</span>
         </div>
       </div>`;
     }).join('');
 
-    d.innerHTML=`${filtersHtml}<div class="cmp-wrap">${rows||'<div class="empty">종목이 없어요</div>'}</div>`;
+    d.innerHTML=`${filtersHtml}<div class="xl-wrap">
+      <div class="xl-col-hdr">
+        <span style="flex:1;text-align:left">종목</span>
+        <span style="width:68px">수익률</span>
+        <span style="width:28px"></span>
+      </div>
+      ${rows||'<div class="empty">종목이 없어요</div>'}
+    </div>`;
     return d;
   }
 
@@ -1187,6 +1184,38 @@ function mkModal(){
     </div>`;
   }
   
+  if(S.modal.type==="stockAction"){
+    const s=S.stocks.find(x=>x.id===S.modal.stockId);
+    const ev=s?s.qty*s.cur:0;
+    const evk=s?.curr==="USD"?ev*S.rate:ev;
+    const sinvK=s?.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg;
+    const spnl=evk-sinvK,spct=sinvK>0?spnl/sinvK*100:0;
+    d.innerHTML=`<div class="modal">
+      <div class="modal-title" style="flex-direction:column;align-items:flex-start;gap:4px">
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
+          <span>${s?.name}</span><button class="modal-close" id="mc">×</button>
+        </div>
+        <div style="font-size:.78em;font-weight:600">
+          <span class="${spct>=0?'pos':'neg'}">${fP(spct)}</span>
+          <span style="color:#8b949e;margin:0 6px">·</span>
+          <span style="color:#8b949e">₩${fK(evk)}</span>
+          <span style="color:#8b949e;margin:0 6px">·</span>
+          <span class="${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <button class="mbtn mbtn-pri" id="actBuy" style="margin:0">📈 매수</button>
+        <button class="mbtn" id="actSell" style="margin:0;background:rgba(244,63,94,.2);color:#f43f5e;border:1px solid rgba(244,63,94,.4)">📉 매도</button>
+      </div>
+      <div class="field"><label>현재가 수정 (${s?.curr})</label>
+        <input type="number" id="actPrice" value="${s?.cur}" step="0.01">
+      </div>
+      <button class="mbtn mbtn-sec" id="actEdit">✏️ 종목 정보 수정</button>
+      <button class="mbtn mbtn-danger" id="actDel">🗑 삭제</button>
+      <button class="mbtn mbtn-sec" id="mc2">닫기</button>
+    </div>`;
+  }
+
   if(S.modal.type==="addJournal"){
     const stockOpts=`<option value="">선택 안 함</option>`+S.stocks.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
     const catOpts=Object.entries(JOURNAL_CATEGORIES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
@@ -1264,6 +1293,21 @@ function bind(){
     render();
   }));
   q("#btnView")?.addEventListener("click",()=>{S.viewMode=S.viewMode==="table"?"card":"table";render();});
+  qa("[data-action]").forEach(b=>b.addEventListener("click",e=>{
+    e.stopPropagation();
+    S.modal={type:"stockAction",stockId:+b.dataset.action};render();
+  }));
+  q("#actBuy")?.addEventListener("click",()=>{const id=S.modal.stockId;S.modal={type:"trade",stockId:id,mode:"buy"};render();});
+  q("#actSell")?.addEventListener("click",()=>{const id=S.modal.stockId;S.modal={type:"trade",stockId:id,mode:"sell"};render();});
+  q("#actEdit")?.addEventListener("click",()=>{const id=S.modal.stockId;S.modal={type:"edit",stockId:id};render();});
+  q("#actDel")?.addEventListener("click",()=>{
+    const s=S.stocks.find(x=>x.id===S.modal.stockId);
+    if(s&&confirm(`'${s.name}' 삭제할까요?`)){S.stocks=S.stocks.filter(x=>x.id!==s.id);save();S.modal=null;render();}
+  });
+  q("#actPrice")?.addEventListener("change",e=>{
+    const s=S.stocks.find(x=>x.id===S.modal?.stockId);
+    if(s){s.cur=parseFloat(e.target.value)||s.cur;save();render();}
+  });
   qa(".flt[data-period]").forEach(el=>el.addEventListener("click",()=>{S.trendPeriod=el.dataset.period;render();}));
   qa(".flt[data-jfilt]").forEach(el=>el.addEventListener("click",()=>{S.jFilter=el.dataset.jfilt;render();}));
   
