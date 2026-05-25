@@ -139,20 +139,22 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 
 .msg-sync{font-size:.8em;text-align:center;padding:8px;margin-bottom:10px;border-radius:8px}
 .view-tog{background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;padding:7px 12px;border-radius:20px;font-size:.78em;font-weight:700;margin-left:auto;flex-shrink:0;white-space:nowrap}
-.xl-wrap{padding:4px 12px 10px}
-.xl-col-hdr{display:flex;align-items:center;padding:5px 10px;margin-bottom:3px}
-.xl-col-hdr span{font-size:.65em;font-weight:700;color:#8b949e;text-align:right}
-.xl-row{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:7px 10px;margin-bottom:3px;transition:.1s}
-.xl-row:active{opacity:.8}
-.xl-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
-.xl-name{flex:1;font-size:.88em;font-weight:800;color:#e6edf3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.xl-pct{font-size:.88em;font-weight:800;flex-shrink:0;width:68px;text-align:right}
-.xl-more{background:rgba(255,255,255,.06);border:1px solid #30363d;border-radius:5px;color:#8b949e;padding:1px 7px;font-size:.95em;flex-shrink:0;line-height:1.6}
-.xl-bot{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;overflow:hidden}
-.xl-chips{display:flex;gap:3px;flex-shrink:0}
-.xl-divider{color:#30363d;flex-shrink:0}
-.xl-val{font-size:.75em;font-weight:700;flex-shrink:0}
-.xl-muted{font-size:.72em;color:#8b949e;flex-shrink:0}
+.gs-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:4px 12px 14px}
+.gs-tbl{width:100%;min-width:480px;border-collapse:collapse}
+.gs-th{padding:7px 8px;font-size:.65em;font-weight:700;color:#8b949e;text-align:right;white-space:nowrap;background:#21262d;border-bottom:2px solid #30363d}
+.gs-th:first-child{text-align:left;position:sticky;left:0;background:#21262d;z-index:6;min-width:105px;max-width:130px}
+.gs-th:last-child{text-align:center;width:28px}
+.gs-td{padding:5px 8px;font-size:.8em;text-align:right;vertical-align:middle;color:#e6edf3}
+.gs-td:first-child{position:sticky;left:0;z-index:1;text-align:left;min-width:105px;max-width:130px;overflow:hidden}
+.gs-r1 .gs-td{background:#161b22;font-weight:700;border-top:1px solid #21262d}
+.gs-r1 .gs-td:first-child{background:#161b22}
+.gs-r2 .gs-td{background:#1a1f26;border-bottom:2px solid #21262d}
+.gs-r2 .gs-td:first-child{background:#1a1f26}
+.gs-r2 .gs-td:not(:first-child){font-size:.74em;color:#8b949e;font-weight:600}
+.gs-sum .gs-td{background:rgba(253,224,71,.07);border-top:2px solid #30363d;font-weight:800;font-size:.8em;color:#fbbf24}
+.gs-sum .gs-td:first-child{background:rgba(253,224,71,.07);color:#fbbf24}
+.gs-name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.gs-more{background:rgba(255,255,255,.06);border:1px solid #30363d;border-radius:5px;color:#8b949e;padding:2px 7px;font-size:.9em;cursor:pointer;display:block;margin:0 auto}
 .empty{padding:50px 20px;text-align:center;color:#8b949e;font-size:.9em;line-height:1.6}
 
 /* 📈 추이 탭 */
@@ -702,41 +704,56 @@ function mkList(){
     </div>`;
 
   if(S.viewMode==="table"){
+    const totalInvK=sorted.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
+    const totalPnl=stockTot-totalInvK;
+    const totalPct=totalInvK>0?totalPnl/totalInvK*100:0;
+
     const rows=sorted.map(s=>{
-      const ev=s.qty*s.cur,evk=s.curr==="USD"?ev*S.rate:ev;
+      const evk=s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur;
       const sinvK=s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg;
       const spnl=evk-sinvK,spct=sinvK>0?spnl/sinvK*100:0;
       const wt=stockTot>0?evk/stockTot*100:0;
       const tc=S.tagColors[s.tag]||"#94a3b8";
-      return `<div class="xl-row">
-        <div class="xl-top">
-          <div class="xl-name">${s.name}</div>
-          <div class="xl-pct ${spct>=0?'pos':'neg'}">${fP(spct)}</div>
-          <button class="xl-more" data-action="${s.id}">⋮</button>
-        </div>
-        <div class="xl-bot">
-          <div class="xl-chips">
-            <span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}" style="font-size:.6em;padding:1px 5px">${s.acct==='ISA'?'ISA':'메리츠'}</span>
-            <span class="chip" style="font-size:.6em;padding:1px 5px;background:${tc}22;color:${tc}">${s.tag||'-'}</span>
-          </div>
-          <span class="xl-divider">·</span>
-          <span class="xl-val">₩${fK(evk)}</span>
-          <span class="xl-divider">·</span>
-          <span class="xl-val ${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</span>
-          <span class="xl-divider">·</span>
-          <span class="xl-muted">${wt.toFixed(1)}%</span>
-        </div>
-      </div>`;
+      const curDisp=s.curr==="USD"?`$${s.cur.toFixed(2)}`:`₩${fK(s.cur)}`;
+      const avgDisp=s.curr==="USD"?`$${s.avg.toFixed(2)}`:`₩${fK(s.avg)}`;
+      return `<tr class="gs-r1">
+        <td class="gs-td"><span class="gs-name">${s.name}</span></td>
+        <td class="gs-td">${s.qty.toLocaleString()}</td>
+        <td class="gs-td">${curDisp}</td>
+        <td class="gs-td">₩${fK(evk)}</td>
+        <td class="gs-td ${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</td>
+        <td class="gs-td"><button class="gs-more" data-action="${s.id}">⋮</button></td>
+      </tr>
+      <tr class="gs-r2">
+        <td class="gs-td"><span style="font-size:.68em;display:flex;gap:4px;align-items:center"><span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}" style="font-size:.9em;padding:1px 5px">${s.acct==='ISA'?'ISA':'메리츠'}</span><span class="chip" style="padding:1px 5px;background:${tc}22;color:${tc}">${s.tag||'-'}</span></span></td>
+        <td class="gs-td">${avgDisp}</td>
+        <td class="gs-td ${spct>=0?'pos':'neg'}">${fP(spct)}</td>
+        <td class="gs-td">${wt.toFixed(1)}%</td>
+        <td class="gs-td"></td>
+        <td class="gs-td"></td>
+      </tr>`;
     }).join('');
 
-    d.innerHTML=`${filtersHtml}<div class="xl-wrap">
-      <div class="xl-col-hdr">
-        <span style="flex:1;text-align:left">종목</span>
-        <span style="width:68px">수익률</span>
-        <span style="width:28px"></span>
-      </div>
-      ${rows||'<div class="empty">종목이 없어요</div>'}
-    </div>`;
+    const sumRow=`<tr class="gs-sum">
+      <td class="gs-td">합계</td>
+      <td class="gs-td"></td>
+      <td class="gs-td"></td>
+      <td class="gs-td">₩${fK(stockTot)}</td>
+      <td class="gs-td ${totalPnl>=0?'pos':'neg'}">${totalPnl>=0?'+':''}₩${fK(totalPnl)} (${fP(totalPct)})</td>
+      <td class="gs-td"></td>
+    </tr>`;
+
+    d.innerHTML=`${filtersHtml}<div class="gs-wrap"><table class="gs-tbl">
+      <thead><tr>
+        <th class="gs-th">종목명 / 태그</th>
+        <th class="gs-th">수량 / 평단가</th>
+        <th class="gs-th">현재가 / 수익률</th>
+        <th class="gs-th">평가금액 / 비중</th>
+        <th class="gs-th">손익</th>
+        <th class="gs-th"></th>
+      </tr></thead>
+      <tbody>${rows||'<tr><td class="gs-td" colspan="6" style="text-align:center;padding:20px;color:#8b949e">종목이 없어요</td></tr>'}${sumRow}</tbody>
+    </table></div>`;
     return d;
   }
 
