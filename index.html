@@ -239,7 +239,7 @@ let S={
 };
 
 // ── 포트폴리오 시드 (1회만 적용) ──────────────────────────
-const SEED_ID="seed_20260526b";
+const SEED_ID="seed_20260526c";
 if(localStorage.getItem("pf_seed")!==SEED_ID){
   const _d=JSON.parse(localStorage.getItem("pf_v3")||"{}");
   const _now=Date.now();
@@ -449,7 +449,8 @@ async function loadFromCloud(showAlert){
 
     if(data.appData){
       const a=data.appData;
-      if(a.stocks)S.stocks=a.stocks;
+      // ⚠️ 종목 목록(stocks)은 HTML이 원본 — 구글 시트가 덮어쓰지 않음
+      // 현재가(cur)만 시트에서 가져옴 (아래 meritz/isa 루프에서 처리)
       if(a.cash)S.cash=a.cash;
       if(a.cashTxns)S.cashTxns=a.cashTxns;
       if(a.txns)S.txns=a.txns;
@@ -459,14 +460,13 @@ async function loadFromCloud(showAlert){
       if(a.tags)S.tags=a.tags;
       if(a.tagColors)S.tagColors=a.tagColors;
       if(a.rate)S.rate=a.rate;
-      
+
+      // 현재가·티커만 업데이트 (수량·평단가는 건드리지 않음)
       (data.meritz||[]).forEach(item=>{
         const s=S.stocks.find(x=>x.name===item.name&&x.acct==='메리츠증권');
         if(s){
           if(item.cur>0)s.cur=item.cur;
           if(item.ticker)s.ticker=item.ticker;
-          if(item.qty>0)s.qty=item.qty;
-          if(item.avg>0)s.avg=item.avg;
         }
       });
       (data.isa||[]).forEach(item=>{
@@ -474,11 +474,9 @@ async function loadFromCloud(showAlert){
         if(s){
           if(item.cur>0)s.cur=item.cur;
           if(item.ticker)s.ticker=item.ticker;
-          if(item.qty>0)s.qty=item.qty;
-          if(item.avg>0)s.avg=item.avg;
         }
       });
-      
+
       localStorage.setItem("pf_v3",JSON.stringify({
         stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
         snapshots:S.snapshots,journal:S.journal,
