@@ -239,34 +239,35 @@ let S={
 };
 
 // ── 포트폴리오 시드 (1회만 적용) ──────────────────────────
-const SEED_ID="seed_20260526c";
+const SEED_ID="seed_20260526d";
 if(localStorage.getItem("pf_seed")!==SEED_ID){
   const _d=JSON.parse(localStorage.getItem("pf_v3")||"{}");
   const _now=Date.now();
   _d.stocks=[
-    // ── 메리츠증권 (USD) ──
+    // ── 메리츠증권 (USD) — GAS 이름과 동일하게 맞춤 ──
     {id:_now+1,  name:"나비타스 세미컨덕터",           ticker:"NVTS",  qty:677, avg:20.3280,  cur:29.25,   curr:"USD", acct:"메리츠증권", tag:"반도체"},
-    {id:_now+2,  name:"GE 베르노바",                   ticker:"GEV",   qty:16,  avg:813.8956, cur:1038.74, curr:"USD", acct:"메리츠증권", tag:"에너지"},
+    {id:_now+2,  name:"GE베르노바",                    ticker:"GEV",   qty:16,  avg:813.8956, cur:1038.74, curr:"USD", acct:"메리츠증권", tag:"에너지"},
     {id:_now+3,  name:"알파벳 A",                      ticker:"GOOGL", qty:41,  avg:239.1231, cur:382.97,  curr:"USD", acct:"메리츠증권", tag:"빅테크"},
-    {id:_now+4,  name:"SGOV",                          ticker:"SGOV",  qty:143, avg:100.5520, cur:100.63,  curr:"USD", acct:"메리츠증권", tag:"채권"},
+    {id:_now+4,  name:"iSh 0-3M T-Bond",              ticker:"SGOV",  qty:143, avg:100.5327, cur:100.63,  curr:"USD", acct:"메리츠증권", tag:"채권"},
     {id:_now+5,  name:"팔란티어 테크",                 ticker:"PLTR",  qty:43,  avg:116.9074, cur:136.88,  curr:"USD", acct:"메리츠증권", tag:"AI"},
     {id:_now+6,  name:"네비우스 그룹",                 ticker:"NBIS",  qty:21,  avg:205.5523, cur:214.77,  curr:"USD", acct:"메리츠증권", tag:"AI"},
     {id:_now+7,  name:"버티브 홀딩스",                 ticker:"VRT",   qty:8,   avg:295.1000, cur:327.46,  curr:"USD", acct:"메리츠증권", tag:"데이터센터"},
-    {id:_now+8,  name:"버크셔 해서웨이 B",             ticker:"BRK.B", qty:4,   avg:472.9925, cur:486.38,  curr:"USD", acct:"메리츠증권", tag:"가치주"},
-    {id:_now+9,  name:"GGLL",                          ticker:"GGLL",  qty:10,  avg:117.1700, cur:134.225, curr:"USD", acct:"메리츠증권", tag:"레버리지"},
-    {id:_now+10, name:"NASA ETF",                      ticker:"NASA",  qty:32,  avg:36.3900,  cur:38.76,   curr:"USD", acct:"메리츠증권", tag:"우주"},
-    {id:_now+11, name:"NUGT",                          ticker:"NUGT",  qty:2,   avg:174.9400, cur:155.00,  curr:"USD", acct:"메리츠증권", tag:"레버리지"},
+    {id:_now+8,  name:"버크셔 해서웨이 B",             ticker:"BRK-B", qty:4,   avg:472.9925, cur:486.38,  curr:"USD", acct:"메리츠증권", tag:"가치주"},
+    {id:_now+9,  name:"Direxion GOOGL 2X",            ticker:"GGLL",  qty:10,  avg:117.1700, cur:134.225, curr:"USD", acct:"메리츠증권", tag:"레버리지"},
+    {id:_now+10, name:"TEMA Space Innov.",             ticker:"NASA",  qty:32,  avg:36.3900,  cur:38.76,   curr:"USD", acct:"메리츠증권", tag:"우주"},
+    {id:_now+11, name:"Direxion Gold 2X",              ticker:"NUGT",  qty:2,   avg:174.9400, cur:155.00,  curr:"USD", acct:"메리츠증권", tag:"레버리지"},
     {id:_now+12, name:"아이온큐",                      ticker:"IONQ",  qty:1,   avg:48.9400,  cur:63.64,   curr:"USD", acct:"메리츠증권", tag:"양자컴퓨팅"},
     {id:_now+13, name:"IREN",                          ticker:"IREN",  qty:1,   avg:56.6800,  cur:56.83,   curr:"USD", acct:"메리츠증권", tag:"비트코인"},
-    // ── ISA (KRW) ──
-    {id:_now+14, name:"KoAct 팔란티어밸류체인액티브",  ticker:"",      qty:720, avg:14198,    cur:19590,   curr:"KRW", acct:"ISA", tag:"AI"},
-    {id:_now+15, name:"TIME 미국나스닥100액티브",       ticker:"",      qty:345, avg:42639,    cur:55300,   curr:"KRW", acct:"ISA", tag:"나스닥"},
-    {id:_now+16, name:"KODEX 미국서학개미",             ticker:"",      qty:189, avg:21478,    cur:27595,   curr:"KRW", acct:"ISA", tag:"ETF"},
-    {id:_now+17, name:"KODEX 미국배당커버드콜액티브",   ticker:"",      qty:490, avg:11997,    cur:13425,   curr:"KRW", acct:"ISA", tag:"배당"},
-    {id:_now+18, name:"한화",                          ticker:"000880",qty:1,   avg:132000,   cur:140500,  curr:"KRW", acct:"ISA", tag:"국내주식"},
-    {id:_now+19, name:"TIGER 글로벌비만치료제TR",       ticker:"",      qty:235, avg:10250,    cur:10830,   curr:"KRW", acct:"ISA", tag:"헬스케어"},
-    {id:_now+20, name:"TIGER 미국초단기채권액티브",     ticker:"",      qty:761, avg:9963,     cur:10510,   curr:"KRW", acct:"ISA", tag:"채권"},
-    {id:_now+21, name:"KODEX 미국AI전력핵심인프라",     ticker:"",      qty:307, avg:26408,    cur:26535,   curr:"KRW", acct:"ISA", tag:"AI"}
+    {id:_now+14, name:"일라이 릴리",                   ticker:"LLY",   qty:2,   avg:1065.00,  cur:1065.00, curr:"USD", acct:"메리츠증권", tag:"헬스케어"},
+    // ── ISA (KRW) — GAS 이름과 동일하게 맞춤 ──
+    {id:_now+15, name:"KoAct 팔란티어밸류체인액티브",  ticker:"0093D0",qty:720, avg:14198,    cur:19590,   curr:"KRW", acct:"ISA", tag:"AI"},
+    {id:_now+16, name:"TIMEFOLIO 미국나스닥100액티브", ticker:"426030",qty:345, avg:42639,    cur:55300,   curr:"KRW", acct:"ISA", tag:"나스닥"},
+    {id:_now+17, name:"KODEX 미국서학개미",             ticker:"473460",qty:189, avg:21478,    cur:27595,   curr:"KRW", acct:"ISA", tag:"ETF"},
+    {id:_now+18, name:"KODEX 미국배당커버드콜액티브",   ticker:"441640",qty:490, avg:11997,    cur:13425,   curr:"KRW", acct:"ISA", tag:"배당"},
+    {id:_now+19, name:"한화",                          ticker:"000880",qty:1,   avg:132000,   cur:140500,  curr:"KRW", acct:"ISA", tag:"국내주식"},
+    {id:_now+20, name:"TIGER 글로벌비만치료제TOP2Plus", ticker:"476690",qty:235, avg:10250,    cur:10830,   curr:"KRW", acct:"ISA", tag:"헬스케어"},
+    {id:_now+21, name:"TIGER 미국초단기국채",           ticker:"0046A0",qty:761, avg:9963,     cur:10510,   curr:"KRW", acct:"ISA", tag:"채권"},
+    {id:_now+22, name:"KODEX 미국AI전력핵심인프라",     ticker:"487230",qty:307, avg:26408,    cur:26535,   curr:"KRW", acct:"ISA", tag:"AI"}
   ];
   localStorage.setItem("pf_v3",JSON.stringify(_d));
   localStorage.setItem("pf_seed",SEED_ID);
