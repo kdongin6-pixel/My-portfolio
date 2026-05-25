@@ -204,8 +204,9 @@ let S={
   cash:{메리츠증권:{USD:0,KRW:0},ISA:{USD:0,KRW:0}},  
   cashTxns:[],  
   txns:[],      
-  snapshots:[], 
-  journal:[],   
+  snapshots:[],
+  intradaySnaps:[],
+  journal:[],
   tags:[...DEFAULT_TAGS],
   tagColors:{...TC_DEFAULT},
   rate:1510,
@@ -236,6 +237,7 @@ function load(){
       S.cashTxns=d.cashTxns||[];
       S.txns=d.txns||[];
       S.snapshots=(d.snapshots||[]).filter(s=>s&&!isNaN(s.totalKRW));
+      S.intradaySnaps=d.intradaySnaps||[];
       S.journal=d.journal||[];
       S.tags=d.tags||[...DEFAULT_TAGS];
       S.tagColors=d.tagColors||{...TC_DEFAULT};
@@ -272,11 +274,29 @@ function migrateFromV2(){
   save();
 }
 
+function updateIntradaySnap(){
+  if(!S.stocks||!S.stocks.length)return;
+  const now=new Date();
+  if(S.intradaySnaps.length>0){
+    const last=new Date(S.intradaySnaps[S.intradaySnaps.length-1].dt);
+    if(now-last<30*60*1000)return;
+  }
+  const stockKRW=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0);
+  const cashKRW=Object.values(S.cash).reduce((a,c)=>a+(c.USD||0)*S.rate+(c.KRW||0),0);
+  const inv=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
+  const pnl=stockKRW-inv;
+  const pct=inv>0?pnl/inv*100:0;
+  S.intradaySnaps.push({dt:now.toISOString(),totalKRW:Math.round(stockKRW+cashKRW),pct:Number(pct.toFixed(2))});
+  const cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-2);
+  S.intradaySnaps=S.intradaySnaps.filter(s=>new Date(s.dt)>=cutoff);
+}
+
 function save(){
   updateTodaySnapshot();
+  updateIntradaySnap();
   localStorage.setItem("pf_v3",JSON.stringify({
     stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
-    snapshots:S.snapshots,journal:S.journal,
+    snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
     tags:S.tags,tagColors:S.tagColors,rate:S.rate
   }));
   scheduleCloudSave();
@@ -326,7 +346,7 @@ async function saveToCloud(){
   try{
     const payload={
       stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
-      snapshots:S.snapshots,journal:S.journal,
+      snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
       tags:S.tags,tagColors:S.tagColors,rate:S.rate,
       updatedAt:new Date().toISOString()
     };
@@ -379,6 +399,7 @@ async function loadFromCloud(showAlert){
       if(a.cashTxns)S.cashTxns=a.cashTxns;
       if(a.txns)S.txns=a.txns;
       if(a.snapshots)S.snapshots=a.snapshots;
+      if(a.intradaySnaps)S.intradaySnaps=a.intradaySnaps;
       if(a.journal)S.journal=a.journal;
       if(a.tags)S.tags=a.tags;
       if(a.tagColors)S.tagColors=a.tagColors;
@@ -766,27 +787,58 @@ function drawChart(){
 // ═══════════════════════════════════════════
 function mkTrend(){
   const d=document.createElement("div");
-  // 💡 1일 필터가 추가되었습니다.
   const periods=[["1D","1일"],["1W","1주"],["1M","1달"],["3M","3달"],["1Y","1년"],["ALL","전체"]];
   const btns=periods.map(([k,l])=>`<button class="flt ${S.trendPeriod===k?'on':''}" data-period="${k}">${l}</button>`).join('');
-  
+
+  if(S.trendPeriod==="1D"){
+    const cutoff24=new Date();cutoff24.setDate(cutoff24.getDate()-1);
+    const intra=(S.intradaySnaps||[]).filter(s=>new Date(s.dt)>=cutoff24);
+    let summary='';
+    if(intra.length>=2){
+      const first=intra[0],last=intra[intra.length-1];
+      const change=last.totalKRW-first.totalKRW;
+      const changePct=first.totalKRW>0?change/first.totalKRW*100:0;
+      summary=`<div class="trend-summary">
+        <div class="ts-item"><div class="ts-lbl">현재 총자산</div><div class="ts-val">₩${fK(last.totalKRW)}</div></div>
+        <div class="ts-item"><div class="ts-lbl">당일 변화</div><div class="ts-val ${change>=0?'pos':'neg'}">${change>=0?'+':''}₩${fK(change)}</div></div>
+        <div class="ts-item"><div class="ts-lbl">당일 수익률</div><div class="ts-val ${changePct>=0?'pos':'neg'}">${fP(changePct)}</div></div>
+      </div>`;
+    }
+    const notice=intra.length<2?'<div class="empty" style="padding:20px">⏳ 당일 데이터 수집 중<br><br><span style="font-size:.85em">동기화할 때마다 30분 간격으로 기록됩니다</span></div>':'';
+    d.innerHTML=`
+      <div class="filters">${btns}</div>
+      <div class="trend-wrap">
+        ${summary}${notice}
+        ${intra.length>=2?`
+        <div class="trend-chart-box">
+          <div class="trend-chart-title">💰 총 자산 추이 (오늘)</div>
+          <div style="position:relative;height:220px;width:100%"><canvas id="trendTotal"></canvas></div>
+        </div>
+        <div class="trend-chart-box">
+          <div class="trend-chart-title">📈 수익률 추이 (오늘)</div>
+          <div style="position:relative;height:180px;width:100%"><canvas id="trendPct"></canvas></div>
+        </div>
+        <div style="font-size:.75em;color:#8b949e;text-align:center;padding:10px">기록된 포인트: ${intra.length}개 (30분 간격)</div>`:''}
+      </div>`;
+    return d;
+  }
+
   if(!S.snapshots||S.snapshots.length<1){
     d.innerHTML=`<div class="filters">${btns}</div>
       <div class="empty">📭 스냅샷 데이터가 없어요<br><br><span style="font-size:.85em">매일 페이지에 한 번씩 방문하면<br>자동으로 기록돼서 추이를 볼 수 있어요</span></div>`;
     return d;
   }
-  
+
   const now=new Date();
   let cutoff=new Date(0);
-  if(S.trendPeriod==="1D"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-1);} // 💡 1일전
-  else if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
+  if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
   else if(S.trendPeriod==="1M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-1);}
   else if(S.trendPeriod==="3M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-3);}
   else if(S.trendPeriod==="1Y"){cutoff=new Date(now);cutoff.setFullYear(cutoff.getFullYear()-1);}
-  
+
   const cutoffStr=cutoff.toISOString().slice(0,10);
   const filtered=S.snapshots.filter(s=>s.date>=cutoffStr);
-  
+
   let summary='';
   if(filtered.length>=2){
     const first=filtered[0],last=filtered[filtered.length-1];
@@ -798,23 +850,18 @@ function mkTrend(){
       <div class="ts-item"><div class="ts-lbl">기간 수익률</div><div class="ts-val ${changePct>=0?'pos':'neg'}">${fP(changePct)}</div></div>
     </div>`;
   }
-  
-  // 💡 차트가 담기는 영역을 position:relative 와 높이 고정으로 묶어 무한 팽창을 방지합니다.
+
   d.innerHTML=`
     <div class="filters">${btns}</div>
     <div class="trend-wrap">
       ${summary}
       <div class="trend-chart-box">
         <div class="trend-chart-title">💰 총 자산 추이 (KRW)</div>
-        <div style="position:relative; height:220px; width:100%">
-          <canvas id="trendTotal"></canvas>
-        </div>
+        <div style="position:relative;height:220px;width:100%"><canvas id="trendTotal"></canvas></div>
       </div>
       <div class="trend-chart-box">
         <div class="trend-chart-title">📈 누적 수익률 (%)</div>
-        <div style="position:relative; height:180px; width:100%">
-          <canvas id="trendPct"></canvas>
-        </div>
+        <div style="position:relative;height:180px;width:100%"><canvas id="trendPct"></canvas></div>
       </div>
       <div style="font-size:.75em;color:#8b949e;text-align:center;padding:10px">기록된 일수: ${filtered.length}일 / 전체 ${S.snapshots.length}일</div>
     </div>`;
@@ -822,21 +869,29 @@ function mkTrend(){
 }
 
 function drawTrend(){
-  const now=new Date();
-  let cutoff=new Date(0);
-  if(S.trendPeriod==="1D"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-1);} // 💡 1일전 연산
-  else if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
-  else if(S.trendPeriod==="1M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-1);}
-  else if(S.trendPeriod==="3M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-3);}
-  else if(S.trendPeriod==="1Y"){cutoff=new Date(now);cutoff.setFullYear(cutoff.getFullYear()-1);}
-  
-  const cutoffStr=cutoff.toISOString().slice(0,10);
-  const data=S.snapshots.filter(s=>s.date>=cutoffStr);
-  if(!data.length)return;
-  
-  const labels=data.map(s=>s.date.slice(5));
-  const totals=data.map(s=>s.totalKRW);
-  const pcts=data.map(s=>s.pct);
+  let labels,totals,pcts;
+
+  if(S.trendPeriod==="1D"){
+    const cutoff24=new Date();cutoff24.setDate(cutoff24.getDate()-1);
+    const intra=(S.intradaySnaps||[]).filter(s=>new Date(s.dt)>=cutoff24);
+    if(intra.length<2)return;
+    labels=intra.map(s=>{const t=new Date(s.dt);return t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');});
+    totals=intra.map(s=>s.totalKRW);
+    pcts=intra.map(s=>s.pct);
+  }else{
+    const now=new Date();
+    let cutoff=new Date(0);
+    if(S.trendPeriod==="1W"){cutoff=new Date(now);cutoff.setDate(cutoff.getDate()-7);}
+    else if(S.trendPeriod==="1M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-1);}
+    else if(S.trendPeriod==="3M"){cutoff=new Date(now);cutoff.setMonth(cutoff.getMonth()-3);}
+    else if(S.trendPeriod==="1Y"){cutoff=new Date(now);cutoff.setFullYear(cutoff.getFullYear()-1);}
+    const cutoffStr=cutoff.toISOString().slice(0,10);
+    const data=S.snapshots.filter(s=>s.date>=cutoffStr);
+    if(!data.length)return;
+    labels=data.map(s=>s.date.slice(5));
+    totals=data.map(s=>s.totalKRW);
+    pcts=data.map(s=>s.pct);
+  }
   
   const ctx1=document.getElementById("trendTotal");
   if(ctx1){
