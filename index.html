@@ -389,6 +389,8 @@ async function loadFromCloud(showAlert){
         if(s){
           if(item.cur>0)s.cur=item.cur;
           if(item.ticker)s.ticker=item.ticker;
+          if(item.qty>0)s.qty=item.qty;
+          if(item.avg>0)s.avg=item.avg;
         }
       });
       (data.isa||[]).forEach(item=>{
@@ -396,6 +398,8 @@ async function loadFromCloud(showAlert){
         if(s){
           if(item.cur>0)s.cur=item.cur;
           if(item.ticker)s.ticker=item.ticker;
+          if(item.qty>0)s.qty=item.qty;
+          if(item.avg>0)s.avg=item.avg;
         }
       });
       
