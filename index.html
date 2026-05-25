@@ -138,6 +138,19 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .txn-actions{display:flex;justify-content:flex-end}
 
 .msg-sync{font-size:.8em;text-align:center;padding:8px;margin-bottom:10px;border-radius:8px}
+.view-tog{background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;padding:7px 12px;border-radius:20px;font-size:.78em;font-weight:700;margin-left:auto;flex-shrink:0;white-space:nowrap}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px 12px 10px}
+.tbl-hdr{display:grid;grid-template-columns:1.7fr 68px 108px 96px 52px 86px 82px;align-items:center;gap:2px;padding:7px 8px;background:#21262d;border-radius:8px;margin-bottom:4px;min-width:580px}
+.tbl-hdr>div{font-size:.67em;font-weight:700;color:#8b949e;text-align:right}
+.tbl-hdr>div:first-child{text-align:left}
+.tbl-row{display:grid;grid-template-columns:1.7fr 68px 108px 96px 52px 86px 82px;align-items:center;gap:2px;padding:9px 8px;background:#161b22;border:1px solid #30363d;border-radius:10px;margin-bottom:4px;min-width:580px}
+.tbl-row>div{font-size:.8em;text-align:right;font-weight:600;color:#e6edf3}
+.tbl-row>div:first-child{text-align:left}
+.tbl-name{font-size:.83em;font-weight:800;line-height:1.3;color:#e6edf3}
+.tbl-sub{display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap}
+.tbl-inp{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:6px;padding:4px 5px;font-size:.78em;font-weight:700;color:#e6edf3;width:80px;text-align:right}
+.tbl-btns{display:flex;gap:3px;justify-content:flex-end}
+.tbl-btn{padding:4px 7px;border-radius:6px;font-size:.7em;font-weight:800;cursor:pointer;border:none}
 .empty{padding:50px 20px;text-align:center;color:#8b949e;font-size:.9em;line-height:1.6}
 
 /* 📈 추이 탭 */
@@ -211,8 +224,9 @@ let S={
   tagColors:{...TC_DEFAULT},
   rate:1510,
   tab:"list",acct:"전체",wMode:"stock",modal:null,syncMsg:"",
-  trendPeriod:"1M",  // 💡 1D | 1W | 1M | 3M | 1Y | ALL
-  jFilter:"전체",    
+  trendPeriod:"1M",
+  jFilter:"전체",
+  sortBy:"eval",sortDir:"desc",viewMode:"table",
   cloudStatus:"",  
   lastCloudSync:null,
   autoSyncTimer:null
@@ -645,7 +659,87 @@ function mkList(){
   const pnl=stockTot-inv;
   const pct=inv>0?pnl/inv*100:0;
   const d=document.createElement("div");
-  const cards=fl.map(s=>{
+
+  // 정렬
+  const sorted=[...fl].sort((a,b)=>{
+    const aInvK=a.curr==="USD"?a.qty*a.avg*S.rate:a.qty*a.avg;
+    const bInvK=b.curr==="USD"?b.qty*b.avg*S.rate:b.qty*b.avg;
+    const aEvK=evK(a),bEvK=evK(b);
+    let av=0,bv=0;
+    if(S.sortBy==="eval"){av=aEvK;bv=bEvK;}
+    else if(S.sortBy==="pct"){av=aInvK>0?(aEvK-aInvK)/aInvK:0;bv=bInvK>0?(bEvK-bInvK)/bInvK:0;}
+    else if(S.sortBy==="pnl"){av=aEvK-aInvK;bv=bEvK-bInvK;}
+    else if(S.sortBy==="wt"){av=aEvK;bv=bEvK;}
+    return S.sortDir==="desc"?bv-av:av-bv;
+  });
+
+  const sortBtns=[["eval","평가금액"],["pct","수익률"],["pnl","손익"],["wt","비중"]]
+    .map(([k,l])=>`<button class="flt ${S.sortBy===k?'on':''}" data-sort="${k}">${l}${S.sortBy===k?(S.sortDir==="desc"?"↓":"↑"):""}</button>`)
+    .join('');
+
+  const filtersHtml=`
+    <div class="filters">
+      <button class="flt ${S.acct==='전체'?'on':''}" data-acct="전체">전체</button>
+      <button class="flt ${S.acct==='메리츠증권'?'on':''}" data-acct="메리츠증권">메리츠</button>
+      <button class="flt ${S.acct==='ISA'?'on':''}" data-acct="ISA">ISA</button>
+      <input class="rate-inp" type="number" id="rateInp" value="${S.rate}" placeholder="환율">
+    </div>
+    <div class="filters">
+      <span style="font-size:.72em;color:#8b949e;white-space:nowrap;align-self:center">정렬</span>
+      ${sortBtns}
+      <button class="view-tog" id="btnView">${S.viewMode==="table"?"📋 카드뷰":"📊 테이블뷰"}</button>
+    </div>
+    <div style="padding:6px 12px 0">
+      <div class="sum-card">
+        <div class="card-grid">
+          <div class="cg-item"><div class="cg-lbl">종목 평가</div><div class="cg-val">₩${fK(stockTot)}</div></div>
+          <div class="cg-item"><div class="cg-lbl">현금</div><div class="cg-val">₩${fK(filtCashKRW())}</div></div>
+          <div class="cg-item"><div class="cg-lbl">매매 손익</div><div class="cg-val ${pnl>=0?'pos':'neg'}">${fP(pct)}</div></div>
+        </div>
+      </div>
+    </div>`;
+
+  if(S.viewMode==="table"){
+    const rows=sorted.map(s=>{
+      const ev=s.qty*s.cur,evk=s.curr==="USD"?ev*S.rate:ev;
+      const sinvK=s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg;
+      const spnl=evk-sinvK,spct=sinvK>0?spnl/sinvK*100:0;
+      const wt=stockTot>0?evk/stockTot*100:0;
+      const tc=S.tagColors[s.tag]||"#94a3b8";
+      return `<div class="tbl-row">
+        <div>
+          <div class="tbl-name">${s.name}</div>
+          <div class="tbl-sub">
+            <span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}" style="font-size:.6em;padding:1px 6px">${s.acct==='ISA'?'ISA':'메리츠'}</span>
+            <span style="font-size:.65em;color:${tc};font-weight:700" data-edit-tag="${s.id}">${s.tag||'태그없음'} ✏️</span>
+          </div>
+        </div>
+        <div class="${spct>=0?'pos':'neg'}">${fP(spct)}</div>
+        <div>₩${fK(evk)}</div>
+        <div class="${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</div>
+        <div>${wt.toFixed(1)}%</div>
+        <div><input class="tbl-inp cur-inp" data-id="${s.id}" type="number" value="${s.cur}" step="0.01"></div>
+        <div class="tbl-btns">
+          <button class="tbl-btn cbtn-buy" data-id="${s.id}" data-mode="buy" style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#10b981">매수</button>
+          <button class="tbl-btn cbtn-sell" data-id="${s.id}" data-mode="sell" style="background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.3);color:#f43f5e">매도</button>
+          <button class="tbl-btn cbtn-del" data-del="${s.id}" style="background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);color:#94a3b8">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    d.innerHTML=`${filtersHtml}
+      <div class="tbl-wrap">
+        <div class="tbl-hdr">
+          <div style="text-align:left">종목 / 태그</div>
+          <div>수익률</div><div>평가금액(KRW)</div><div>손익(KRW)</div><div>비중</div><div>현재가</div><div></div>
+        </div>
+        ${rows||'<div class="empty">종목이 없어요</div>'}
+      </div>`;
+    return d;
+  }
+
+  // 카드뷰
+  const cards=sorted.map(s=>{
     const ev=s.qty*s.cur,evk=s.curr==="USD"?ev*S.rate:ev;
     const sinv=s.qty*s.avg,spnl=ev-sinv,spct=sinv>0?spnl/sinv*100:0;
     const wt=stockTot>0?evk/stockTot*100:0;
@@ -683,23 +777,7 @@ function mkList(){
     </div>`;
   }).join('');
 
-  d.innerHTML=`
-    <div class="filters">
-      <button class="flt ${S.acct==='전체'?'on':''}" data-acct="전체">전체</button>
-      <button class="flt ${S.acct==='메리츠증권'?'on':''}" data-acct="메리츠증권">메리츠증권</button>
-      <button class="flt ${S.acct==='ISA'?'on':''}" data-acct="ISA">ISA</button>
-      <input class="rate-inp" type="number" id="rateInp" value="${S.rate}" placeholder="환율">
-    </div>
-    <div class="cards">
-      <div class="sum-card">
-        <div class="card-grid">
-          <div class="cg-item"><div class="cg-lbl">종목 평가</div><div class="cg-val">₩${fK(stockTot)}</div></div>
-          <div class="cg-item"><div class="cg-lbl">현금</div><div class="cg-val">₩${fK(filtCashKRW())}</div></div>
-          <div class="cg-item"><div class="cg-lbl">매매 손익</div><div class="cg-val ${pnl>=0?'pos':'neg'}">${fP(pct)}</div></div>
-        </div>
-      </div>
-      ${cards||'<div class="empty">종목이 없어요</div>'}
-    </div>`;
+  d.innerHTML=`${filtersHtml}<div class="cards">${cards||'<div class="empty">종목이 없어요</div>'}</div>`;
   return d;
 }
 
@@ -1175,6 +1253,12 @@ function bind(){
   qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{S.acct=el.dataset.acct;render();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{S.tab=el.dataset.tab;render();}));
   qa(".flt[data-wmode]").forEach(el=>el.addEventListener("click",()=>{S.wMode=el.dataset.wmode;render();}));
+  qa("[data-sort]").forEach(el=>el.addEventListener("click",()=>{
+    if(S.sortBy===el.dataset.sort)S.sortDir=S.sortDir==="desc"?"asc":"desc";
+    else{S.sortBy=el.dataset.sort;S.sortDir="desc";}
+    render();
+  }));
+  q("#btnView")?.addEventListener("click",()=>{S.viewMode=S.viewMode==="table"?"card":"table";render();});
   qa(".flt[data-period]").forEach(el=>el.addEventListener("click",()=>{S.trendPeriod=el.dataset.period;render();}));
   qa(".flt[data-jfilt]").forEach(el=>el.addEventListener("click",()=>{S.jFilter=el.dataset.jfilt;render();}));
   
