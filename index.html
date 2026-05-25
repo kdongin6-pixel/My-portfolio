@@ -139,18 +139,20 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 
 .msg-sync{font-size:.8em;text-align:center;padding:8px;margin-bottom:10px;border-radius:8px}
 .view-tog{background:rgba(99,102,241,.2);border:1px solid rgba(99,102,241,.4);color:#a5b4fc;padding:7px 12px;border-radius:20px;font-size:.78em;font-weight:700;margin-left:auto;flex-shrink:0;white-space:nowrap}
-.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px 12px 10px}
-.tbl-hdr{display:grid;grid-template-columns:1.7fr 68px 108px 96px 52px 86px 82px;align-items:center;gap:2px;padding:7px 8px;background:#21262d;border-radius:8px;margin-bottom:4px;min-width:580px}
-.tbl-hdr>div{font-size:.67em;font-weight:700;color:#8b949e;text-align:right}
-.tbl-hdr>div:first-child{text-align:left}
-.tbl-row{display:grid;grid-template-columns:1.7fr 68px 108px 96px 52px 86px 82px;align-items:center;gap:2px;padding:9px 8px;background:#161b22;border:1px solid #30363d;border-radius:10px;margin-bottom:4px;min-width:580px}
-.tbl-row>div{font-size:.8em;text-align:right;font-weight:600;color:#e6edf3}
-.tbl-row>div:first-child{text-align:left}
-.tbl-name{font-size:.83em;font-weight:800;line-height:1.3;color:#e6edf3}
-.tbl-sub{display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap}
-.tbl-inp{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:6px;padding:4px 5px;font-size:.78em;font-weight:700;color:#e6edf3;width:80px;text-align:right}
-.tbl-btns{display:flex;gap:3px;justify-content:flex-end}
-.tbl-btn{padding:4px 7px;border-radius:6px;font-size:.7em;font-weight:800;cursor:pointer;border:none}
+.cmp-wrap{padding:8px 12px;display:flex;flex-direction:column;gap:6px}
+.cmp-row{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:11px 13px}
+.cmp-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;gap:8px}
+.cmp-name{font-size:.93em;font-weight:800;color:#e6edf3;line-height:1.3}
+.cmp-pct{font-size:.97em;font-weight:800;flex-shrink:0}
+.cmp-mid{display:flex;gap:0;margin-bottom:9px;background:rgba(255,255,255,.04);border-radius:8px;overflow:hidden}
+.cmp-stat{flex:1;padding:7px 6px;text-align:center;border-right:1px solid #30363d}
+.cmp-stat:last-child{border-right:none}
+.cmp-stat-lbl{font-size:.63em;color:#8b949e;margin-bottom:2px}
+.cmp-stat-val{font-size:.82em;font-weight:800;color:#e6edf3}
+.cmp-bot{display:flex;align-items:center;gap:5px}
+.cmp-cur-lbl{font-size:.75em;color:#8b949e;white-space:nowrap}
+.cmp-cur-inp{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:8px;padding:6px 8px;font-size:.85em;font-weight:700;color:#e6edf3;width:105px;text-align:right;flex-shrink:0}
+.cmp-btns{display:flex;gap:4px;margin-left:auto;flex-shrink:0}
 .empty{padding:50px 20px;text-align:center;color:#8b949e;font-size:.9em;line-height:1.6}
 
 /* 📈 추이 탭 */
@@ -706,35 +708,38 @@ function mkList(){
       const spnl=evk-sinvK,spct=sinvK>0?spnl/sinvK*100:0;
       const wt=stockTot>0?evk/stockTot*100:0;
       const tc=S.tagColors[s.tag]||"#94a3b8";
-      return `<div class="tbl-row">
-        <div>
-          <div class="tbl-name">${s.name}</div>
-          <div class="tbl-sub">
-            <span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}" style="font-size:.6em;padding:1px 6px">${s.acct==='ISA'?'ISA':'메리츠'}</span>
-            <span style="font-size:.65em;color:${tc};font-weight:700" data-edit-tag="${s.id}">${s.tag||'태그없음'} ✏️</span>
+      return `<div class="cmp-row">
+        <div class="cmp-top">
+          <div style="flex:1;min-width:0">
+            <div class="cmp-name">${s.name}</div>
+            <div class="card-chips" style="margin-top:3px">
+              <span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}">${s.acct==='ISA'?'ISA':'메리츠'}</span>
+              <span class="chip chip-tag" style="background:${tc}22;color:${tc}" data-edit-tag="${s.id}">${s.tag||'태그없음'} ✏️</span>
+            </div>
           </div>
+          <div class="cmp-pct ${spct>=0?'pos':'neg'}">${fP(spct)}</div>
         </div>
-        <div class="${spct>=0?'pos':'neg'}">${fP(spct)}</div>
-        <div>₩${fK(evk)}</div>
-        <div class="${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</div>
-        <div>${wt.toFixed(1)}%</div>
-        <div><input class="tbl-inp cur-inp" data-id="${s.id}" type="number" value="${s.cur}" step="0.01"></div>
-        <div class="tbl-btns">
-          <button class="tbl-btn cbtn-buy" data-id="${s.id}" data-mode="buy" style="background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#10b981">매수</button>
-          <button class="tbl-btn cbtn-sell" data-id="${s.id}" data-mode="sell" style="background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.3);color:#f43f5e">매도</button>
-          <button class="tbl-btn cbtn-del" data-del="${s.id}" style="background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.2);color:#94a3b8">🗑</button>
+        <div class="cmp-mid">
+          <div class="cmp-stat"><div class="cmp-stat-lbl">평가금액</div><div class="cmp-stat-val">₩${fK(evk)}</div></div>
+          <div class="cmp-stat"><div class="cmp-stat-lbl">손익</div><div class="cmp-stat-val ${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</div></div>
+          <div class="cmp-stat"><div class="cmp-stat-lbl">비중</div><div class="cmp-stat-val">${wt.toFixed(1)}%</div></div>
+          <div class="cmp-stat"><div class="cmp-stat-lbl">수량</div><div class="cmp-stat-val">${s.qty.toLocaleString()}</div></div>
+          <div class="cmp-stat"><div class="cmp-stat-lbl">평단가</div><div class="cmp-stat-val">${fM(s.avg,s.curr)}</div></div>
+        </div>
+        <div class="cmp-bot">
+          <span class="cmp-cur-lbl">현재가</span>
+          <input class="cmp-cur-inp cur-inp" data-id="${s.id}" type="number" value="${s.cur}" step="0.01">
+          <div class="cmp-btns">
+            <button class="cbtn cbtn-buy" data-id="${s.id}" data-mode="buy">매수</button>
+            <button class="cbtn cbtn-sell" data-id="${s.id}" data-mode="sell">매도</button>
+            <button class="cbtn cbtn-edit" data-edit="${s.id}">✏️</button>
+            <button class="cbtn cbtn-del" data-del="${s.id}">🗑</button>
+          </div>
         </div>
       </div>`;
     }).join('');
 
-    d.innerHTML=`${filtersHtml}
-      <div class="tbl-wrap">
-        <div class="tbl-hdr">
-          <div style="text-align:left">종목 / 태그</div>
-          <div>수익률</div><div>평가금액(KRW)</div><div>손익(KRW)</div><div>비중</div><div>현재가</div><div></div>
-        </div>
-        ${rows||'<div class="empty">종목이 없어요</div>'}
-      </div>`;
+    d.innerHTML=`${filtersHtml}<div class="cmp-wrap">${rows||'<div class="empty">종목이 없어요</div>'}</div>`;
     return d;
   }
 
