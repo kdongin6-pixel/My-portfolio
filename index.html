@@ -731,10 +731,11 @@ function mkList(){
     </div>
     <div style="padding:6px 12px 0">
       <div class="sum-card">
-        <div class="card-grid">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
           <div class="cg-item"><div class="cg-lbl">종목 평가</div><div class="cg-val">₩${fK(stockTot)}</div></div>
           <div class="cg-item"><div class="cg-lbl">현금</div><div class="cg-val">₩${fK(filtCashKRW())}</div></div>
-          <div class="cg-item"><div class="cg-lbl">매매 손익</div><div class="cg-val ${pnl>=0?'pos':'neg'}">${fP(pct)}</div></div>
+          <div class="cg-item"><div class="cg-lbl">손익</div><div class="cg-val ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}₩${fK(pnl)}</div></div>
+          <div class="cg-item"><div class="cg-lbl">수익률</div><div class="cg-val ${pct>=0?'pos':'neg'}">${fP(pct)}</div></div>
         </div>
       </div>
     </div>`;
