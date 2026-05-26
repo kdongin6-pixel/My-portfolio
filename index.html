@@ -480,7 +480,7 @@ async function loadFromCloud(showAlert){
 
       localStorage.setItem("pf_v3",JSON.stringify({
         stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
-        snapshots:S.snapshots,journal:S.journal,
+        snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
         tags:S.tags,tagColors:S.tagColors,rate:S.rate
       }));
     }
@@ -1031,7 +1031,7 @@ function drawTrend(){
   if(ctx1){
     new Chart(ctx1,{type:"line",data:{labels,datasets:[{
       label:"총자산",data:totals,borderColor:"#a5b4fc",backgroundColor:"rgba(99,102,241,.15)",
-      fill:true,tension:.3,pointRadius:data.length<=14?3:0,pointHoverRadius:5,borderWidth:2
+      fill:true,tension:.3,pointRadius:totals.length<=14?3:0,pointHoverRadius:5,borderWidth:2
     }]},options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`₩${fK(c.parsed.y)}`}}},
@@ -1041,7 +1041,7 @@ function drawTrend(){
       }
     }});
   }
-  
+
   const ctx2=document.getElementById("trendPct");
   if(ctx2){
     new Chart(ctx2,{type:"line",data:{labels,datasets:[{
@@ -1050,7 +1050,7 @@ function drawTrend(){
       segment:{borderColor:c=>(c.p1.parsed.y>=0?"#10b981":"#f43f5e")},
       backgroundColor:"rgba(16,185,129,.1)",
       fill:{target:"origin",above:"rgba(16,185,129,.15)",below:"rgba(244,63,94,.15)"},
-      tension:.3,pointRadius:data.length<=14?3:0,pointHoverRadius:5,borderWidth:2
+      tension:.3,pointRadius:totals.length<=14?3:0,pointHoverRadius:5,borderWidth:2
     }]},options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fP(c.parsed.y)}}},
