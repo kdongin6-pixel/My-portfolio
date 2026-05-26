@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>포트폴리오</title>
+<!-- APP_VERSION: v0.2.0 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -220,6 +221,7 @@ const TC_DEFAULT={"성장주":"#6366f1","방어주":"#10b981","중소형주":"#f
 const DEFAULT_TAGS=["성장주","방어주","중소형주","현금/채권","기타"];
 
 const API_URL='https://script.google.com/macros/s/AKfycbzTVv2yjKdg6mHBoMjuQGOdVhPkzSDKQzju5XFUvVNyGK8ZGDwBtomfWxi9RxiPMsLKZw/exec';
+const APP_VERSION="v0.2.0";
 
 let _chartInstances=[];
 function destroyCharts(){_chartInstances.forEach(c=>{try{c.destroy();}catch(e){}});_chartInstances=[];}
@@ -670,7 +672,7 @@ function mkHdr(){
   const d=document.createElement("div");d.className="hdr";
   d.innerHTML=`
     <div class="hdr-row1">
-      <div class="hdr-title">📊 포트폴리오 <span id="cloudBadge" style="font-size:.6em;color:#8b949e;margin-left:8px;font-weight:600">☁️</span></div>
+      <div class="hdr-title">📊 포트폴리오 <span id="cloudBadge" style="font-size:.6em;color:#8b949e;margin-left:8px;font-weight:600">☁️</span><span style="font-size:.5em;color:#4b5563;margin-left:6px;font-weight:500;letter-spacing:.3px">${APP_VERSION}</span></div>
       <button class="sync-btn" id="btnSync">🔄 동기화</button>
     </div>
     ${S.syncMsg?`<div class="msg-sync" style="background:${S.syncMsg.startsWith('✅')?'rgba(16,185,129,.15)':S.syncMsg.startsWith('❌')?'rgba(244,63,94,.15)':'rgba(245,158,11,.15)'};color:${S.syncMsg.startsWith('✅')?'#10b981':S.syncMsg.startsWith('❌')?'#f43f5e':'#fbbf24'}">${S.syncMsg}</div>`:''}
