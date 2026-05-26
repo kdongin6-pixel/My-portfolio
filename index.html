@@ -486,6 +486,7 @@ async function loadFromCloud(showAlert){
       });
       // 클라우드 가격 반영 후 오늘 스냅샷 갱신
       updateTodaySnapshot();
+      updateIntradaySnap();
       localStorage.setItem("pf_v3",JSON.stringify({
         stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
         snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
