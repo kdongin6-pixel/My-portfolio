@@ -1,5 +1,32 @@
 // 📊 포트폴리오 자동 생성 및 최신 동기화 스크립트 (완성본)
 
+const MARKET_ITEMS=[
+  {key:"IXIC",  label:"나스닥",  ticker:"INDEXNASDAQ:.IXIC",  sec:"지수",    fmt:"num"},
+  {key:"SPX",   label:"S&P500", ticker:"INDEXSP:.INX",        sec:"지수",    fmt:"num"},
+  {key:"DJI",   label:"다우",   ticker:"INDEXDJX:.DJI",       sec:"지수",    fmt:"num"},
+  {key:"KOSPI", label:"코스피", ticker:"KRX:KOSPI",           sec:"지수",    fmt:"num"},
+  {key:"VIX",   label:"VIX",   ticker:"INDEXCBOE:VIX",       sec:"지수",    fmt:"dec"},
+  {key:"USDKRW",label:"원/달러",ticker:"CURRENCY:USDKRW",    sec:"금리·환율",fmt:"krw"},
+  {key:"T10Y",  label:"미10Y", ticker:"TMUBMUSD10Y",         sec:"금리·환율",fmt:"pct"},
+  {key:"T3M",   label:"미3M",  ticker:"TMUBMUSD03M",         sec:"금리·환율",fmt:"pct"},
+  {key:"GOLD",  label:"금",    ticker:"CURRENCY:XAUUSD",     sec:"원자재",  fmt:"usd"},
+  {key:"WTI",   label:"WTI",  ticker:"NYMEX:CL1!",          sec:"원자재",  fmt:"usd"},
+  {key:"QQQ",   label:"QQQ",  ticker:"QQQ",                 sec:"ETF",     fmt:"usd"},
+  {key:"TQQQ",  label:"TQQQ", ticker:"TQQQ",                sec:"ETF",     fmt:"usd"},
+  {key:"SPY",   label:"SPY",  ticker:"SPY",                 sec:"ETF",     fmt:"usd"},
+  {key:"TLT",   label:"TLT",  ticker:"TLT",                 sec:"ETF",     fmt:"usd"},
+  {key:"SOXX",  label:"SOXX", ticker:"SOXX",                sec:"ETF",     fmt:"usd"},
+  {key:"GLD",   label:"GLD",  ticker:"GLD",                 sec:"ETF",     fmt:"usd"},
+  {key:"NVDA",  label:"NVDA", ticker:"NVDA",                sec:"빅테크",  fmt:"usd"},
+  {key:"GOOGL", label:"GOOGL",ticker:"GOOGL",               sec:"빅테크",  fmt:"usd"},
+  {key:"AAPL",  label:"AAPL", ticker:"AAPL",                sec:"빅테크",  fmt:"usd"},
+  {key:"MSFT",  label:"MSFT", ticker:"MSFT",                sec:"빅테크",  fmt:"usd"},
+  {key:"AMZN",  label:"AMZN", ticker:"AMZN",                sec:"빅테크",  fmt:"usd"},
+  {key:"META",  label:"META", ticker:"META",                sec:"빅테크",  fmt:"usd"},
+  {key:"TSLA",  label:"TSLA", ticker:"TSLA",                sec:"빅테크",  fmt:"usd"},
+  {key:"AVGO",  label:"AVGO", ticker:"AVGO",                sec:"빅테크",  fmt:"usd"},
+];
+
 const MERITZ_DATA = [
   ["메리츠증권","나비타스 세미컨덕터","NVTS",     "USD",677, 20.3280, '=IFERROR(GOOGLEFINANCE("NVTS"),29.25)'],
   ["메리츠증권","GE베르노바",         "GEV",      "USD",16,  813.8956,'=IFERROR(GOOGLEFINANCE("GEV"),1038.74)'],
@@ -56,6 +83,31 @@ function fixSumFormula(sheet) {
   }
 }
 
+function setupMarketSheet(ss){
+  let sheet=ss.getSheetByName('_market');
+  if(!sheet){sheet=ss.insertSheet('_market');try{sheet.hideSheet();}catch(e){}}
+  sheet.clearContents();
+  sheet.getRange(1,1,1,4).setValues([['key','price','daily_pct','weekly_pct']]);
+  MARKET_ITEMS.forEach((item,i)=>{
+    const r=i+2,t=item.ticker;
+    sheet.getRange(r,1).setValue(item.key);
+    sheet.getRange(r,2).setFormula(`=IFERROR(GOOGLEFINANCE("${t}"),0)`);
+    sheet.getRange(r,3).setFormula(`=IFERROR(GOOGLEFINANCE("${t}","changepct")*100,0)`);
+    sheet.getRange(r,4).setFormula(`=IFERROR((B${r}/INDEX(GOOGLEFINANCE("${t}","price",TODAY()-7,1),2,2)-1)*100,0)`);
+  });
+  SpreadsheetApp.flush();
+}
+
+function getMarketData(ss){
+  const sheet=ss.getSheetByName('_market');
+  if(!sheet)return[];
+  const lastRow=sheet.getLastRow();
+  if(lastRow<2)return[];
+  return sheet.getRange(2,1,lastRow-1,4).getValues()
+    .map(r=>({key:String(r[0]),price:Number(r[1])||0,daily:Number(r[2])||0,weekly:Number(r[3])||0}))
+    .filter(item=>item.key&&item.key!=='');
+}
+
 function createPortfolioSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const tempName = "TEMP_RESET_" + Date.now();
@@ -90,6 +142,7 @@ function createPortfolioSheet() {
   createSummarySheet(sumSheet);
   createDetailSheet(meritzSheet, MERITZ_DATA, 'USD', MERITZ_SUM_ROW);
   createDetailSheet(isaSheet,    ISA_DATA,    'KRW', ISA_SUM_ROW);
+  setupMarketSheet(ss);
   SpreadsheetApp.getUi().alert('✅ 최신 데이터로 초기화 완료!');
 }
 
@@ -189,6 +242,14 @@ function onOpen() {
 
 function doGet(e) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const mode = (e && e.parameter && e.parameter.mode) || 'portfolio';
+
+  if (mode === 'market') {
+    const market = getMarketData(ss);
+    return ContentService
+      .createTextOutput(JSON.stringify({ market }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 
   let rate = 1510;
   const sumSheet = ss.getSheetByName('종합');

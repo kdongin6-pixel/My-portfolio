@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>포트폴리오</title>
-<!-- APP_VERSION: v0.2.0 -->
+<!-- APP_VERSION: v0.3.0 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -184,6 +184,26 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .journal-date{font-size:.72em;color:#8b949e;margin-left:auto}
 .journal-content{font-size:.88em;color:#e6edf3;line-height:1.5;white-space:pre-wrap;margin-bottom:8px}
 .journal-actions{display:flex;justify-content:flex-end}
+
+/* 🌐 시장 */
+.mkt-wrap{padding:12px}
+.mkt-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mkt-badge{font-size:.78em;font-weight:700;padding:4px 10px;border-radius:20px}
+.mkt-section{margin-bottom:12px}
+.mkt-section-title{font-size:.7em;font-weight:700;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;padding:0 2px}
+.mkt-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.mkt-grid-3{grid-template-columns:1fr 1fr 1fr}
+.mkt-grid-4{grid-template-columns:1fr 1fr 1fr 1fr}
+.mkt-item{background:#161b22;border:1px solid #30363d;border-radius:9px;padding:7px 8px}
+.mkt-item-lbl{font-size:.65em;color:#8b949e;margin-bottom:2px;font-weight:700}
+.mkt-item-price{font-size:.83em;font-weight:800;color:#e6edf3;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mkt-item-chgs{display:flex;gap:3px;flex-wrap:wrap}
+.mkt-chg{font-size:.65em;font-weight:700;padding:1px 4px;border-radius:3px}
+.mkt-pos{background:rgba(16,185,129,.15);color:#10b981}
+.mkt-neg{background:rgba(244,63,94,.15);color:#f43f5e}
+.mkt-neu{background:rgba(148,163,184,.1);color:#8b949e}
+.mkt-chg-w{opacity:.8}
+.mkt-refresh-btn{background:none;border:none;color:#8b949e;font-size:.9em;cursor:pointer;padding:0 3px}
 </style>
 </head>
 <body>
@@ -221,10 +241,38 @@ const TC_DEFAULT={"성장주":"#6366f1","방어주":"#10b981","중소형주":"#f
 const DEFAULT_TAGS=["성장주","방어주","중소형주","현금/채권","기타"];
 
 const API_URL='https://script.google.com/macros/s/AKfycbzTVv2yjKdg6mHBoMjuQGOdVhPkzSDKQzju5XFUvVNyGK8ZGDwBtomfWxi9RxiPMsLKZw/exec';
-const APP_VERSION="v0.2.0";
+const APP_VERSION="v0.3.0";
 
 let _chartInstances=[];
 function destroyCharts(){_chartInstances.forEach(c=>{try{c.destroy();}catch(e){}});_chartInstances=[];}
+let _mktFetchTime=0;
+
+const MARKET_CFG=[
+  {key:"IXIC",  label:"나스닥",  sec:"지수",     fmt:"num"},
+  {key:"SPX",   label:"S&P500",  sec:"지수",     fmt:"num"},
+  {key:"DJI",   label:"다우",    sec:"지수",     fmt:"num"},
+  {key:"KOSPI", label:"코스피",  sec:"지수",     fmt:"num"},
+  {key:"VIX",   label:"VIX",    sec:"지수",     fmt:"dec", vix:true},
+  {key:"USDKRW",label:"원/달러", sec:"금리·환율", fmt:"krw"},
+  {key:"T10Y",  label:"미10Y채", sec:"금리·환율", fmt:"pct"},
+  {key:"T3M",   label:"미3M채",  sec:"금리·환율", fmt:"pct"},
+  {key:"GOLD",  label:"금",      sec:"원자재",   fmt:"usd"},
+  {key:"WTI",   label:"WTI",    sec:"원자재",   fmt:"usd"},
+  {key:"QQQ",   label:"QQQ",    sec:"ETF",      fmt:"usd"},
+  {key:"TQQQ",  label:"TQQQ",   sec:"ETF",      fmt:"usd"},
+  {key:"SPY",   label:"SPY",    sec:"ETF",      fmt:"usd"},
+  {key:"TLT",   label:"TLT",    sec:"ETF",      fmt:"usd"},
+  {key:"SOXX",  label:"SOXX",   sec:"ETF",      fmt:"usd"},
+  {key:"GLD",   label:"GLD",    sec:"ETF",      fmt:"usd"},
+  {key:"NVDA",  label:"NVDA",   sec:"빅테크",   fmt:"usd"},
+  {key:"GOOGL", label:"GOOGL",  sec:"빅테크",   fmt:"usd"},
+  {key:"AAPL",  label:"AAPL",   sec:"빅테크",   fmt:"usd"},
+  {key:"MSFT",  label:"MSFT",   sec:"빅테크",   fmt:"usd"},
+  {key:"AMZN",  label:"AMZN",   sec:"빅테크",   fmt:"usd"},
+  {key:"META",  label:"META",   sec:"빅테크",   fmt:"usd"},
+  {key:"TSLA",  label:"TSLA",   sec:"빅테크",   fmt:"usd"},
+  {key:"AVGO",  label:"AVGO",   sec:"빅테크",   fmt:"usd"},
+];
 
 // ═══════════════════════════════════════════
 // 상태 (현금 분리)
@@ -246,7 +294,8 @@ let S={
   sortBy:"eval",sortDir:"desc",viewMode:"table",chartView:"donut",
   cloudStatus:"",
   lastCloudSync:null,
-  autoSyncTimer:null
+  autoSyncTimer:null,
+  marketData:null, marketLoading:false
 };
 
 // ── 포트폴리오 시드 (1회만 적용) ──────────────────────────
@@ -525,6 +574,51 @@ function renderCloudBadge(){
 setInterval(renderCloudBadge,30000);
 
 // ═══════════════════════════════════════════
+// 🌐 시장 데이터
+// ═══════════════════════════════════════════
+function getMarketStatus(){
+  const now=new Date();
+  const day=now.getUTCDay();
+  const mins=now.getUTCHours()*60+now.getUTCMinutes();
+  // EDT (UTC-4): 9:30-16:00 ET = 13:30-20:00 UTC (summer)
+  const usOpen=day>=1&&day<=5&&mins>=13*60+30&&mins<20*60;
+  // KST (UTC+9): 9:00-15:30 = 0:00-6:30 UTC
+  const krOpen=day>=1&&day<=5&&mins<6*60+30;
+  if(usOpen)return{label:"🟢 미장 개장",color:"#10b981",bg:"rgba(16,185,129,.15)"};
+  if(krOpen)return{label:"🔵 한국장 개장",color:"#60a5fa",bg:"rgba(59,130,246,.15)"};
+  return{label:"⚫ 휴장",color:"#8b949e",bg:"rgba(148,163,184,.1)"};
+}
+
+function fmtMktPrice(price,fmt){
+  if(price===null||price===undefined||price===0&&fmt!=="pct"&&fmt!=="dec")return"—";
+  if(fmt==="num")return Math.round(price).toLocaleString();
+  if(fmt==="krw")return Math.round(price).toLocaleString();
+  if(fmt==="usd")return"$"+price.toFixed(2);
+  if(fmt==="dec")return price.toFixed(2);
+  if(fmt==="pct")return price.toFixed(2)+"%";
+  return price.toFixed(2);
+}
+
+async function loadMarketData(force=false){
+  if(S.marketLoading)return;
+  const now=Date.now();
+  if(!force&&_mktFetchTime&&now-_mktFetchTime<5*60*1000)return;
+  S.marketLoading=true;
+  if(S.tab==="market")render();
+  try{
+    const res=await fetch(API_URL+"?mode=market");
+    if(!res.ok)throw new Error("시장 데이터 로드 실패");
+    const data=await res.json();
+    S.marketData=data.market||[];
+    _mktFetchTime=Date.now();
+  }catch(e){
+    console.error("Market data error:",e);
+  }
+  S.marketLoading=false;
+  if(S.tab==="market")render();
+}
+
+// ═══════════════════════════════════════════
 // 헬퍼
 // ═══════════════════════════════════════════
 const fK=n=>Math.round(n).toLocaleString("ko-KR");
@@ -657,6 +751,7 @@ function render(){
   if(S.tab==="cash")app.appendChild(mkCash());
   if(S.tab==="chart")app.appendChild(mkChart());
   if(S.tab==="trend")app.appendChild(mkTrend());
+  if(S.tab==="market")app.appendChild(mkMarket());
   if(S.tab==="journal")app.appendChild(mkJournal());
   if(S.tab==="txn")app.appendChild(mkTxn());
   if(S.modal)app.appendChild(mkModal());
@@ -697,6 +792,7 @@ function mkTabs(){
     <div class="tab ${S.tab==='cash'?'on':''}" data-tab="cash">💰 현금</div>
     <div class="tab ${S.tab==='chart'?'on':''}" data-tab="chart">📊 비중</div>
     <div class="tab ${S.tab==='trend'?'on':''}" data-tab="trend">📈 추이</div>
+    <div class="tab ${S.tab==='market'?'on':''}" data-tab="market">🌐 시장</div>
     <div class="tab ${S.tab==='journal'?'on':''}" data-tab="journal">📓 일지</div>
     <div class="tab ${S.tab==='txn'?'on':''}" data-tab="txn">📒 내역</div>
   </div>`;
@@ -1402,6 +1498,74 @@ function mkModal(){
 }
 
 // ═══════════════════════════════════════════
+// 🌐 시장 탭
+// ═══════════════════════════════════════════
+function mkMarket(){
+  const d=document.createElement("div");
+  const st=getMarketStatus();
+
+  if(S.marketLoading){
+    d.innerHTML=`<div class="mkt-wrap">
+      <div class="mkt-header">
+        <span style="font-size:.95em;font-weight:800;color:#e6edf3">🌐 시장 현황</span>
+        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">${st.label}</span>
+      </div>
+      <div class="empty">⏳ 시장 데이터 로드 중...</div>
+    </div>`;
+    return d;
+  }
+
+  const mdata=S.marketData||[];
+  const byKey={};
+  mdata.forEach(m=>byKey[m.key]=m);
+
+  const sections=["지수","금리·환율","원자재","ETF","빅테크"];
+  const gridCls={"지수":"mkt-grid mkt-grid-3","금리·환율":"mkt-grid","원자재":"mkt-grid","ETF":"mkt-grid mkt-grid-3","빅테크":"mkt-grid mkt-grid-4"};
+
+  let sectHtml='';
+  sections.forEach(sec=>{
+    const items=MARKET_CFG.filter(c=>c.sec===sec);
+    const cells=items.map(c=>{
+      const m=byKey[c.key];
+      const price=m?m.price:null;
+      const daily=m?m.daily:null;
+      const weekly=m?m.weekly:null;
+      const priceStr=price?fmtMktPrice(price,c.fmt):'—';
+      const dStr=m&&daily!==null?(daily>=0?'+':'')+daily.toFixed(2)+'%':'—';
+      const wStr=m&&weekly!==null?(weekly>=0?'+':'')+weekly.toFixed(2)+'%':'—';
+      // VIX: high=bad=red, low=good=green (inverted)
+      const dCls=m?(daily===0?'mkt-neu':c.vix?(daily>0?'mkt-neg':'mkt-pos'):(daily>0?'mkt-pos':'mkt-neg')):'mkt-neu';
+      const wCls=m?(weekly===0?'mkt-neu':c.vix?(weekly>0?'mkt-neg':'mkt-pos'):(weekly>0?'mkt-pos':'mkt-neg')):'mkt-neu';
+      return `<div class="mkt-item">
+        <div class="mkt-item-lbl">${c.label}</div>
+        <div class="mkt-item-price">${priceStr}</div>
+        <div class="mkt-item-chgs">
+          <span class="mkt-chg ${dCls}">전일 ${dStr}</span>
+          <span class="mkt-chg ${wCls} mkt-chg-w">주간 ${wStr}</span>
+        </div>
+      </div>`;
+    }).join('');
+    sectHtml+=`<div class="mkt-section">
+      <div class="mkt-section-title">${sec}</div>
+      <div class="${gridCls[sec]||'mkt-grid'}">${cells}</div>
+    </div>`;
+  });
+
+  const lastUpd=_mktFetchTime?new Date(_mktFetchTime).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'—';
+  d.innerHTML=`<div class="mkt-wrap">
+    <div class="mkt-header">
+      <span style="font-size:.95em;font-weight:800;color:#e6edf3">🌐 시장 현황</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">${st.label}</span>
+        <button class="mkt-refresh-btn" id="btnMktRefresh">🔄 ${lastUpd}</button>
+      </div>
+    </div>
+    ${mdata.length?sectHtml:'<div class="empty">📭 데이터 없음<br><br><span style="font-size:.85em">🔄 버튼을 눌러 시장 데이터를 불러오세요<br>구글 시트 연결이 필요합니다</span></div>'}
+  </div>`;
+  return d;
+}
+
+// ═══════════════════════════════════════════
 // 이벤트 바인딩
 // ═══════════════════════════════════════════
 function bind(){
@@ -1419,7 +1583,12 @@ function bind(){
   q("#rateInp")?.addEventListener("change",e=>{S.rate=parseFloat(e.target.value)||1510;save();render();});
 
   qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{S.acct=el.dataset.acct;render();}));
-  qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{S.tab=el.dataset.tab;render();}));
+  qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
+    S.tab=el.dataset.tab;render();
+    if(el.dataset.tab==="market")loadMarketData();
+  }));
+  q("#btnMktRefresh")?.addEventListener("click",()=>loadMarketData(true));
+  if(S.tab==="market"&&!S.marketData&&!S.marketLoading)setTimeout(loadMarketData,50);
   qa(".flt[data-wmode]").forEach(el=>el.addEventListener("click",()=>{S.wMode=el.dataset.wmode;render();}));
   qa("[data-cview]").forEach(el=>el.addEventListener("click",()=>{S.chartView=el.dataset.cview;render();}));
   qa("[data-sort]").forEach(el=>el.addEventListener("click",()=>{
