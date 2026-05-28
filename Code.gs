@@ -86,6 +86,7 @@ function fixSumFormula(sheet) {
 }
 
 function setupMarketSheet(ss){
+  if(!ss) ss=SpreadsheetApp.getActiveSpreadsheet();
   let sheet=ss.getSheetByName('_market');
   if(!sheet){sheet=ss.insertSheet('_market');try{sheet.hideSheet();}catch(e){}}
   sheet.clearContents();
@@ -105,6 +106,7 @@ function setupMarketSheet(ss){
 }
 
 function getMarketData(ss){
+  if(!ss) ss=SpreadsheetApp.getActiveSpreadsheet();
   const sheet=ss.getSheetByName('_market');
   if(!sheet)return[];
   const lastRow=sheet.getLastRow();
