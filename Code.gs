@@ -7,10 +7,10 @@ const MARKET_ITEMS=[
   {key:"KOSPI", label:"코스피", ticker:"KRX:KOSPI",           sec:"지수",    fmt:"num"},
   {key:"VIX",   label:"VIX",   ticker:"INDEXCBOE:VIX",       sec:"지수",    fmt:"dec"},
   {key:"USDKRW",label:"원/달러",ticker:"CURRENCY:USDKRW",    sec:"금리·환율",fmt:"krw"},
-  {key:"T2Y",   label:"미2Y",  ticker:"USTREASURY:TWO",      sec:"금리·환율",fmt:"pct"},
+  {key:"T2Y",   label:"미2Y",  ticker:"INDEXCBOE:IRX",       sec:"금리·환율",fmt:"pct", scale:0.1},
   {key:"T10Y",  label:"미10Y", ticker:"INDEXCBOE:TNX",       sec:"금리·환율",fmt:"pct", scale:0.1},
-  {key:"DXY",   label:"DXY",  ticker:"INDEXDBX:DXY",        sec:"금리·환율",fmt:"dec"},
-  {key:"GOLD",  label:"금",    ticker:"XAUUSD",              sec:"원자재",  fmt:"usd"},
+  {key:"DXY",   label:"DXY",  ticker:"UUP",                 sec:"금리·환율",fmt:"usd"},
+  {key:"GOLD",  label:"금",    ticker:"CURRENCY:XAUUSD",     sec:"원자재",  fmt:"usd"},
   {key:"WTI",   label:"WTI",  ticker:"USO",                 sec:"원자재",  fmt:"usd"},
   {key:"QQQ",   label:"QQQ",  ticker:"QQQ",                 sec:"ETF",     fmt:"usd"},
   {key:"TQQQ",  label:"TQQQ", ticker:"TQQQ",                sec:"ETF",     fmt:"usd"},
@@ -26,7 +26,7 @@ const MARKET_ITEMS=[
   {key:"META",  label:"META", ticker:"META",                sec:"빅테크",  fmt:"usd"},
   {key:"TSLA",  label:"TSLA", ticker:"TSLA",                sec:"빅테크",  fmt:"usd"},
   {key:"AVGO",  label:"AVGO", ticker:"AVGO",                sec:"빅테크",  fmt:"usd"},
-  {key:"BTC",   label:"비트코인",ticker:"COINBASE:BTCUSD",  sec:"원자재",  fmt:"usd"},
+  {key:"BTC",   label:"비트코인",ticker:"CRYPTO:BTCUSD",    sec:"원자재",  fmt:"usd"},
 ];
 
 const MERITZ_DATA = [

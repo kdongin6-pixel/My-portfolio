@@ -296,7 +296,7 @@ const MARKET_CFG=[
   {key:"USDKRW",label:"원/달러",    sec:"금리·환율", fmt:"krw"},
   {key:"T2Y",   label:"미2Y채",    sec:"금리·환율", fmt:"pct"},
   {key:"T10Y",  label:"미10Y채",   sec:"금리·환율", fmt:"pct"},
-  {key:"DXY",   label:"달러인덱스",sec:"금리·환율", fmt:"dec"},
+  {key:"DXY",   label:"달러인덱스",sec:"금리·환율", fmt:"usd"},
   {key:"GOLD",  label:"금",      sec:"원자재",   fmt:"usd"},
   {key:"WTI",   label:"WTI",    sec:"원자재",   fmt:"usd"},
   {key:"QQQ",   label:"QQQ",    sec:"ETF",      fmt:"usd"},
@@ -1772,7 +1772,7 @@ function mkMarket(){
     {key:'USDKRW',label:'원/달러 환율',      fmt:'krw', showWeekly:true},
     {key:'T2Y',   label:'미 2년물 국채 금리', fmt:'pct', showWeekly:false},
     {key:'T10Y',  label:'미 10년물 국채 금리',fmt:'pct', showWeekly:false},
-    {key:'DXY',   label:'달러 인덱스 (DXY)',  fmt:'dec', showWeekly:false},
+    {key:'DXY',   label:'달러 인덱스 (UUP)',   fmt:'usd', showWeekly:false},
   ];
   const rateRows=rateKeys.map(c=>{
     const m=gv(c.key);
