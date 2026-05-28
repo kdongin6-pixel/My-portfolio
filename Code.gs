@@ -7,7 +7,8 @@ const MARKET_ITEMS=[
   {key:"KOSPI", label:"코스피", ticker:"KRX:KOSPI",           sec:"지수",    fmt:"num"},
   {key:"VIX",   label:"VIX",   ticker:"INDEXCBOE:VIX",       sec:"지수",    fmt:"dec"},
   {key:"USDKRW",label:"원/달러",ticker:"CURRENCY:USDKRW",    sec:"금리·환율",fmt:"krw"},
-  {key:"T2Y",   label:"미3M",  ticker:"INDEXCBOE:IRX",       sec:"금리·환율",fmt:"pct", scale:0.1},
+  {key:"T2Y",   label:"미2Y",  treasuryKey:"BC_2YEAR",       sec:"금리·환율",fmt:"pct"},
+  {key:"T5Y",   label:"미5Y",  ticker:"INDEXCBOE:FVX",       sec:"금리·환율",fmt:"pct", scale:0.1},
   {key:"T10Y",  label:"미10Y", ticker:"INDEXCBOE:TNX",       sec:"금리·환율",fmt:"pct", scale:0.1},
   {key:"DXY",   label:"DXY",  ticker:"UUP",                 sec:"금리·환율",fmt:"usd"},
   {key:"GOLD",  label:"금",    ticker:"CURRENCY:XAUUSD",     sec:"원자재",  fmt:"usd"},
@@ -92,15 +93,83 @@ function setupMarketSheet(ss){
   sheet.clearContents();
   sheet.getRange(1,1,1,4).setValues([['key','price','daily_pct','weekly_pct']]);
   MARKET_ITEMS.forEach((item,i)=>{
-    const r=i+2, t=item.ticker;
-    const sc=item.scale||1; // scale: TNX/IRX need ÷10 to get actual yield %
+    const r=i+2;
     sheet.getRange(r,1).setValue(item.key);
-    // price: apply scale for yield indices (TNX=44.5 → 4.45%)
-    sheet.getRange(r,2).setFormula(`=IFERROR(GOOGLEFINANCE("${t}")*${sc},0)`);
-    // daily_pct: changepct already returns % value (e.g. -1.05 = -1.05%), no ×100 needed
-    sheet.getRange(r,3).setFormula(`=IFERROR(GOOGLEFINANCE("${t}","changepct"),0)`);
-    // weekly_pct: (current / 7-days-ago - 1) × 100  (scale cancels out in ratio)
-    sheet.getRange(r,4).setFormula(`=IFERROR((GOOGLEFINANCE("${t}")/INDEX(GOOGLEFINANCE("${t}","price",TODAY()-7,1),2,2)-1)*100,0)`);
+    if(item.treasuryKey){
+      // Treasury API items: values set by updateTreasuryRates() at fetch time
+      sheet.getRange(r,2).setValue(0);
+      sheet.getRange(r,3).setValue(0);
+      sheet.getRange(r,4).setValue(0);
+    } else {
+      const t=item.ticker, sc=item.scale||1;
+      sheet.getRange(r,2).setFormula(`=IFERROR(GOOGLEFINANCE("${t}")*${sc},0)`);
+      sheet.getRange(r,3).setFormula(`=IFERROR(GOOGLEFINANCE("${t}","changepct"),0)`);
+      sheet.getRange(r,4).setFormula(`=IFERROR((GOOGLEFINANCE("${t}")/INDEX(GOOGLEFINANCE("${t}","price",TODAY()-7,1),2,2)-1)*100,0)`);
+    }
+  });
+  SpreadsheetApp.flush();
+}
+
+// Fetch US Treasury yield curve from official Treasury XML API
+function fetchTreasuryYields(){
+  try{
+    function getXml(date){
+      const yyyymm=Utilities.formatDate(date,'America/New_York','yyyyMM');
+      const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value=${yyyymm}`;
+      const res=UrlFetchApp.fetch(url,{muteHttpExceptions:true});
+      return res.getResponseCode()===200?res.getContentText():null;
+    }
+    let xml=getXml(new Date());
+    // If current month has no data yet (early month), try previous month
+    if(!xml||xml.indexOf('BC_2YEAR')===-1){
+      const prev=new Date(); prev.setMonth(prev.getMonth()-1);
+      xml=getXml(prev);
+    }
+    if(!xml) return {};
+
+    const parseKey=key=>{
+      const matches=[...xml.matchAll(new RegExp(`<d:${key}[^>]*>([\\d.]+)<\\/d:${key}>`, 'g'))];
+      return matches.map(m=>parseFloat(m[1]));
+    };
+
+    const build=(vals)=>{
+      if(!vals.length) return null;
+      const price  = vals[vals.length-1];
+      const prev1  = vals.length>1 ? vals[vals.length-2] : price;
+      const prev5  = vals.length>5 ? vals[vals.length-6] : vals[0];
+      // daily/weekly stored as absolute change in pct points (e.g. +0.02 = +2bp)
+      return {price, daily:+(price-prev1).toFixed(3), weekly:+(price-prev5).toFixed(3)};
+    };
+
+    return {
+      T2Y: build(parseKey('BC_2YEAR')),
+      T5Y: null  // T5Y uses GOOGLEFINANCE FVX — no need to fetch here
+    };
+  }catch(e){
+    Logger.log('Treasury fetch error: '+e);
+    return {};
+  }
+}
+
+// Write treasury-fetched values into _market sheet
+function updateTreasuryRates(ss){
+  if(!ss) ss=SpreadsheetApp.getActiveSpreadsheet();
+  const sheet=ss.getSheetByName('_market');
+  if(!sheet) return;
+  const yields=fetchTreasuryYields();
+  const lastRow=sheet.getLastRow();
+  if(lastRow<2) return;
+  const keys=sheet.getRange(2,1,lastRow-1,1).getValues().map(r=>String(r[0]));
+  MARKET_ITEMS.forEach(item=>{
+    if(!item.treasuryKey) return;
+    const data=yields[item.key];
+    if(!data) return;
+    const idx=keys.indexOf(item.key);
+    if(idx===-1) return;
+    const row=idx+2;
+    sheet.getRange(row,2).setValue(data.price);
+    sheet.getRange(row,3).setValue(data.daily);
+    sheet.getRange(row,4).setValue(data.weekly);
   });
   SpreadsheetApp.flush();
 }
@@ -253,6 +322,7 @@ function doGet(e) {
   const mode = (e && e.parameter && e.parameter.mode) || 'portfolio';
 
   if (mode === 'market') {
+    updateTreasuryRates(ss);  // Fetch T2Y from US Treasury API
     const market = getMarketData(ss);
     return ContentService
       .createTextOutput(JSON.stringify({ market }))
