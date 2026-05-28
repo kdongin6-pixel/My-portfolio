@@ -242,6 +242,10 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .mkt2-tech-left{min-width:0}
 .mkt2-tech-lbl{font-size:.68em;color:#8b949e;font-weight:700}
 .mkt2-tech-price{font-size:.88em;font-weight:800;color:#e6edf3;white-space:nowrap}
+.mkt2-top-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.mkt2-top-card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:10px 11px}
+.mkt2-top-lbl{font-size:.72em;color:#8b949e;font-weight:700}
+.mkt2-top-price{font-size:1em;font-weight:800;color:#e6edf3;margin-top:4px}
 .mkt2-chg-badge{display:inline-block;font-size:.62em;font-weight:700;padding:1px 5px;border-radius:4px}
 .mkt2-pos{background:rgba(16,185,129,.15);color:#10b981}
 .mkt2-neg{background:rgba(244,63,94,.15);color:#f43f5e}
@@ -289,9 +293,10 @@ const MARKET_CFG=[
   {key:"DJI",   label:"다우",    sec:"지수",     fmt:"num"},
   {key:"KOSPI", label:"코스피",  sec:"지수",     fmt:"num"},
   {key:"VIX",   label:"VIX",    sec:"지수",     fmt:"dec", vix:true},
-  {key:"USDKRW",label:"원/달러", sec:"금리·환율", fmt:"krw"},
-  {key:"T10Y",  label:"미10Y채", sec:"금리·환율", fmt:"pct"},
-  {key:"T3M",   label:"미3M채",  sec:"금리·환율", fmt:"pct"},
+  {key:"USDKRW",label:"원/달러",    sec:"금리·환율", fmt:"krw"},
+  {key:"T2Y",   label:"미2Y채",    sec:"금리·환율", fmt:"pct"},
+  {key:"T10Y",  label:"미10Y채",   sec:"금리·환율", fmt:"pct"},
+  {key:"DXY",   label:"달러인덱스",sec:"금리·환율", fmt:"dec"},
   {key:"GOLD",  label:"금",      sec:"원자재",   fmt:"usd"},
   {key:"WTI",   label:"WTI",    sec:"원자재",   fmt:"usd"},
   {key:"QQQ",   label:"QQQ",    sec:"ETF",      fmt:"usd"},
@@ -332,7 +337,7 @@ let S={
   cloudStatus:"",
   lastCloudSync:null,
   autoSyncTimer:null,
-  marketData:null, marketLoading:false
+  marketData:null, marketLoading:false, mktEtfTab:"etf"
 };
 
 // SEED block removed — portfolio data loaded from cloud only
@@ -1764,22 +1769,25 @@ function mkMarket(){
 
   // ── 금리 & 환율 ──
   const rateKeys=[
-    {key:'USDKRW',label:'원/달러 환율',  fmt:'krw'},
-    {key:'T10Y',  label:'미 10년물 금리', fmt:'pct'},
-    {key:'T3M',   label:'미 3개월물 금리',fmt:'pct'},
+    {key:'USDKRW',label:'원/달러 환율',      fmt:'krw', showWeekly:true},
+    {key:'T2Y',   label:'미 2년물 국채 금리', fmt:'pct', showWeekly:false},
+    {key:'T10Y',  label:'미 10년물 국채 금리',fmt:'pct', showWeekly:false},
+    {key:'DXY',   label:'달러 인덱스 (DXY)',  fmt:'dec', showWeekly:false},
   ];
   const rateRows=rateKeys.map(c=>{
     const m=gv(c.key);
     const price=m?m.price:0;
     const d_=m?m.daily:0, w_=m?m.weekly:0;
-    const priceStr=price?fmtMktPrice(price,c.fmt)+(c.fmt==='krw'?'원':''):'—';
+    const priceStr=price?fmtMktPrice(price,c.fmt)+(c.fmt==='krw'?'원':c.fmt==='pct'?'%':''):'— %';
     const spark=mkSparkSvg(w_,d_,c.key,54,22);
     return `<div class="mkt2-rate-item">
-      <span class="mkt2-rate-label">${c.label}</span>
-      <div class="mkt2-rate-right">
+      <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1">
+        <span class="mkt2-rate-label">${c.label}</span>
         <span class="mkt2-rate-price">${priceStr}</span>
+      </div>
+      <div class="mkt2-rate-right">
         ${mktChgBadge(d_,false)}
-        ${mktChgBadge(w_,false,'mkt2-w')}
+        ${c.showWeekly?mktChgBadge(w_,false,'mkt2-w'):''}
         <div class="mkt2-rate-spark">${spark}</div>
       </div>
     </div>`;
@@ -1805,47 +1813,65 @@ function mkMarket(){
     </div>`;
   }).join('');
 
-  // ── 인기 ETF ──
-  const etfKeys=[
-    {key:'QQQ', label:'QQQ'},
-    {key:'SPY', label:'SPY'},
-    {key:'TLT', label:'TLT'},
-    {key:'SOXX',label:'SOXX'},
-    {key:'GLD', label:'GLD'},
-    {key:'TQQQ',label:'TQQQ'},
+  // ── 인기 ETF & 테마 (탭 토글) ──
+  const etfList=[
+    {key:'QQQ', label:'QQQ',  sub:'나스닥 100'},
+    {key:'SPY', label:'SPY',  sub:'S&P500'},
+    {key:'TLT', label:'TLT',  sub:'미 국채 20년+'},
+    {key:'SOXX',label:'SOXX', sub:'반도체'},
+    {key:'GLD', label:'GLD',  sub:'금 ETF'},
+    {key:'TQQQ',label:'TQQQ', sub:'나스닥3X'},
   ];
-  const etfCards=etfKeys.map(c=>{
+  const themeList=[
+    {key:'NVDA', label:'NVDA', sub:'AI 반도체'},
+    {key:'TSLA', label:'TSLA', sub:'전기차'},
+    {key:'AMZN', label:'AMZN', sub:'클라우드'},
+    {key:'META', label:'META', sub:'AI/소셜'},
+    {key:'GOOGL',label:'GOOGL',sub:'AI 검색'},
+    {key:'MSFT', label:'MSFT', sub:'AI 플랫폼'},
+  ];
+  const activeEtfList=S.mktEtfTab==='etf'?etfList:themeList;
+  const etfCards=activeEtfList.map(c=>{
     const m=gv(c.key);
     const price=m?m.price:0;
     const d_=m?m.daily:0;
     return `<div class="mkt2-etf-card">
       <div class="mkt2-etf-lbl">${c.label}</div>
+      <div style="font-size:.65em;color:#6b7280;margin-bottom:2px">${c.sub}</div>
       <div class="mkt2-etf-price">${price?'$'+price.toFixed(2):'—'}</div>
       ${mktChgBadge(d_,false)}
     </div>`;
   }).join('');
+  const etfTabBar=`
+    <div style="display:flex;gap:0;background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:8px">
+      <button class="mkt-tab-btn${S.mktEtfTab==='etf'?' active':''}" id="btnMktEtf" data-etftab="etf" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:${S.mktEtfTab==='etf'?'rgba(99,102,241,.25)':'transparent'};color:${S.mktEtfTab==='etf'?'#818cf8':'#6b7280'}">[ ETF ]</button>
+      <button class="mkt-tab-btn${S.mktEtfTab==='theme'?' active':''}" id="btnMktTheme" data-etftab="theme" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:${S.mktEtfTab==='theme'?'rgba(99,102,241,.25)':'transparent'};color:${S.mktEtfTab==='theme'?'#818cf8':'#6b7280'}">테마별</button>
+    </div>`;
 
-  // ── 빅테크 ──
-  const techKeys=[
+  // ── 거래대금 상위 ──
+  const topTradeKeys=[
     {key:'NVDA', label:'NVDA'},
-    {key:'GOOGL',label:'GOOGL'},
+    {key:'TSLA', label:'TSLA'},
     {key:'AAPL', label:'AAPL'},
-    {key:'MSFT', label:'MSFT'},
     {key:'AMZN', label:'AMZN'},
     {key:'META', label:'META'},
-    {key:'TSLA', label:'TSLA'},
     {key:'AVGO', label:'AVGO'},
   ];
-  const techCards=techKeys.map(c=>{
+  const topTradeCards=topTradeKeys.map(c=>{
     const m=gv(c.key);
     const price=m?m.price:0;
-    const d_=m?m.daily:0;
-    return `<div class="mkt2-tech-card">
-      <div class="mkt2-tech-left">
-        <div class="mkt2-tech-lbl">${c.label}</div>
-        <div class="mkt2-tech-price">${price?'$'+price.toFixed(2):'—'}</div>
+    const d_=m?m.daily:0, w_=m?m.weekly:0;
+    const spark=mkSparkSvg(w_,d_,c.key,48,20);
+    return `<div class="mkt2-top-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <span class="mkt2-top-lbl">${c.label}</span>
+        ${spark}
       </div>
-      ${mktChgBadge(d_,false)}
+      <div class="mkt2-top-price">${price?'$'+price.toFixed(2):'—'}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
+        ${mktChgBadge(d_,false)}
+        ${mktChgBadge(w_,false,'mkt2-w')}
+      </div>
     </div>`;
   }).join('');
 
@@ -1879,13 +1905,14 @@ function mkMarket(){
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">📈 인기 ETF</div>
+      <div class="mkt2-stitle">📈 인기 ETF &amp; 테마</div>
+      ${etfTabBar}
       <div class="mkt2-etf-grid">${etfCards}</div>
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">💻 빅테크</div>
-      <div class="mkt2-tech-grid">${techCards}</div>
+      <div class="mkt2-stitle">🔥 거래대금 상위</div>
+      <div class="mkt2-top-grid">${topTradeCards}</div>
     </div>
   </div>`;
   return d;
@@ -1900,6 +1927,8 @@ function bind(){
   const close=()=>{S.modal=null;render();};
 
   q("#btnTrend")?.addEventListener("click",()=>{S.tab="trend";render();});
+  q("#btnMktEtf")?.addEventListener("click",()=>{S.mktEtfTab="etf";render();});
+  q("#btnMktTheme")?.addEventListener("click",()=>{S.mktEtfTab="theme";render();});
   q("#btnSync")?.addEventListener("click",syncSheets);
   q("#btnSettings")?.addEventListener("click",()=>{S.modal={type:"settings"};render();});
   q("#saveApiUrl")?.addEventListener("click",()=>{
