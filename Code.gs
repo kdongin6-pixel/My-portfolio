@@ -7,10 +7,10 @@ const MARKET_ITEMS=[
   {key:"KOSPI", label:"코스피", ticker:"KRX:KOSPI",           sec:"지수",    fmt:"num"},
   {key:"VIX",   label:"VIX",   ticker:"INDEXCBOE:VIX",       sec:"지수",    fmt:"dec"},
   {key:"USDKRW",label:"원/달러",ticker:"CURRENCY:USDKRW",    sec:"금리·환율",fmt:"krw"},
-  {key:"T10Y",  label:"미10Y", ticker:"TMUBMUSD10Y",         sec:"금리·환율",fmt:"pct"},
-  {key:"T3M",   label:"미3M",  ticker:"TMUBMUSD03M",         sec:"금리·환율",fmt:"pct"},
-  {key:"GOLD",  label:"금",    ticker:"CURRENCY:XAUUSD",     sec:"원자재",  fmt:"usd"},
-  {key:"WTI",   label:"WTI",  ticker:"NYMEX:CL1!",          sec:"원자재",  fmt:"usd"},
+  {key:"T10Y",  label:"미10Y", ticker:"INDEXCBOE:TNX",       sec:"금리·환율",fmt:"pct", scale:0.1},
+  {key:"T3M",   label:"미3M",  ticker:"INDEXCBOE:IRX",       sec:"금리·환율",fmt:"pct", scale:0.1},
+  {key:"GOLD",  label:"금",    ticker:"XAUUSD",              sec:"원자재",  fmt:"usd"},
+  {key:"WTI",   label:"WTI",  ticker:"USO",                 sec:"원자재",  fmt:"usd"},
   {key:"QQQ",   label:"QQQ",  ticker:"QQQ",                 sec:"ETF",     fmt:"usd"},
   {key:"TQQQ",  label:"TQQQ", ticker:"TQQQ",                sec:"ETF",     fmt:"usd"},
   {key:"SPY",   label:"SPY",  ticker:"SPY",                 sec:"ETF",     fmt:"usd"},
@@ -25,6 +25,7 @@ const MARKET_ITEMS=[
   {key:"META",  label:"META", ticker:"META",                sec:"빅테크",  fmt:"usd"},
   {key:"TSLA",  label:"TSLA", ticker:"TSLA",                sec:"빅테크",  fmt:"usd"},
   {key:"AVGO",  label:"AVGO", ticker:"AVGO",                sec:"빅테크",  fmt:"usd"},
+  {key:"BTC",   label:"비트코인",ticker:"COINBASE:BTCUSD",  sec:"원자재",  fmt:"usd"},
 ];
 
 const MERITZ_DATA = [
@@ -89,11 +90,15 @@ function setupMarketSheet(ss){
   sheet.clearContents();
   sheet.getRange(1,1,1,4).setValues([['key','price','daily_pct','weekly_pct']]);
   MARKET_ITEMS.forEach((item,i)=>{
-    const r=i+2,t=item.ticker;
+    const r=i+2, t=item.ticker;
+    const sc=item.scale||1; // scale: TNX/IRX need ÷10 to get actual yield %
     sheet.getRange(r,1).setValue(item.key);
-    sheet.getRange(r,2).setFormula(`=IFERROR(GOOGLEFINANCE("${t}"),0)`);
-    sheet.getRange(r,3).setFormula(`=IFERROR(GOOGLEFINANCE("${t}","changepct")*100,0)`);
-    sheet.getRange(r,4).setFormula(`=IFERROR((B${r}/INDEX(GOOGLEFINANCE("${t}","price",TODAY()-7,1),2,2)-1)*100,0)`);
+    // price: apply scale for yield indices (TNX=44.5 → 4.45%)
+    sheet.getRange(r,2).setFormula(`=IFERROR(GOOGLEFINANCE("${t}")*${sc},0)`);
+    // daily_pct: changepct already returns % value (e.g. -1.05 = -1.05%), no ×100 needed
+    sheet.getRange(r,3).setFormula(`=IFERROR(GOOGLEFINANCE("${t}","changepct"),0)`);
+    // weekly_pct: (current / 7-days-ago - 1) × 100  (scale cancels out in ratio)
+    sheet.getRange(r,4).setFormula(`=IFERROR((GOOGLEFINANCE("${t}")/INDEX(GOOGLEFINANCE("${t}","price",TODAY()-7,1),2,2)-1)*100,0)`);
   });
   SpreadsheetApp.flush();
 }
