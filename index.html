@@ -229,35 +229,14 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 // ═══════════════════════════════════════════
 // 초기 데이터 (마이그레이션용)
 // ═══════════════════════════════════════════
-const INIT=[
-  {id:1,name:"GE베르노바",qty:16,avg:813.8956,cur:1042.85,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:2,name:"알파벳 A",qty:41,avg:239.1231,cur:390.34,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:3,name:"버크셔 해서웨이 B",qty:4,avg:472.9925,cur:479.24,curr:"USD",tag:"방어주",acct:"메리츠증권"},
-  {id:4,name:"iSh 0-3M T-Bond",qty:113,avg:100.5327,cur:100.585,curr:"USD",tag:"현금/채권",acct:"메리츠증권"},
-  {id:5,name:"나비타스 세미컨덕터",qty:577,avg:16.2949,cur:24.755,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:6,name:"TRADR NVTS Daily 2X",qty:77,avg:107.20,cur:118.15,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:7,name:"팔란티어 테크",qty:43,avg:116.9074,cur:137.76,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:8,name:"네비우스 그룹",qty:21,avg:205.5523,cur:221.45,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:9,name:"버티브 홀딩스",qty:8,avg:295.10,cur:328.61,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:10,name:"Direxion GOOGL 2X",qty:10,avg:117.17,cur:139.50,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:11,name:"TEMA Space Innovators",qty:32,avg:36.39,cur:36.365,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:12,name:"Direxion Gold 2X",qty:2,avg:174.94,cur:162.47,curr:"USD",tag:"기타",acct:"메리츠증권"},
-  {id:13,name:"아이온큐",qty:1,avg:48.94,cur:58.37,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:14,name:"IREN",qty:1,avg:56.68,cur:47.72,curr:"USD",tag:"성장주",acct:"메리츠증권"},
-  {id:16,name:"KoAct 팔란티어밸류체인액티브",qty:720,avg:14198,cur:18840,curr:"KRW",tag:"성장주",acct:"ISA"},
-  {id:17,name:"KODEX 미국서학개미",qty:189,avg:21478,cur:27175,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:18,name:"TIMEFOLIO 미국나스닥100액티브",qty:345,avg:42639,cur:53315,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:19,name:"KODEX 미국배당커버드콜액티브",qty:490,avg:11997,cur:13245,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:20,name:"TIGER 미국초단기(3개월이하)국채",qty:761,avg:9963,cur:10430,curr:"KRW",tag:"현금/채권",acct:"ISA"},
-  {id:21,name:"TIGER 글로벌비만치료제TOP2Plus",qty:235,avg:10250,cur:10675,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:22,name:"KODEX 미국AI전력핵심인프라",qty:307,avg:26408,cur:25710,curr:"KRW",tag:"기타",acct:"ISA"},
-  {id:23,name:"한화",qty:1,avg:132000,cur:134600,curr:"KRW",tag:"방어주",acct:"ISA"},
-];
+// INIT data removed — portfolio loaded from cloud only
 
 const TC_DEFAULT={"성장주":"#6366f1","방어주":"#10b981","중소형주":"#f59e0b","현금/채권":"#06b6d4","기타":"#94a3b8"};
 const DEFAULT_TAGS=["성장주","방어주","중소형주","현금/채권","기타"];
 
-const API_URL='https://script.google.com/macros/s/AKfycbzTVv2yjKdg6mHBoMjuQGOdVhPkzSDKQzju5XFUvVNyGK8ZGDwBtomfWxi9RxiPMsLKZw/exec';
+// API URL is stored in localStorage only — never in source code
+function getApiUrl(){return localStorage.getItem('pf_api_url')||'';}
+function setApiUrl(url){localStorage.setItem('pf_api_url',url.trim());}
 const APP_VERSION="v0.3.0";
 
 let _chartInstances=[];
@@ -315,41 +294,7 @@ let S={
   marketData:null, marketLoading:false
 };
 
-// ── 포트폴리오 시드 (1회만 적용) ──────────────────────────
-const SEED_ID="seed_20260526d";
-if(localStorage.getItem("pf_seed")!==SEED_ID){
-  const _d=JSON.parse(localStorage.getItem("pf_v3")||"{}");
-  const _now=Date.now();
-  _d.stocks=[
-    // ── 메리츠증권 (USD) — GAS 이름과 동일하게 맞춤 ──
-    {id:_now+1,  name:"나비타스 세미컨덕터",           ticker:"NVTS",  qty:677, avg:20.3280,  cur:29.25,   curr:"USD", acct:"메리츠증권", tag:"반도체"},
-    {id:_now+2,  name:"GE베르노바",                    ticker:"GEV",   qty:16,  avg:813.8956, cur:1038.74, curr:"USD", acct:"메리츠증권", tag:"에너지"},
-    {id:_now+3,  name:"알파벳 A",                      ticker:"GOOGL", qty:41,  avg:239.1231, cur:382.97,  curr:"USD", acct:"메리츠증권", tag:"빅테크"},
-    {id:_now+4,  name:"iSh 0-3M T-Bond",              ticker:"SGOV",  qty:143, avg:100.5327, cur:100.63,  curr:"USD", acct:"메리츠증권", tag:"채권"},
-    {id:_now+5,  name:"팔란티어 테크",                 ticker:"PLTR",  qty:43,  avg:116.9074, cur:136.88,  curr:"USD", acct:"메리츠증권", tag:"AI"},
-    {id:_now+6,  name:"네비우스 그룹",                 ticker:"NBIS",  qty:21,  avg:205.5523, cur:214.77,  curr:"USD", acct:"메리츠증권", tag:"AI"},
-    {id:_now+7,  name:"버티브 홀딩스",                 ticker:"VRT",   qty:8,   avg:295.1000, cur:327.46,  curr:"USD", acct:"메리츠증권", tag:"데이터센터"},
-    {id:_now+8,  name:"버크셔 해서웨이 B",             ticker:"BRK-B", qty:4,   avg:472.9925, cur:486.38,  curr:"USD", acct:"메리츠증권", tag:"가치주"},
-    {id:_now+9,  name:"Direxion GOOGL 2X",            ticker:"GGLL",  qty:10,  avg:117.1700, cur:134.225, curr:"USD", acct:"메리츠증권", tag:"레버리지"},
-    {id:_now+10, name:"TEMA Space Innov.",             ticker:"NASA",  qty:32,  avg:36.3900,  cur:38.76,   curr:"USD", acct:"메리츠증권", tag:"우주"},
-    {id:_now+11, name:"Direxion Gold 2X",              ticker:"NUGT",  qty:2,   avg:174.9400, cur:155.00,  curr:"USD", acct:"메리츠증권", tag:"레버리지"},
-    {id:_now+12, name:"아이온큐",                      ticker:"IONQ",  qty:1,   avg:48.9400,  cur:63.64,   curr:"USD", acct:"메리츠증권", tag:"양자컴퓨팅"},
-    {id:_now+13, name:"IREN",                          ticker:"IREN",  qty:1,   avg:56.6800,  cur:56.83,   curr:"USD", acct:"메리츠증권", tag:"비트코인"},
-    {id:_now+14, name:"일라이 릴리",                   ticker:"LLY",   qty:2,   avg:1065.00,  cur:1065.00, curr:"USD", acct:"메리츠증권", tag:"헬스케어"},
-    // ── ISA (KRW) — GAS 이름과 동일하게 맞춤 ──
-    {id:_now+15, name:"KoAct 팔란티어밸류체인액티브",  ticker:"0093D0",qty:720, avg:14198,    cur:19590,   curr:"KRW", acct:"ISA", tag:"AI"},
-    {id:_now+16, name:"TIMEFOLIO 미국나스닥100액티브", ticker:"426030",qty:345, avg:42639,    cur:55300,   curr:"KRW", acct:"ISA", tag:"나스닥"},
-    {id:_now+17, name:"KODEX 미국서학개미",             ticker:"473460",qty:189, avg:21478,    cur:27595,   curr:"KRW", acct:"ISA", tag:"ETF"},
-    {id:_now+18, name:"KODEX 미국배당커버드콜액티브",   ticker:"441640",qty:490, avg:11997,    cur:13425,   curr:"KRW", acct:"ISA", tag:"배당"},
-    {id:_now+19, name:"한화",                          ticker:"000880",qty:1,   avg:132000,   cur:140500,  curr:"KRW", acct:"ISA", tag:"국내주식"},
-    {id:_now+20, name:"TIGER 글로벌비만치료제TOP2Plus", ticker:"476690",qty:235, avg:10250,    cur:10830,   curr:"KRW", acct:"ISA", tag:"헬스케어"},
-    {id:_now+21, name:"TIGER 미국초단기국채",           ticker:"0046A0",qty:761, avg:9963,     cur:10510,   curr:"KRW", acct:"ISA", tag:"채권"},
-    {id:_now+22, name:"KODEX 미국AI전력핵심인프라",     ticker:"487230",qty:307, avg:26408,    cur:26535,   curr:"KRW", acct:"ISA", tag:"AI"}
-  ];
-  localStorage.setItem("pf_v3",JSON.stringify(_d));
-  localStorage.setItem("pf_seed",SEED_ID);
-}
-// ─────────────────────────────────────────────────────────
+// SEED block removed — portfolio data loaded from cloud only
 
 function load(){
   try{
@@ -402,8 +347,8 @@ function migrateFromV2(){
       return;
     }
   }catch(e){}
-  INIT.forEach(s=>S.stocks.push({...s}));
-  S.cash={메리츠증권:{USD:2557,KRW:0},ISA:{USD:0,KRW:223229}};
+  // Fresh install — start empty, data will load from cloud
+  S.cash={메리츠증권:{USD:0,KRW:0},ISA:{USD:0,KRW:0}};
   save();
 }
 
@@ -475,6 +420,8 @@ function scheduleCloudSave(){
 }
 
 async function saveToCloud(){
+  const _url=getApiUrl();
+  if(!_url){S.cloudStatus="error";S.syncMsg="❌ API URL 미설정 — ⚙️ 설정에서 입력해주세요";renderCloudBadge();return;}
   S.cloudStatus="saving";renderCloudBadge();
   try{
     const payload={
@@ -483,7 +430,7 @@ async function saveToCloud(){
       tags:S.tags,tagColors:S.tagColors,rate:S.rate,
       updatedAt:new Date().toISOString()
     };
-    await fetch(API_URL,{
+    await fetch(_url,{
       method:"POST",
       mode:"no-cors",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
@@ -499,9 +446,11 @@ async function saveToCloud(){
 }
 
 async function loadFromCloud(showAlert){
+  const _url=getApiUrl();
+  if(!_url){S.cloudStatus="error";S.syncMsg="❌ API URL 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
   S.cloudStatus="saving";renderCloudBadge();
   try{
-    const res=await fetch(API_URL);
+    const res=await fetch(_url);
     if(!res.ok)throw new Error("로드 실패");
     const data=await res.json();
     
@@ -798,6 +747,7 @@ function mkHdr(){
       <button class="hdr-btn btn-bulk" id="btnBulk">📝 일괄</button>
       <button class="hdr-btn btn-add" id="btnAdd">+ 종목</button>
       <button class="hdr-btn btn-export" id="btnExport">📤 출력</button>
+      <button class="hdr-btn" id="btnSettings" style="background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.25);color:#94a3b8;min-width:40px;flex:0">⚙️</button>
     </div>`;
   return d;
 }
@@ -1575,6 +1525,20 @@ function mkModal(){
     </div>`;
   }
   
+  if(S.modal.type==="settings"){
+    const cur=getApiUrl();
+    d.innerHTML=`<div class="modal">
+      <div class="modal-title">⚙️ 설정<button class="modal-close" id="mc">×</button></div>
+      <div class="field">
+        <label>Google Apps Script 배포 URL</label>
+        <input type="text" id="apiUrlInp" value="${cur}" placeholder="https://script.google.com/macros/s/...">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
+      </div>
+      <button class="mbtn mbtn-pri" id="saveApiUrl">저장</button>
+      <button class="mbtn mbtn-sec" id="mc2">취소</button>
+    </div>`;
+  }
+
   if(S.modal.type==="export"){
     const tsv=[
       "종목명\t계좌\t통화\t수량\t평단가\t현재가\t태그",
@@ -1689,6 +1653,14 @@ function bind(){
   const close=()=>{S.modal=null;render();};
 
   q("#btnSync")?.addEventListener("click",syncSheets);
+  q("#btnSettings")?.addEventListener("click",()=>{S.modal={type:"settings"};render();});
+  q("#saveApiUrl")?.addEventListener("click",()=>{
+    const url=q("#apiUrlInp")?.value?.trim();
+    if(!url)return alert("URL을 입력해주세요");
+    setApiUrl(url);
+    S.syncMsg="✅ API URL 저장 완료 — 동기화 버튼을 눌러 연결을 확인해보세요";
+    S.modal=null;render();
+  });
   q("#btnBulk")?.addEventListener("click",()=>{S.modal={type:"bulk"};render();});
   q("#btnAdd")?.addEventListener("click",()=>{S.modal={type:"add"};render();});
   q("#btnExport")?.addEventListener("click",()=>{S.modal={type:"export"};render();});
@@ -1886,7 +1858,9 @@ function bind(){
         tags:S.tags,tagColors:S.tagColors,rate:S.rate,
         updatedAt:new Date().toISOString()
       };
-      await fetch(API_URL,{
+      const _u=getApiUrl();
+      if(!_u)throw new Error("API URL 미설정 — ⚙️ 설정에서 입력해주세요");
+      await fetch(_u,{
         method:"POST",mode:"no-cors",
         headers:{"Content-Type":"text/plain;charset=utf-8"},
         body:JSON.stringify(payload)
@@ -1902,9 +1876,12 @@ function bind(){
   });
 }
 
-load();render();
-// 페이지 시작 시 클라우드에서 수식 티커 및 최신 가격 자동 동기화
-setTimeout(()=>loadFromCloud(false),2000);
+load();
+// Auto-open settings if API URL is not configured yet
+if(!getApiUrl()){S.modal={type:"settings"};}
+render();
+// Auto-sync on page load (only if API URL is configured)
+if(getApiUrl())setTimeout(()=>loadFromCloud(false),2000);
 </script>
 </body>
 </html>

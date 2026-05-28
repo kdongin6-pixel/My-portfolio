@@ -1,0 +1,9 @@
+# Images — do not commit personal photos
+*.jpg
+*.jpeg
+*.png
+*.gif
+
+# OS files
+.DS_Store
+Thumbs.db
