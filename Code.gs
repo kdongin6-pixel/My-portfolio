@@ -52,7 +52,7 @@ const MERITZ_DATA = [
 const KRX_FETCH_CODES = ['0174B0'];
 
 const ISA_DATA = [
-  ["ISA","KoAct 글로벌AI메모리반도체액티브","0174B0","KRW",0,  0,     0],
+  ["ISA","KoAct 글로벌AI메모리반도체액티브","0174B0","KRW",283,17390, 0],
   ["ISA","KoAct 팔란티어밸류체인액티브",     "0093D0","KRW",720, 14198, '=IFERROR(GOOGLEFINANCE("KRX:0093D0"),19590)'],
   ["ISA","TIMEFOLIO 미국나스닥100액티브",    "426030","KRW",345, 42639, '=IFERROR(GOOGLEFINANCE("KRX:426030"),55300)'],
   ["ISA","KODEX 미국서학개미",               "473460","KRW",189, 21478, '=IFERROR(GOOGLEFINANCE("KRX:473460"),27595)'],
