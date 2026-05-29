@@ -100,11 +100,10 @@ function fetchKrxPrice(code){
     });
     if(res.getResponseCode()!==200)return null;
     const data=JSON.parse(res.getContentText());
-    const price=parseFloat(String(data.closePrice||'0').replace(/,/g,''))||0;
-    const daily=parseFloat(data.fluctuationsRatio)||0;
-    const prevClose=price/(1+daily/100)||0;
-    const weekly=0; // weekly not available from this endpoint
-    return{price,daily,weekly,prevClose};
+    // Naver itemSummary API: now=현재가, rate=등락률(%), diff=전일대비
+    const price=parseFloat(data.now)||0;
+    const daily=parseFloat(data.rate)||0;
+    return{price,daily,weekly:0};
   }catch(e){
     Logger.log('KRX fetch error '+code+': '+e);
     return null;
