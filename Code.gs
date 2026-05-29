@@ -31,21 +31,21 @@ const MARKET_ITEMS=[
 ];
 
 const MERITZ_DATA = [
-  ["메리츠증권","나비타스 세미컨덕터","NVTS",     "USD",677, 20.3280, '=IFERROR(GOOGLEFINANCE("NVTS"),29.25)'],
+  ["메리츠증권","나비타스 세미컨덕터","NVTS",     "USD",500, 20.3280, '=IFERROR(GOOGLEFINANCE("NVTS"),29.25)'],
   ["메리츠증권","GE베르노바",         "GEV",      "USD",16,  813.8956,'=IFERROR(GOOGLEFINANCE("GEV"),1038.74)'],
-  ["메리츠증권","알파벳 A",           "GOOGL",    "USD",41,  239.1231,'=IFERROR(GOOGLEFINANCE("GOOGL"),382.97)'],
-  ["메리츠증권","iSh 0-3M T-Bond",   "SGOV",     "USD",143, 100.5327,'=IFERROR(GOOGLEFINANCE("SGOV"),100.63)'],
-  ["메리츠증권","팔란티어 테크",      "PLTR",     "USD",43,  116.9074,'=IFERROR(GOOGLEFINANCE("PLTR"),136.88)'],
-  ["메리츠증권","네비우스 그룹",      "NBIS",     "USD",21,  205.5523,'=IFERROR(GOOGLEFINANCE("NBIS"),214.77)'],
-  ["메리츠증권","버티브 홀딩스",      "VRT",      "USD",8,   295.10,  '=IFERROR(GOOGLEFINANCE("VRT"),327.46)'],
-  ["메리츠증권","버크셔 해서웨이 B",  "BRK-B",    "USD",4,   472.9925,'=IFERROR(GOOGLEFINANCE("BRK-B"),486.38)'],
-  ["메리츠증권","Direxion GOOGL 2X", "GGLL",     "USD",10,  117.17,  '=IFERROR(GOOGLEFINANCE("GGLL"),134.22)'],
-  ["메리츠증권","TEMA Space Innov.", "NASA",     "USD",32,  36.39,   '=IFERROR(GOOGLEFINANCE("NASA"),38.76)'],
-  ["메리츠증권","Direxion Gold 2X",  "NUGT",     "USD",2,   174.94,  '=IFERROR(GOOGLEFINANCE("NUGT"),155.00)'],
-  ["메리츠증권","아이온큐",           "IONQ",     "USD",1,   48.94,   '=IFERROR(GOOGLEFINANCE("IONQ"),63.64)'],
-  ["메리츠증권","IREN",              "IREN",     "USD",1,   56.68,   '=IFERROR(GOOGLEFINANCE("IREN"),56.83)'],
-  ["메리츠증권","일라이 릴리",        "LLY",      "USD",2,   1065.00, '=IFERROR(GOOGLEFINANCE("LLY"),1065.00)'],
-  ["메리츠증권","💵 현금 (USD)",      "",         "USD",1,   2557,    2557]
+  ["메리츠증권","알파벳 A",           "GOOGL",    "USD",39,  239.1233,'=IFERROR(GOOGLEFINANCE("GOOGL"),388.51)'],
+  ["메리츠증권","iSh 0-3M T-Bond",   "SGOV",     "USD",103, 100.5521,'=IFERROR(GOOGLEFINANCE("SGOV"),100.67)'],
+  ["메리츠증권","팔란티어 테크",      "PLTR",     "USD",43,  116.9074,'=IFERROR(GOOGLEFINANCE("PLTR"),144.88)'],
+  ["메리츠증권","네비우스 그룹",      "NBIS",     "USD",21,  205.5523,'=IFERROR(GOOGLEFINANCE("NBIS"),227.64)'],
+  ["메리츠증권","버티브 홀딩스",      "VRT",      "USD",8,   295.10,  '=IFERROR(GOOGLEFINANCE("VRT"),316.62)'],
+  ["메리츠증권","Direxion GOOGL 2X", "GGLL",     "USD",15,  123.9800,'=IFERROR(GOOGLEFINANCE("GGLL"),137.90)'],
+  ["메리츠증권","TEMA Space Innov.", "NASA",     "USD",114, 40.3677, '=IFERROR(GOOGLEFINANCE("NASA"),40.95)'],
+  ["메리츠증권","AMD",               "AMD",      "USD",10,  478.9200,'=IFERROR(GOOGLEFINANCE("AMD"),519.98)'],
+  ["메리츠증권","GraniteShares NBIS 2X","NBIL",  "USD",57,  40.0100, '=IFERROR(GOOGLEFINANCE("NBIL"),42.30)'],
+  ["메리츠증권","TRADR IBM Daily 2X","IBX",      "USD",80,  26.3025, '=IFERROR(GOOGLEFINANCE("IBX"),29.88)'],
+  ["메리츠증권","아이온큐",           "IONQ",     "USD",1,   48.94,   '=IFERROR(GOOGLEFINANCE("IONQ"),69.67)'],
+  ["메리츠증권","IREN",              "IREN",     "USD",1,   56.68,   '=IFERROR(GOOGLEFINANCE("IREN"),64.23)'],
+  ["메리츠증권","💵 현금 (USD)",      "",         "USD",1,   7354,    7354]
 ];
 
 const ISA_DATA = [
