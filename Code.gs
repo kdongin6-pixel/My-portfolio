@@ -42,7 +42,7 @@ const MERITZ_DATA = [
   ["메리츠증권","TEMA Space Innov.", "NASA",     "USD",114, 40.3677, '=IFERROR(GOOGLEFINANCE("NASA"),40.95)'],
   ["메리츠증권","AMD",               "AMD",      "USD",10,  478.9200,'=IFERROR(GOOGLEFINANCE("AMD"),519.98)'],
   ["메리츠증권","GraniteShares NBIS 2X","NBIL",  "USD",57,  40.0100, '=IFERROR(GOOGLEFINANCE("NBIL"),42.30)'],
-  ["메리츠증권","TRADR IBM Daily 2X","IBX",      "USD",80,  26.3025, '=IFERROR(GOOGLEFINANCE("IBX"),29.88)'],
+  ["메리츠증권","TRADR IBM Daily 2X","IBX",      "USD",80,  26.3025, '=IFERROR(GOOGLEFINANCE("BATS:IBX"),IFERROR(GOOGLEFINANCE("NASDAQ:IBX"),IFERROR(GOOGLEFINANCE("IBX"),29.88)))'],
   ["메리츠증권","아이온큐",           "IONQ",     "USD",1,   48.94,   '=IFERROR(GOOGLEFINANCE("IONQ"),69.67)'],
   ["메리츠증권","IREN",              "IREN",     "USD",1,   56.68,   '=IFERROR(GOOGLEFINANCE("IREN"),64.23)'],
   ["메리츠증권","💵 현금 (USD)",      "",         "USD",1,   7354,    7354]
