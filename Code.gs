@@ -544,10 +544,15 @@ function updateVisibleSheets(ss, data) {
         if (values[i + 1] && values[i + 1][1] !== stock.avg)
           sheet.getRange(i + 3, 2).setValue(stock.avg);
         if (stock.ticker) {
-          const prefix = (accountName === 'ISA') ? 'KRX:' : '';
-          sheet.getRange(i + 2, 3).setFormula(
-            `=IFERROR(GOOGLEFINANCE("${prefix}${stock.ticker}"),${stock.cur || 0})`
-          );
+          if (KRX_FETCH_CODES.includes(stock.ticker)) {
+            // KRX_FETCH_CODES: GOOGLEFINANCE 미지원 — 값 0 유지 (updateKrxPrices가 채움)
+            sheet.getRange(i + 2, 3).setValue(0);
+          } else {
+            const prefix = (accountName === 'ISA') ? 'KRX:' : '';
+            sheet.getRange(i + 2, 3).setFormula(
+              `=IFERROR(GOOGLEFINANCE("${prefix}${stock.ticker}"),${stock.cur || 0})`
+            );
+          }
         }
       }
     }
@@ -574,13 +579,14 @@ function updateVisibleSheets(ss, data) {
           sheet.getRange(sumRow, 1).setValue(stock.name).setFontWeight('bold');
           sheet.getRange(sumRow, 2).setValue(stock.qty);
 
-          if (stock.ticker) {
+          if (stock.ticker && !KRX_FETCH_CODES.includes(stock.ticker)) {
             const prefix = (accountName === 'ISA') ? 'KRX:' : '';
             sheet.getRange(sumRow, 3).setFormula(
               `=IFERROR(GOOGLEFINANCE("${prefix}${stock.ticker}"),${stock.cur || 0})`
             );
           } else {
-            sheet.getRange(sumRow, 3).setValue(stock.cur || 0);
+            // KRX_FETCH_CODES or no ticker: setValue 0 (updateKrxPrices will fill it)
+            sheet.getRange(sumRow, 3).setValue(0);
           }
 
           sheet.getRange(sumRow, 4).setFormula(`=B${sumRow}*C${sumRow}`);
