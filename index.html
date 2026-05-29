@@ -21,6 +21,8 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .hdr-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .hdr-title{font-size:1.15em;font-weight:800;color:#a5b4fc;letter-spacing:-.3px}
 .sync-btn{background:rgba(99,102,241,.25);border:1px solid rgba(99,102,241,.5);color:#a5b4fc;padding:8px 14px;border-radius:10px;font-size:.82em;font-weight:700}
+.live-btn{background:rgba(16,185,129,.25)!important;border-color:rgba(16,185,129,.5)!important;color:#10b981!important;animation:livePulse 1.8s ease-in-out infinite}
+@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.55}}
 
 .asset-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
 .asset-card{background:rgba(255,255,255,.06);border:1px solid #30363d;border-radius:12px;padding:10px 12px}
@@ -613,10 +615,10 @@ function renderCloudBadge(){
     "":"준비 중"
   };
   el.style.color=colors[S.cloudStatus]||"#8b949e";
-  el.textContent=`${icons[S.cloudStatus]||"☁️"} ${labels[S.cloudStatus]||"준비 중"}`;
+  el.textContent=`${icons[S.cloudStatus]||"☁️"} ${labels[S.cloudStatus]||"준비 중"}${arCountdown()}`;
 }
 
-setInterval(renderCloudBadge,30000);
+setInterval(renderCloudBadge,5000);
 
 // ═══════════════════════════════════════════
 // 🌐 시장 데이터
@@ -632,6 +634,38 @@ function getMarketStatus(){
   if(usOpen)return{label:"🟢 미장 개장",color:"#10b981",bg:"rgba(16,185,129,.15)"};
   if(krOpen)return{label:"🔵 한국장 개장",color:"#60a5fa",bg:"rgba(59,130,246,.15)"};
   return{label:"⚫ 휴장",color:"#8b949e",bg:"rgba(148,163,184,.1)"};
+}
+
+// US market phase detection (EDT = UTC-4, summer schedule)
+function getMarketPhase(){
+  const now=new Date();
+  const day=now.getUTCDay();
+  if(day===0||day===6)return'closed';
+  const m=now.getUTCHours()*60+now.getUTCMinutes();
+  if(m>=480&&m<810)return'pre';       // EDT 4AM-9:30AM = UTC 8:00-13:30
+  if(m>=810&&m<1200)return'regular';  // EDT 9:30AM-4PM  = UTC 13:30-20:00
+  if(m>=1200)return'post';            // EDT 4PM-8PM     = UTC 20:00-24:00
+  return'dead';                       // EDT 8PM-4AM     = UTC 0:00-8:00
+}
+const REFRESH_MS={pre:60000,regular:30000,post:60000,dead:300000,closed:300000};
+let _arTimer=null,_arNextAt=0;
+function scheduleAutoRefresh(){
+  if(_arTimer)clearTimeout(_arTimer);
+  if(!getApiUrl())return;
+  const delay=REFRESH_MS[getMarketPhase()]||300000;
+  _arNextAt=Date.now()+delay;
+  _arTimer=setTimeout(async()=>{
+    await loadFromCloud(false);
+    if(S.tab==='market')loadMarketData(true);
+    scheduleAutoRefresh();
+  },delay);
+}
+function arCountdown(){
+  if(!_arNextAt||!getApiUrl())return'';
+  const sec=Math.max(0,Math.round((_arNextAt-Date.now())/1000));
+  const phase=getMarketPhase();
+  if(phase==='dead'||phase==='closed')return` · 💤 ${Math.ceil(sec/60)}분후`;
+  return` · ⟳ ${sec}s`;
 }
 
 function fmtMktPrice(price,fmt){
@@ -697,6 +731,7 @@ const filtCashKRW=()=>{
 
 async function syncSheets(){
   await loadFromCloud(true);
+  scheduleAutoRefresh(); // reset countdown after manual sync
 }
 
 // ═══════════════════════════════════════════
@@ -825,7 +860,7 @@ function mkHdr(){
     <div class="hdr-row1">
       <div class="hdr-title">📊 포트폴리오 <span id="cloudBadge" style="font-size:.6em;color:#8b949e;margin-left:8px;font-weight:600">☁️</span><span style="font-size:.5em;color:#4b5563;margin-left:6px;font-weight:500;letter-spacing:.3px">${APP_VERSION}</span></div>
       <button id="btnTrend" style="background:${S.tab==='trend'?'rgba(99,102,241,.25)':'rgba(99,102,241,.1)'};border:1px solid ${S.tab==='trend'?'#6366f1':'rgba(99,102,241,.3)'};color:${S.tab==='trend'?'#818cf8':'#6366f1'};border-radius:8px;padding:3px 9px;font-size:.72em;font-weight:700;cursor:pointer;white-space:nowrap">📈 추이</button>
-      <button class="sync-btn" id="btnSync">🔄 동기화</button>
+      <button class="${getMarketPhase()==='regular'?'sync-btn live-btn':'sync-btn'}" id="btnSync">${getMarketPhase()==='regular'?'⚡ LIVE':'🔄 동기화'}</button>
     </div>
     ${S.syncMsg?`<div class="msg-sync" style="background:${S.syncMsg.startsWith('✅')?'rgba(16,185,129,.15)':S.syncMsg.startsWith('❌')?'rgba(244,63,94,.15)':'rgba(245,158,11,.15)'};color:${S.syncMsg.startsWith('✅')?'#10b981':S.syncMsg.startsWith('❌')?'#f43f5e':'#fbbf24'}">${S.syncMsg}</div>`:''}
     <div class="asset-cards">
@@ -2194,6 +2229,8 @@ if(!getApiUrl()){S.modal={type:"settings"};}
 render();
 // Auto-sync on page load (only if API URL is configured)
 if(getApiUrl())setTimeout(()=>loadFromCloud(false),2000);
+// Start auto-refresh engine after initial load settles
+if(getApiUrl())setTimeout(scheduleAutoRefresh,3000);
 </script>
 </body>
 </html>
