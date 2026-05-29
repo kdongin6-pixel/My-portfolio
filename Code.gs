@@ -48,7 +48,11 @@ const MERITZ_DATA = [
   ["메리츠증권","💵 현금 (USD)",      "",         "USD",1,   7354,    7354]
 ];
 
+// KRX tickers not supported by GOOGLEFINANCE — fetched via Naver Finance API
+const KRX_FETCH_CODES = ['0174B0'];
+
 const ISA_DATA = [
+  ["ISA","KoAct 글로벌AI메모리반도체액티브","0174B0","KRW",0,  0,     0],
   ["ISA","KoAct 팔란티어밸류체인액티브",     "0093D0","KRW",720, 14198, '=IFERROR(GOOGLEFINANCE("KRX:0093D0"),19590)'],
   ["ISA","TIMEFOLIO 미국나스닥100액티브",    "426030","KRW",345, 42639, '=IFERROR(GOOGLEFINANCE("KRX:426030"),55300)'],
   ["ISA","KODEX 미국서학개미",               "473460","KRW",189, 21478, '=IFERROR(GOOGLEFINANCE("KRX:473460"),27595)'],
@@ -84,6 +88,53 @@ function fixSumFormula(sheet) {
       `=SUMPRODUCT((MOD(ROW(E2:E${last}),2)=0)*E2:E${last})`
     );
   }
+}
+
+// Fetch KRX ETF price via Naver Finance API (for tickers not in GOOGLEFINANCE)
+function fetchKrxPrice(code){
+  try{
+    const url=`https://api.finance.naver.com/service/itemSummary.nhn?itemcode=${code}`;
+    const res=UrlFetchApp.fetch(url,{
+      muteHttpExceptions:true,
+      headers:{'User-Agent':'Mozilla/5.0','Referer':'https://finance.naver.com'}
+    });
+    if(res.getResponseCode()!==200)return null;
+    const data=JSON.parse(res.getContentText());
+    const price=parseFloat(String(data.closePrice||'0').replace(/,/g,''))||0;
+    const daily=parseFloat(data.fluctuationsRatio)||0;
+    const prevClose=price/(1+daily/100)||0;
+    const weekly=0; // weekly not available from this endpoint
+    return{price,daily,weekly,prevClose};
+  }catch(e){
+    Logger.log('KRX fetch error '+code+': '+e);
+    return null;
+  }
+}
+
+// Update ISA/메리츠 sheet cells for KRX_FETCH_CODES items
+function updateKrxPrices(ss){
+  if(!ss)ss=SpreadsheetApp.getActiveSpreadsheet();
+  if(!KRX_FETCH_CODES||!KRX_FETCH_CODES.length)return;
+
+  // Build code→name map from ISA_DATA and MERITZ_DATA
+  const codeToName={};
+  [...ISA_DATA,...MERITZ_DATA].forEach(row=>{
+    if(KRX_FETCH_CODES.includes(row[2]))codeToName[row[2]]={name:row[1],acct:row[0]};
+  });
+
+  Object.entries(codeToName).forEach(([code,info])=>{
+    const fetched=fetchKrxPrice(code);
+    if(!fetched||!fetched.price)return;
+    const sheet=ss.getSheetByName(info.acct==='ISA'?'ISA':'메리츠증권');
+    if(!sheet)return;
+    const lastRow=sheet.getLastRow();
+    const names=sheet.getRange(1,1,lastRow,1).getValues();
+    const rowIdx=names.findIndex(r=>String(r[0]).trim()===info.name.trim());
+    if(rowIdx===-1)return;
+    sheet.getRange(rowIdx+1,3).setValue(fetched.price); // Update price cell
+    SpreadsheetApp.flush();
+    Logger.log(`KRX ${code} (${info.name}): ₩${fetched.price} (${fetched.daily>0?'+':''}${fetched.daily}%)`);
+  });
 }
 
 function setupMarketSheet(ss){
@@ -363,6 +414,7 @@ function doGet(e) {
     return result;
   }
 
+  updateKrxPrices(ss);  // Fetch KRX tickers not supported by GOOGLEFINANCE
   const meritz = getPricesFromSheet('메리츠증권');
   const isa    = getPricesFromSheet('ISA');
 
