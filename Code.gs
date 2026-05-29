@@ -366,6 +366,21 @@ function doGet(e) {
   const meritz = getPricesFromSheet('메리츠증권');
   const isa    = getPricesFromSheet('ISA');
 
+  // Extract cash rows from sheet data — source of truth for cash amounts
+  const sheetCash = {'메리츠증권':{USD:0,KRW:0}, ISA:{USD:0,KRW:0}};
+  meritz.forEach(item=>{
+    if(item.name.includes('💵')||item.name.includes('현금')){
+      const curr=item.name.includes('USD')?'USD':'KRW';
+      sheetCash['메리츠증권'][curr]=item.cur*item.qty;
+    }
+  });
+  isa.forEach(item=>{
+    if(item.name.includes('💵')||item.name.includes('현금')){
+      const curr=item.name.includes('USD')?'USD':'KRW';
+      sheetCash['ISA'][curr]=item.cur*item.qty;
+    }
+  });
+
   let appData = null, savedAt = null;
   try {
     const adSheet = ss.getSheetByName('_appdata');
@@ -377,7 +392,7 @@ function doGet(e) {
   } catch(err) {}
 
   return ContentService
-    .createTextOutput(JSON.stringify({ rate, meritz, isa, appData, savedAt }))
+    .createTextOutput(JSON.stringify({ rate, meritz, isa, appData, savedAt, sheetCash }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
