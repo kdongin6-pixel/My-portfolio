@@ -51,6 +51,22 @@ const MERITZ_DATA = [
 // KRX tickers not supported by GOOGLEFINANCE — fetched via Naver Finance API
 const KRX_FETCH_CODES = ['0174B0'];
 
+// Yahoo Finance symbol mapping (GOOGLEFINANCE ticker → Yahoo symbol)
+const YAHOO_SYMBOL_MAP = {
+  'INDEXNASDAQ:.IXIC': '^IXIC',
+  'INDEXSP:.INX':      '^GSPC',
+  'INDEXDJX:.DJI':     '^DJI',
+  'KRX:KOSPI':         '^KS11',
+  'INDEXCBOE:VIX':     '^VIX',
+  'CURRENCY:USDKRW':   'USDKRW=X',
+  'INDEXCBOE:FVX':     '^FVX',
+  'INDEXCBOE:TNX':     '^TNX',
+  'UUP':               'UUP',
+  'CURRENCY:XAUUSD':   'GC=F',
+  'USO':               'CL=F',
+  'CRYPTO:BTCUSD':     'BTC-USD',
+};
+
 const ISA_DATA = [
   ["ISA","KoAct 글로벌AI메모리반도체액티브","0174B0","KRW",283,17390, 0],
   ["ISA","KoAct 팔란티어밸류체인액티브",     "0093D0","KRW",720, 14198, '=IFERROR(GOOGLEFINANCE("KRX:0093D0"),19590)'],
@@ -87,6 +103,61 @@ function fixSumFormula(sheet) {
     sheet.getRange(sumRow, 5).setFormula(
       `=SUMPRODUCT((MOD(ROW(E2:E${last}),2)=0)*E2:E${last})`
     );
+  }
+}
+
+// ─────────────────────────────────────────────
+// Yahoo Finance v7 — realtime bulk quotes (pre/post market included)
+// ─────────────────────────────────────────────
+function fetchYahooQuotes(symbols) {
+  if (!symbols || !symbols.length) return {};
+  try {
+    const syms = [...new Set(symbols)].filter(Boolean).join(',');
+    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + encodeURIComponent(syms);
+    const res = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://finance.yahoo.com',
+      }
+    });
+    if (res.getResponseCode() !== 200) {
+      Logger.log('Yahoo HTTP ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
+      return {};
+    }
+    const json = JSON.parse(res.getContentText());
+    const results = (json.quoteResponse && json.quoteResponse.result) || [];
+    const map = {};
+    results.forEach(q => {
+      const state = q.marketState || 'CLOSED'; // REGULAR | PRE | POST | CLOSED
+      let extPrice = null, extPct = null, extType = null;
+      if (state === 'PRE' && q.preMarketPrice) {
+        extPrice = q.preMarketPrice;
+        extPct   = q.preMarketChangePercent || 0;
+        extType  = 'pre';
+      } else if ((state === 'POST' || state === 'CLOSED') && q.postMarketPrice) {
+        extPrice = q.postMarketPrice;
+        extPct   = q.postMarketChangePercent || 0;
+        extType  = 'post';
+      }
+      // Live price: extended-hours if available, otherwise regular market
+      const livePrice = (state === 'REGULAR') ? (q.regularMarketPrice || 0)
+                                               : (extPrice || q.regularMarketPrice || 0);
+      map[q.symbol] = {
+        price:       livePrice,
+        regPrice:    q.regularMarketPrice || 0,
+        daily:       q.regularMarketChangePercent || 0,
+        marketState: state,
+        extPrice, extPct, extType
+      };
+    });
+    Logger.log('Yahoo: ' + Object.keys(map).length + '/' + symbols.length + ' fetched');
+    return map;
+  } catch(e) {
+    Logger.log('Yahoo error: ' + e);
+    return {};
   }
 }
 
@@ -373,7 +444,33 @@ function doGet(e) {
 
   if (mode === 'market') {
     updateTreasuryRates(ss);  // Fetch T2Y from US Treasury API
-    const market = getMarketData(ss);
+    const baseMarket = getMarketData(ss);  // GOOGLEFINANCE sheet data (has weekly %)
+
+    // Bulk-fetch Yahoo for realtime prices (overrides 15-min delayed GOOGLEFINANCE)
+    const yahooSyms = MARKET_ITEMS
+      .filter(item => !item.treasuryKey && item.ticker)
+      .map(item => YAHOO_SYMBOL_MAP[item.ticker] || item.ticker)
+      .filter(Boolean);
+    const yahooMkt = fetchYahooQuotes(yahooSyms);
+
+    // Merge: Yahoo price/daily overrides sheet, weekly kept from sheet
+    const market = baseMarket.map(item => {
+      const cfg = MARKET_ITEMS.find(m => m.key === item.key);
+      if (!cfg || cfg.treasuryKey) return item;
+      const ySym = YAHOO_SYMBOL_MAP[cfg.ticker] || cfg.ticker;
+      const yd   = yahooMkt[ySym];
+      if (!yd || !yd.price) return item;
+      const sc = cfg.scale || 1;
+      return {
+        ...item,
+        price:       yd.price    * sc,
+        daily:       yd.daily,
+        marketState: yd.marketState,
+        extPrice:    yd.extPrice ? yd.extPrice * sc : null,
+        extPct:      yd.extPct
+      };
+    });
+
     return ContentService
       .createTextOutput(JSON.stringify({ market }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -417,6 +514,16 @@ function doGet(e) {
   const meritz = getPricesFromSheet('메리츠증권');
   const isa    = getPricesFromSheet('ISA');
 
+  // Yahoo Finance bulk fetch for US portfolio tickers (realtime + pre/post market)
+  const usTickers = new Set();
+  [...meritz, ...isa].forEach(item => {
+    if (item.ticker && !/^\d/.test(item.ticker)) usTickers.add(item.ticker);
+  });
+  const yahooPortfolio = fetchYahooQuotes([...usTickers]);
+  // Build yahooData: ticker → {price, regPrice, daily, marketState, extPrice, extPct, extType}
+  const yahooData = {};
+  Object.entries(yahooPortfolio).forEach(([sym, data]) => { yahooData[sym] = data; });
+
   // Extract cash rows from sheet data — source of truth for cash amounts
   const sheetCash = {'메리츠증권':{USD:0,KRW:0}, ISA:{USD:0,KRW:0}};
   meritz.forEach(item=>{
@@ -443,7 +550,7 @@ function doGet(e) {
   } catch(err) {}
 
   return ContentService
-    .createTextOutput(JSON.stringify({ rate, meritz, isa, appData, savedAt, sheetCash }))
+    .createTextOutput(JSON.stringify({ rate, meritz, isa, appData, savedAt, sheetCash, yahooData }))
     .setMimeType(ContentService.MimeType.JSON);
 }
 

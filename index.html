@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="포트폴리오">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1117">
 <title>포트폴리오</title>
 <!-- APP_VERSION: v0.3.0 -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
@@ -556,6 +561,20 @@ async function loadFromCloud(showAlert){
       }));
     }
     
+    // Apply Yahoo Finance realtime prices (pre/post market override)
+    if(data.yahooData){
+      S.stocks.forEach(s=>{
+        if(!s.ticker||/^\d/.test(s.ticker))return; // Skip KRX codes
+        const yd=data.yahooData[s.ticker];
+        if(!yd)return;
+        if(yd.price>0){s.cur=yd.price;priceCount++;}
+        s.extPrice=yd.extPrice||null;
+        s.extPct=yd.extPct||null;
+        s.extType=yd.extType||null;
+        s.marketState=yd.marketState||null;
+      });
+    }
+
     // Sync cash from sheet (sheet is source of truth — overrides _appdata cash)
     if(data.sheetCash){
       let cashSynced=false;
@@ -994,12 +1013,13 @@ function mkList(){
       const tc=S.tagColors[s.tag]||"#94a3b8";
       const curDisp=s.curr==="USD"?`$${s.cur.toFixed(2)}`:`₩${fK(s.cur)}`;
       const avgDisp=s.curr==="USD"?`$${s.avg.toFixed(2)}`:`₩${fK(s.avg)}`;
+      const tblExtBadge=s.extPrice&&s.extType?`<div style="font-size:.65em;color:#fbbf24;margin-top:1px">${s.extType==='pre'?'🌅':'🌙'} $${s.extPrice.toFixed(2)}</div>`:'';
       return `<tr class="gs-r1">
         <td class="gs-td">
           <span class="gs-name">${s.name}</span>
           <span class="gs-sub">${s.qty.toLocaleString()}주 · ${avgDisp}</span>
         </td>
-        <td class="gs-td">${curDisp}</td>
+        <td class="gs-td">${curDisp}${tblExtBadge}</td>
         <td class="gs-td">${fKShort(evk)}</td>
         <td class="gs-td"><button class="gs-more" data-action="${s.id}">⋮</button></td>
       </tr>
@@ -1042,6 +1062,7 @@ function mkList(){
     const sinv=s.qty*s.avg,spnl=ev-sinv,spct=sinv>0?spnl/sinv*100:0;
     const wt=stockTot>0?evk/stockTot*100:0;
     const tc=S.tagColors[s.tag]||"#94a3b8";
+    const extBadge=s.extPrice&&s.extType?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:.62em;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;font-weight:700">${s.extType==='pre'?'🌅':'🌙'} $${s.extPrice.toFixed(2)} <span style="opacity:.8">${s.extPct>=0?'+':''}${(s.extPct||0).toFixed(2)}%</span></span>`:'';
     return `<div class="card">
       <div class="card-top">
         <div style="flex:1;min-width:0">
@@ -1049,6 +1070,7 @@ function mkList(){
           <div class="card-chips">
             <span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}">${s.acct==='ISA'?'ISA':'메리츠'}</span>
             <span class="chip chip-tag" style="background:${tc}22;color:${tc}" data-edit-tag="${s.id}">${s.tag||'태그없음'} ✏️</span>
+            ${extBadge}
           </div>
         </div>
         <div class="card-pct ${spct>=0?'pos':'neg'}">${fP(spct)}</div>
