@@ -1910,12 +1910,16 @@ function mkMarket(){
     const price=m?m.price:0;
     const d_=m?m.daily:0;
     const priceStr=price?fmtMktPrice(price,c.fmt):'—';
-    const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,54,22);
+    const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,52,22);
     return `<div class="mkt2-comm-card">
-      <div class="mkt2-comm-lbl">${c.label}</div>
-      <div class="mkt2-comm-price">${priceStr}</div>
-      ${mktChgBadge(d_,false)}
-      <div style="margin-top:4px">${spark}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
+        <div style="min-width:0;flex:1">
+          <div class="mkt2-comm-lbl">${c.label}</div>
+          <div class="mkt2-comm-price">${priceStr}</div>
+          ${mktChgBadge(d_,false)}
+        </div>
+        <div style="flex-shrink:0;align-self:center">${spark}</div>
+      </div>
     </div>`;
   }).join('');
 
