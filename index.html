@@ -1919,7 +1919,7 @@ function mkMarket(){
     </div>`;
   }).join('');
 
-  // ── 인기 ETF & 테마 (탭 토글) ──
+  // ── 인기 ETF / 테마 / 섹터 (탭 토글) ──
   const etfList=[
     {key:'QQQ', label:'QQQ',  sub:'나스닥 100'},
     {key:'SPY', label:'SPY',  sub:'S&P500'},
@@ -1936,41 +1936,40 @@ function mkMarket(){
     {key:'GOOGL',label:'GOOGL',sub:'AI 검색'},
     {key:'MSFT', label:'MSFT', sub:'AI 플랫폼'},
   ];
-  const activeEtfList=S.mktEtfTab==='etf'?etfList:themeList;
+  const sectorList=[
+    {key:'XLK', label:'기술',  sub:'XLK'}, {key:'XLC', label:'통신',  sub:'XLC'},
+    {key:'XLY', label:'임의소비',sub:'XLY'},{key:'XLP', label:'필수소비',sub:'XLP'},
+    {key:'XLV', label:'헬스케어',sub:'XLV'},{key:'XLF', label:'금융',  sub:'XLF'},
+    {key:'XLI', label:'산업재', sub:'XLI'},{key:'XLB', label:'소재',  sub:'XLB'},
+    {key:'XLE', label:'에너지', sub:'XLE'},{key:'XLU', label:'유틸리티',sub:'XLU'},
+    {key:'XLRE',label:'부동산', sub:'XLRE'},
+  ];
+  const etfTab=S.mktEtfTab||'etf';
+  const activeEtfList=etfTab==='theme'?themeList:etfTab==='sector'?sectorList:etfList;
   const etfCards=activeEtfList.map(c=>{
     const m=gv(c.key);
     const price=m?m.price:0;
     const d_=m?m.daily:0;
+    const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,52,22);
     return `<div class="mkt2-etf-card">
-      <div class="mkt2-etf-lbl">${c.label}</div>
-      <div style="font-size:.65em;color:#6b7280;margin-bottom:2px">${c.sub}</div>
-      <div class="mkt2-etf-price">${price?'$'+price.toFixed(2):'—'}</div>
-      ${mktChgBadge(d_,false)}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
+        <div style="min-width:0;flex:1">
+          <div class="mkt2-etf-lbl">${c.label}</div>
+          <div style="font-size:.65em;color:#6b7280;margin-bottom:2px">${c.sub||''}</div>
+          <div class="mkt2-etf-price">${price?'$'+price.toFixed(2):'—'}</div>
+          ${mktChgBadge(d_,false)}
+        </div>
+        <div style="flex-shrink:0;align-self:center">${spark}</div>
+      </div>
     </div>`;
   }).join('');
+  const mkEtfTabBtn=(id,val,txt)=>`<button class="mkt-tab-btn${etfTab===val?' active':''}" id="${id}" data-etftab="${val}" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:${etfTab===val?'rgba(99,102,241,.25)':'transparent'};color:${etfTab===val?'#818cf8':'#6b7280'}">${txt}</button>`;
   const etfTabBar=`
     <div style="display:flex;gap:0;background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:8px">
-      <button class="mkt-tab-btn${S.mktEtfTab==='etf'?' active':''}" id="btnMktEtf" data-etftab="etf" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:${S.mktEtfTab==='etf'?'rgba(99,102,241,.25)':'transparent'};color:${S.mktEtfTab==='etf'?'#818cf8':'#6b7280'}">[ ETF ]</button>
-      <button class="mkt-tab-btn${S.mktEtfTab==='theme'?' active':''}" id="btnMktTheme" data-etftab="theme" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:${S.mktEtfTab==='theme'?'rgba(99,102,241,.25)':'transparent'};color:${S.mktEtfTab==='theme'?'#818cf8':'#6b7280'}">테마별</button>
+      ${mkEtfTabBtn('btnMktEtf','etf','[ ETF ]')}
+      ${mkEtfTabBtn('btnMktTheme','theme','테마별')}
+      ${mkEtfTabBtn('btnMktSector','sector','섹터')}
     </div>`;
-
-  // ── 섹터 (GICS 11) ──
-  const sectorKeys=[
-    {key:'XLK', label:'기술'},   {key:'XLC', label:'통신'},
-    {key:'XLY', label:'임의소비'},{key:'XLP', label:'필수소비'},
-    {key:'XLV', label:'헬스케어'},{key:'XLF', label:'금융'},
-    {key:'XLI', label:'산업재'}, {key:'XLB', label:'소재'},
-    {key:'XLE', label:'에너지'}, {key:'XLU', label:'유틸리티'},
-    {key:'XLRE',label:'부동산'},
-  ];
-  const sectorCards=sectorKeys.map(c=>{
-    const m=gv(c.key);
-    const d_=m?m.daily:0;
-    return `<div class="mkt2-etf-card">
-      <div class="mkt2-etf-lbl">${c.label}</div>
-      ${mktChgBadge(d_,false)}
-    </div>`;
-  }).join('');
 
   // ── 이슈 종목 ──
   const issueKeys=['NVDA','AAPL','GOOGL','MSFT','AMZN','AVGO','TSLA','META',
@@ -1979,10 +1978,16 @@ function mkMarket(){
     const m=gv(k);
     const price=m?m.price:0;
     const d_=m?m.daily:0;
+    const spark=mkSparkSvg(m?m.weekly:0,d_,k,48,20);
     return `<div class="mkt2-top-card">
-      <span class="mkt2-top-lbl">${k}</span>
-      <div class="mkt2-top-price">${price?'$'+price.toFixed(2):'—'}</div>
-      <div style="margin-top:2px">${mktChgBadge(d_,false)}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
+        <div style="min-width:0">
+          <span class="mkt2-top-lbl">${k}</span>
+          <div class="mkt2-top-price">${price?'$'+price.toFixed(2):'—'}</div>
+          <div style="margin-top:2px">${mktChgBadge(d_,false)}</div>
+        </div>
+        <div style="flex-shrink:0;align-self:center">${spark}</div>
+      </div>
     </div>`;
   }).join('');
 
@@ -2016,14 +2021,9 @@ function mkMarket(){
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">📈 인기 ETF &amp; 테마</div>
+      <div class="mkt2-stitle">📈 ETF · 테마 · 섹터</div>
       ${etfTabBar}
       <div class="mkt2-etf-grid">${etfCards}</div>
-    </div>
-
-    <div class="mkt2-section">
-      <div class="mkt2-stitle">🧩 섹터</div>
-      <div class="mkt2-etf-grid">${sectorCards}</div>
     </div>
 
     <div class="mkt2-section">
@@ -2045,6 +2045,7 @@ function bind(){
   q("#btnTrend")?.addEventListener("click",()=>{S.tab="trend";render();});
   q("#btnMktEtf")?.addEventListener("click",()=>{S.mktEtfTab="etf";render();});
   q("#btnMktTheme")?.addEventListener("click",()=>{S.mktEtfTab="theme";render();});
+  q("#btnMktSector")?.addEventListener("click",()=>{S.mktEtfTab="sector";render();});
   q("#btnSync")?.addEventListener("click",syncSheets);
   q("#btnSettings")?.addEventListener("click",()=>{S.modal={type:"settings"};render();});
   q("#saveApiUrl")?.addEventListener("click",()=>{
