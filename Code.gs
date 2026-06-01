@@ -28,6 +28,32 @@ const MARKET_ITEMS=[
   {key:"TSLA",  label:"TSLA", ticker:"TSLA",                sec:"빅테크",  fmt:"usd"},
   {key:"AVGO",  label:"AVGO", ticker:"AVGO",                sec:"빅테크",  fmt:"usd"},
   {key:"BTC",   label:"비트코인",ticker:"CRYPTO:BTCUSD",    sec:"원자재",  fmt:"usd"},
+  // ── 추가: 지수 / 금리 / 원자재 ──
+  {key:"RUT",   label:"러셀2000",ticker:"INDEXRUSSELL:RUT", sec:"지수",    fmt:"num"},
+  {key:"T3M",   label:"미3M",  treasuryKey:"BC_3MONTH",      sec:"금리·환율",fmt:"pct"},
+  {key:"SILVER",label:"은",    ticker:"CURRENCY:XAGUSD",     sec:"원자재",  fmt:"usd"},
+  {key:"BRENT", label:"브렌트",ticker:"BNO",                 sec:"원자재",  fmt:"usd"},
+  // ── 섹터 ETF (GICS 11) ──
+  {key:"XLK",   label:"기술",   ticker:"XLK",  sec:"섹터", fmt:"usd"},
+  {key:"XLB",   label:"소재",   ticker:"XLB",  sec:"섹터", fmt:"usd"},
+  {key:"XLY",   label:"임의소비",ticker:"XLY", sec:"섹터", fmt:"usd"},
+  {key:"XLI",   label:"산업재", ticker:"XLI",  sec:"섹터", fmt:"usd"},
+  {key:"XLC",   label:"통신",   ticker:"XLC",  sec:"섹터", fmt:"usd"},
+  {key:"XLV",   label:"헬스케어",ticker:"XLV", sec:"섹터", fmt:"usd"},
+  {key:"XLF",   label:"금융",   ticker:"XLF",  sec:"섹터", fmt:"usd"},
+  {key:"XLRE",  label:"부동산", ticker:"XLRE", sec:"섹터", fmt:"usd"},
+  {key:"XLU",   label:"유틸리티",ticker:"XLU", sec:"섹터", fmt:"usd"},
+  {key:"XLP",   label:"필수소비",ticker:"XLP", sec:"섹터", fmt:"usd"},
+  {key:"XLE",   label:"에너지", ticker:"XLE",  sec:"섹터", fmt:"usd"},
+  // ── 이슈 종목 ──
+  {key:"SNOW",  label:"SNOW", ticker:"SNOW", sec:"이슈", fmt:"usd"},
+  {key:"SMCI",  label:"SMCI", ticker:"SMCI", sec:"이슈", fmt:"usd"},
+  {key:"MU",    label:"MU",   ticker:"MU",   sec:"이슈", fmt:"usd"},
+  {key:"PLTR",  label:"PLTR", ticker:"PLTR", sec:"이슈", fmt:"usd"},
+  {key:"COST",  label:"COST", ticker:"COST", sec:"이슈", fmt:"usd"},
+  {key:"XOM",   label:"XOM",  ticker:"XOM",  sec:"이슈", fmt:"usd"},
+  {key:"CVX",   label:"CVX",  ticker:"CVX",  sec:"이슈", fmt:"usd"},
+  {key:"INTC",  label:"INTC", ticker:"INTC", sec:"이슈", fmt:"usd"},
 ];
 
 const MERITZ_DATA = [
@@ -65,6 +91,8 @@ const YAHOO_SYMBOL_MAP = {
   'CURRENCY:XAUUSD':   'GC=F',
   'USO':               'CL=F',
   'CRYPTO:BTCUSD':     'BTC-USD',
+  'INDEXRUSSELL:RUT':  '^RUT',
+  'CURRENCY:XAGUSD':   'SI=F',
 };
 
 const ISA_DATA = [
@@ -263,6 +291,7 @@ function fetchTreasuryYields(){
     };
 
     return {
+      T3M: build(parseKey('BC_3MONTH')),
       T2Y: build(parseKey('BC_2YEAR')),
       T5Y: null  // T5Y uses GOOGLEFINANCE FVX — no need to fetch here
     };

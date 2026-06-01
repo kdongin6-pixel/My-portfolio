@@ -322,6 +322,29 @@ const MARKET_CFG=[
   {key:"TSLA",  label:"TSLA",   sec:"빅테크",   fmt:"usd"},
   {key:"AVGO",  label:"AVGO",   sec:"빅테크",   fmt:"usd"},
   {key:"BTC",   label:"BTC",    sec:"원자재",   fmt:"usd"},
+  {key:"RUT",   label:"러셀2000",sec:"지수",     fmt:"num"},
+  {key:"T3M",   label:"미3M채",   sec:"금리·환율", fmt:"pct"},
+  {key:"SILVER",label:"은",      sec:"원자재",   fmt:"usd"},
+  {key:"BRENT", label:"브렌트",  sec:"원자재",   fmt:"usd"},
+  {key:"XLK",   label:"기술",    sec:"섹터", fmt:"usd"},
+  {key:"XLB",   label:"소재",    sec:"섹터", fmt:"usd"},
+  {key:"XLY",   label:"임의소비", sec:"섹터", fmt:"usd"},
+  {key:"XLI",   label:"산업재",  sec:"섹터", fmt:"usd"},
+  {key:"XLC",   label:"통신",    sec:"섹터", fmt:"usd"},
+  {key:"XLV",   label:"헬스케어", sec:"섹터", fmt:"usd"},
+  {key:"XLF",   label:"금융",    sec:"섹터", fmt:"usd"},
+  {key:"XLRE",  label:"부동산",  sec:"섹터", fmt:"usd"},
+  {key:"XLU",   label:"유틸리티", sec:"섹터", fmt:"usd"},
+  {key:"XLP",   label:"필수소비", sec:"섹터", fmt:"usd"},
+  {key:"XLE",   label:"에너지",  sec:"섹터", fmt:"usd"},
+  {key:"SNOW",  label:"SNOW",   sec:"이슈", fmt:"usd"},
+  {key:"SMCI",  label:"SMCI",   sec:"이슈", fmt:"usd"},
+  {key:"MU",    label:"MU",     sec:"이슈", fmt:"usd"},
+  {key:"PLTR",  label:"PLTR",   sec:"이슈", fmt:"usd"},
+  {key:"COST",  label:"COST",   sec:"이슈", fmt:"usd"},
+  {key:"XOM",   label:"XOM",    sec:"이슈", fmt:"usd"},
+  {key:"CVX",   label:"CVX",    sec:"이슈", fmt:"usd"},
+  {key:"INTC",  label:"INTC",   sec:"이슈", fmt:"usd"},
 ];
 
 // ═══════════════════════════════════════════
@@ -1801,6 +1824,7 @@ function mkMarket(){
     {key:'IXIC',label:'나스닥',fmt:'num'},
     {key:'SPX', label:'S&P500',fmt:'num'},
     {key:'DJI', label:'다우',  fmt:'num'},
+    {key:'RUT', label:'러셀2000',fmt:'num'},
     {key:'KOSPI',label:'코스피',fmt:'num'},
   ];
   const idxCards=idxKeys.map(c=>{
@@ -1848,6 +1872,7 @@ function mkMarket(){
   // ── 금리 & 환율 ──
   const rateKeys=[
     {key:'USDKRW',label:'원/달러 환율',       fmt:'krw', showWeekly:true},
+    {key:'T3M',   label:'미 3개월물 국채 금리',fmt:'pct', showWeekly:false},
     {key:'T2Y',   label:'미 2년물 국채 금리',  fmt:'pct', showWeekly:true},
     {key:'T5Y',   label:'미 5년물 국채 금리',  fmt:'pct', showWeekly:false},
     {key:'T10Y',  label:'미 10년물 국채 금리', fmt:'pct', showWeekly:false},
@@ -1874,9 +1899,11 @@ function mkMarket(){
 
   // ── 원자재 & 암호화폐 ──
   const commKeys=[
-    {key:'GOLD',label:'금',    fmt:'usd'},
-    {key:'WTI', label:'WTI',  fmt:'usd'},
-    {key:'BTC', label:'BTC',  fmt:'usd'},
+    {key:'GOLD',  label:'금',    fmt:'usd'},
+    {key:'SILVER',label:'은',    fmt:'usd'},
+    {key:'WTI',   label:'WTI',  fmt:'usd'},
+    {key:'BRENT', label:'브렌트',fmt:'usd'},
+    {key:'BTC',   label:'BTC',  fmt:'usd'},
   ];
   const commCards=commKeys.map(c=>{
     const m=gv(c.key);
@@ -1927,30 +1954,35 @@ function mkMarket(){
       <button class="mkt-tab-btn${S.mktEtfTab==='theme'?' active':''}" id="btnMktTheme" data-etftab="theme" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:${S.mktEtfTab==='theme'?'rgba(99,102,241,.25)':'transparent'};color:${S.mktEtfTab==='theme'?'#818cf8':'#6b7280'}">테마별</button>
     </div>`;
 
-  // ── 거래대금 상위 ──
-  const topTradeKeys=[
-    {key:'NVDA', label:'NVDA'},
-    {key:'TSLA', label:'TSLA'},
-    {key:'AAPL', label:'AAPL'},
-    {key:'AMZN', label:'AMZN'},
-    {key:'META', label:'META'},
-    {key:'AVGO', label:'AVGO'},
+  // ── 섹터 (GICS 11) ──
+  const sectorKeys=[
+    {key:'XLK', label:'기술'},   {key:'XLC', label:'통신'},
+    {key:'XLY', label:'임의소비'},{key:'XLP', label:'필수소비'},
+    {key:'XLV', label:'헬스케어'},{key:'XLF', label:'금융'},
+    {key:'XLI', label:'산업재'}, {key:'XLB', label:'소재'},
+    {key:'XLE', label:'에너지'}, {key:'XLU', label:'유틸리티'},
+    {key:'XLRE',label:'부동산'},
   ];
-  const topTradeCards=topTradeKeys.map(c=>{
+  const sectorCards=sectorKeys.map(c=>{
     const m=gv(c.key);
+    const d_=m?m.daily:0;
+    return `<div class="mkt2-etf-card">
+      <div class="mkt2-etf-lbl">${c.label}</div>
+      ${mktChgBadge(d_,false)}
+    </div>`;
+  }).join('');
+
+  // ── 이슈 종목 ──
+  const issueKeys=['NVDA','AAPL','GOOGL','MSFT','AMZN','AVGO','TSLA','META',
+                   'SNOW','SMCI','MU','PLTR','COST','XOM','CVX','INTC'];
+  const issueCards=issueKeys.map(k=>{
+    const m=gv(k);
     const price=m?m.price:0;
-    const d_=m?m.daily:0, w_=m?m.weekly:0;
-    const spark=mkSparkSvg(w_,d_,c.key,48,20);
+    const d_=m?m.daily:0;
     return `<div class="mkt2-top-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <span class="mkt2-top-lbl">${c.label}</span>
-        ${spark}
-      </div>
+      <span class="mkt2-top-lbl">${k}</span>
       <div class="mkt2-top-price">${price?'$'+price.toFixed(2):'—'}</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">
-        ${mktChgBadge(d_,false)}
-        ${mktChgBadge(w_,false,'mkt2-w')}
-      </div>
+      <div style="margin-top:2px">${mktChgBadge(d_,false)}</div>
     </div>`;
   }).join('');
 
@@ -1990,8 +2022,13 @@ function mkMarket(){
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">🔥 거래대금 상위</div>
-      <div class="mkt2-top-grid">${topTradeCards}</div>
+      <div class="mkt2-stitle">🧩 섹터</div>
+      <div class="mkt2-etf-grid">${sectorCards}</div>
+    </div>
+
+    <div class="mkt2-section">
+      <div class="mkt2-stitle">🔥 이슈 종목</div>
+      <div class="mkt2-top-grid">${issueCards}</div>
     </div>
   </div>`;
   return d;
