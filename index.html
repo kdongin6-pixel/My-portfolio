@@ -524,6 +524,10 @@ async function loadFromCloud(showAlert){
 
     if(data.appData){
       const a=data.appData;
+      // 로컬 종목이 비어있을 때만 클라우드 종목으로 복원 (캐시 삭제 후 복구)
+      if(a.stocks&&a.stocks.length&&!S.stocks.length){
+        S.stocks=a.stocks.filter(s=>s&&s.name).map(s=>({...s,cur:s.cur||s.avg||0}));
+      }
       if(a.cash)S.cash=a.cash;
       if(a.cashTxns)S.cashTxns=a.cashTxns;
       if(a.txns)S.txns=a.txns;
