@@ -34,6 +34,10 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .btn-bulk{background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#fbbf24}
 .btn-add{background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);color:#34d399}
 .btn-export{background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);color:#60a5fa}
+.btn-ai{background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.4);color:#c084fc}
+.ai-summary-box{background:rgba(255,255,255,.04);border:1px solid #30363d;border-radius:10px;padding:12px;margin:10px 0;font-size:.78em;font-family:monospace;white-space:pre-wrap;color:#8b949e;max-height:52vh;overflow-y:auto;line-height:1.6}
+.ai-copy-btn{width:100%;padding:13px;border-radius:12px;font-size:.95em;font-weight:800;background:#6366f1;color:#fff;border:none;margin-top:4px;cursor:pointer}
+.ai-copy-btn.copied{background:#10b981}
 
 .tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;position:sticky;top:0;z-index:10;overflow-x:auto}
 .tabs::-webkit-scrollbar{display:none}
@@ -756,6 +760,70 @@ const filtCashKRW=()=>{
   return c.USD*S.rate+c.KRW;
 };
 
+function buildAISummary(){
+  const today=new Date().toLocaleDateString("ko-KR");
+  const stockKRW=S.stocks.reduce((a,s)=>a+evK(s),0);
+  const cashKRW=cashTotKRW();
+  const totalKRW=stockKRW+cashKRW;
+  const inv=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
+  const pnl=stockKRW-inv;
+  const pct=inv>0?pnl/inv*100:0;
+
+  const lines=[];
+  lines.push(`📊 포트폴리오 분석 요청 (${today})`);
+  lines.push(`환율: ${fK(S.rate)} KRW/USD`);
+  lines.push(``);
+  lines.push(`=== 총 자산 현황 ===`);
+  lines.push(`총 자산:   ₩${fK(totalKRW)}`);
+  lines.push(`주식 평가: ₩${fK(stockKRW)}`);
+  lines.push(`보유 현금: ₩${fK(cashKRW)}`);
+  lines.push(`투자 원금: ₩${fK(inv)}`);
+  lines.push(`평가 손익: ${pnl>=0?'+':''}₩${fK(pnl)} (${fP(pct)})`);
+  lines.push(``);
+  lines.push(`=== 계좌별 현금 ===`);
+  for(const acct of Object.keys(S.cash)){
+    const c=S.cash[acct];
+    const tot=(c.USD||0)*S.rate+(c.KRW||0);
+    lines.push(`${acct}: USD $${fU(c.USD||0)} + KRW ₩${fK(c.KRW||0)} → ₩${fK(tot)}`);
+  }
+  lines.push(``);
+  lines.push(`=== 종목 현황 (${S.stocks.length}개) ===`);
+  const sorted=[...S.stocks].sort((a,b)=>evK(b)-evK(a));
+  for(const s of sorted){
+    const ev=evK(s);
+    const sp=inv>0?ev/totalKRW*100:0;
+    const sInv=s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg;
+    const sPnl=ev-sInv;
+    const sPct=sInv>0?sPnl/sInv*100:0;
+    lines.push(`${s.name} (${s.ticker||'-'}) [${s.acct}/${s.curr}]`);
+    lines.push(`  수량:${s.qty} 평단:${fM(s.avg,s.curr)} 현재:${fM(s.cur,s.curr)} 평가:₩${fK(ev)} 비중:${sp.toFixed(1)}% 수익:${fP(sPct)}${s.tag?` [${s.tag}]`:''}`);
+  }
+  lines.push(``);
+  lines.push(`=== 최근 거래 (최대 10건) ===`);
+  const recent=S.txns.slice(0,10);
+  if(recent.length===0){lines.push(`없음`);}
+  else for(const t of recent){
+    lines.push(`${t.date} ${t.mode==='buy'?'매수':'매도'} ${t.name} ${t.qty}주 @${fM(t.price,t.curr)}${t.pnl?` 손익:${t.pnl>=0?'+':''}₩${fK(t.curr==="USD"?t.pnl*S.rate:t.pnl)}`:''}`);
+  }
+  lines.push(``);
+  lines.push(`=== 최근 스냅샷 추이 (최대 10일) ===`);
+  const snaps=S.snapshots.slice(-10);
+  if(snaps.length===0){lines.push(`없음`);}
+  else for(const sn of snaps){
+    lines.push(`${sn.date} 총:₩${fK(sn.totalKRW)} 수익:${fP(sn.pct)}`);
+  }
+  if(S.journal&&S.journal.length>0){
+    lines.push(``);
+    lines.push(`=== 투자 일지 (최근 5건) ===`);
+    for(const j of S.journal.slice(0,5)){
+      lines.push(`${j.date} [${j.category}] ${j.title}: ${j.body||''}`);
+    }
+  }
+  lines.push(``);
+  lines.push(`위 포트폴리오를 분석해주세요. 리스크, 집중도, 종목별 의견, 개선 제안을 부탁드립니다.`);
+  return lines.join('\n');
+}
+
 async function syncSheets(){
   await loadFromCloud(true);
   scheduleAutoRefresh(); // reset countdown after manual sync
@@ -899,6 +967,7 @@ function mkHdr(){
       <button class="hdr-btn btn-bulk" id="btnBulk">📝 일괄</button>
       <button class="hdr-btn btn-add" id="btnAdd">+ 종목</button>
       <button class="hdr-btn btn-export" id="btnExport">📤 출력</button>
+      <button class="hdr-btn btn-ai" id="btnAI">🤖 AI분석</button>
       <button class="hdr-btn" id="btnSettings" style="background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.25);color:#94a3b8;min-width:40px;flex:0">⚙️</button>
     </div>`;
   return d;
@@ -1714,7 +1783,18 @@ function mkModal(){
       <button class="mbtn mbtn-sec" id="mc2">닫기</button>
     </div>`;
   }
-  
+
+  if(S.modal.type==="aiExport"){
+    const txt=buildAISummary();
+    d.innerHTML=`<div class="modal">
+      <div class="modal-title">🤖 AI 분석용 텍스트<button class="modal-close" id="mc">×</button></div>
+      <div style="font-size:.78em;color:#8b949e;margin-bottom:8px;line-height:1.5">아래 텍스트를 복사해서 Claude.ai 또는 ChatGPT에 붙여넣으세요.</div>
+      <div class="ai-summary-box" id="aiSummaryBox">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <button class="ai-copy-btn" id="btnAICopy">📋 클립보드 복사</button>
+      <button class="mbtn mbtn-sec" id="mc2" style="margin-top:8px">닫기</button>
+    </div>`;
+  }
+
   return d;
 }
 
@@ -2068,6 +2148,18 @@ function bind(){
     else if(e.target.value==='메리츠증권')ac.value='USD';
   });
   q("#btnExport")?.addEventListener("click",()=>{S.modal={type:"export"};render();});
+  q("#btnAI")?.addEventListener("click",()=>{S.modal={type:"aiExport"};render();});
+  q("#btnAICopy")?.addEventListener("click",()=>{
+    const txt=buildAISummary();
+    navigator.clipboard.writeText(txt).then(()=>{
+      const btn=q("#btnAICopy");
+      if(btn){btn.textContent="✅ 복사됨!";btn.classList.add("copied");setTimeout(()=>{btn.textContent="📋 클립보드 복사";btn.classList.remove("copied");},2000);}
+    }).catch(()=>{
+      const box=q("#aiSummaryBox");
+      if(box){const sel=window.getSelection();const r=document.createRange();r.selectNodeContents(box);sel.removeAllRanges();sel.addRange(r);}
+      alert("텍스트를 선택했습니다. Ctrl+C로 복사하세요.");
+    });
+  });
   q("#btnCashToggle")?.addEventListener("click",()=>{S.showCash=!S.showCash;render();});
   q("#btnTrendToggle")?.addEventListener("click",()=>{S.showTrend=!S.showTrend;render();});
   q("#mc")?.addEventListener("click",close);
