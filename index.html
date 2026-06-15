@@ -395,6 +395,7 @@ function load(){
       }
       S.cashTxns=d.cashTxns||[];
       S.txns=d.txns||[];
+      S.updatedAt=d.updatedAt||null;
       S.snapshots=(d.snapshots||[]).filter(s=>s&&!isNaN(s.totalKRW));
       S.intradaySnaps=d.intradaySnaps||[];
       S.journal=d.journal||[];
@@ -453,10 +454,12 @@ function updateIntradaySnap(){
 function save(){
   updateTodaySnapshot();
   updateIntradaySnap();
+  S.updatedAt=new Date().toISOString();
   localStorage.setItem("pf_v3",JSON.stringify({
     stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
     snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
-    tags:S.tags,tagColors:S.tagColors,rate:S.rate
+    tags:S.tags,tagColors:S.tagColors,rate:S.rate,
+    updatedAt:S.updatedAt
   }));
   scheduleCloudSave();
 }
@@ -555,9 +558,12 @@ async function loadFromCloud(showAlert){
       if(a.stocks&&a.stocks.length&&!S.stocks.length){
         S.stocks=a.stocks.filter(s=>s&&s.name).map(s=>({...s,cur:s.cur||s.avg||0}));
       }
-      if(a.cash)S.cash=a.cash;
-      if(a.cashTxns)S.cashTxns=a.cashTxns;
-      if(a.txns)S.txns=a.txns;
+      // 로컬이 클라우드보다 최신이면 현금/거래 데이터 덮어쓰기 금지
+      // (매수/매도 직후 동기화 시 구버전 클라우드 데이터가 덮어씌워지는 버그 방지)
+      const localNewer=S.updatedAt&&a.updatedAt&&S.updatedAt>a.updatedAt;
+      if(a.cash&&!localNewer)S.cash=a.cash;
+      if(a.cashTxns&&!localNewer)S.cashTxns=a.cashTxns;
+      if(a.txns&&!localNewer)S.txns=a.txns;
       // 스냅샷: 로컬+클라우드 병합 (로컬 우선 — 덮어쓰면 오늘치 소실)
       if(a.snapshots){
         const merged={};
