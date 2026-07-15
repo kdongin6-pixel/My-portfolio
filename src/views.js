@@ -6,6 +6,7 @@ import {APP_VERSION,JOURNAL_CATEGORIES} from './constants.js';
 import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
 import {getMarketPhase} from './cloud.js';
 import {buildAISummary} from './ai.js';
+import {getAnthropicKey,getShotFiles} from './vision.js';
 
 export function mkHdr(){
   const fl=filt(),tot=totK(fl)+filtCashKRW();
@@ -29,6 +30,7 @@ export function mkHdr(){
       <button class="hdr-btn btn-bulk" id="btnBulk">📝 일괄</button>
       <button class="hdr-btn btn-add" id="btnAdd">+ 종목</button>
       <button class="hdr-btn btn-export" id="btnExport">📤 출력</button>
+      <button class="hdr-btn btn-shot" id="btnShot">📷 매매인식</button>
       <button class="hdr-btn btn-ai" id="btnAI">🤖 AI분석</button>
       <button class="hdr-btn" id="btnSettings" style="background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.25);color:#94a3b8;min-width:40px;flex:0">⚙️</button>
     </div>`;
@@ -637,6 +639,7 @@ export function mkModal(){
 
   if(S.modal.type==="settings"){
     const cur=getApiUrl();
+    const akey=getAnthropicKey();
     d.innerHTML=`<div class="modal">
       <div class="modal-title">⚙️ 설정<button class="modal-close" id="mc">×</button></div>
       <div class="field">
@@ -644,8 +647,72 @@ export function mkModal(){
         <input type="text" id="apiUrlInp" value="${cur}" placeholder="https://script.google.com/macros/s/...">
         <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
       </div>
+      <div class="field">
+        <label>Anthropic API 키 (📷 매매인식용, 선택)</label>
+        <input type="password" id="anthropicKeyInp" value="${akey}" placeholder="sk-ant-...">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">console.anthropic.com에서 발급. 스크린샷 매매인식에 사용됩니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
+      </div>
       <button class="mbtn mbtn-pri" id="saveApiUrl">저장</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button>
+    </div>`;
+  }
+
+  if(S.modal.type==="screenshot"){
+    const hasKey=!!getAnthropicKey();
+    const n=getShotFiles().length;
+    d.innerHTML=`<div class="modal">
+      <div class="modal-title">📷 매매 스크린샷 인식<button class="modal-close" id="mc">×</button></div>
+      <div style="font-size:.78em;color:#8b949e;margin-bottom:12px;line-height:1.6">
+        증권사 앱의 <b style="color:#f472b6">체결내역 / 거래내역 / 입출금</b> 화면 스크린샷을 올리면<br>
+        Claude가 자동으로 읽어서 잔고에 반영합니다 (수수료·세금 포함).
+      </div>
+      ${hasKey?'':`<div class="field">
+        <label>Anthropic API 키 (최초 1회 입력)</label>
+        <input type="password" id="shotKeyInp" placeholder="sk-ant-...">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px">console.anthropic.com에서 발급 · 이 기기에만 저장</div>
+      </div>`}
+      <div class="field">
+        <label>스크린샷 선택 (여러 장 가능)</label>
+        <input type="file" id="shotFiles" accept="image/*" multiple>
+        <div style="font-size:.75em;color:#a5b4fc;margin-top:6px" id="shotCount">${n?`✅ ${n}장 선택됨`:''}</div>
+      </div>
+      <div id="shotStatus" style="font-size:.8em;color:#fbbf24;min-height:1.2em;margin-bottom:6px"></div>
+      <button class="mbtn mbtn-pri" id="execShotAnalyze">🔍 분석하기</button>
+      <button class="mbtn mbtn-sec" id="mc2">닫기</button>
+    </div>`;
+  }
+
+  if(S.modal.type==="screenshotConfirm"){
+    const items=S.modal.parsed||[];
+    const typeInfo={buy:['📈 매수','#10b981'],sell:['📉 매도','#f43f5e'],deposit:['⬆️ 입금','#60a5fa'],withdraw:['⬇️ 출금','#f97316'],dividend:['💵 배당','#a78bfa']};
+    const rows=items.map((t,i)=>{
+      const [lbl,col]=typeInfo[t.type]||['❓ '+t.type,'#94a3b8'];
+      const isTrade=t.type==='buy'||t.type==='sell';
+      const desc=isTrade
+        ?`${t.qty}주 × ${fM(t.price,t.curr)}${t.fee?` · 수수료 ${fM(t.fee,t.curr)}`:''}`
+        :`${fM(t.amount,t.curr)}`;
+      let warn='';
+      if(t.invalid)warn='<span style="color:#f43f5e">⚠️ 값 인식 불가</span>';
+      else if(t.insufficient)warn='<span style="color:#f43f5e">⚠️ 보유수량 부족</span>';
+      else if(t.type==='sell'&&!t.matchedId)warn='<span style="color:#f43f5e">⚠️ 종목 미매칭</span>';
+      else if(t.isNew)warn='<span style="color:#fbbf24">🆕 신규 종목으로 추가</span>';
+      else if(t.matchedName)warn=`<span style="color:#8b949e">→ ${t.matchedName}</span>`;
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid rgba(48,54,61,.6)">
+        <input type="checkbox" data-shot-idx="${i}" ${t.checked?'checked':''} ${t.invalid?'disabled':''} style="margin-top:3px;width:17px;height:17px;accent-color:#6366f1">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.88em;font-weight:700"><span style="color:${col}">${lbl}</span> ${t.name||t.acct}</div>
+          <div style="font-size:.8em;color:#e6edf3;margin-top:2px">${desc}</div>
+          <div style="font-size:.72em;margin-top:2px">${t.acct} · ${t.curr}${t.date?` · ${t.date}`:''} ${warn}</div>
+        </div>
+      </div>`;
+    }).join('');
+    d.innerHTML=`<div class="modal">
+      <div class="modal-title">📋 인식 결과 확인<button class="modal-close" id="mc">×</button></div>
+      <div style="font-size:.78em;color:#8b949e;margin-bottom:6px">반영할 거래를 확인하고 체크하세요. 숫자가 틀렸으면 체크 해제 후 수동 입력해주세요.</div>
+      <div style="max-height:48vh;overflow-y:auto;margin-bottom:8px">${rows}</div>
+      <button class="mbtn mbtn-pri" id="execShotApply">✅ 선택한 거래 반영</button>
+      <button class="mbtn mbtn-sec" id="shotBack">← 다시 선택</button>
+      <button class="mbtn mbtn-sec" id="mc2">닫기</button>
     </div>`;
   }
 

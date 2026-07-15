@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════
 export const TC_DEFAULT={"성장주":"#6366f1","방어주":"#10b981","중소형주":"#f59e0b","현금/채권":"#06b6d4","기타":"#94a3b8"};
 export const DEFAULT_TAGS=["성장주","방어주","중소형주","현금/채권","기타"];
-export const APP_VERSION="v0.4.0";
+export const APP_VERSION="v0.5.0";
 
 export const REFRESH_MS={pre:60000,regular:30000,post:60000,dead:300000,closed:300000};
 
