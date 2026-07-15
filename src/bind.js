@@ -6,6 +6,7 @@ import {fM} from './helpers.js';
 import {syncSheets,loadMarketData} from './cloud.js';
 import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from './trades.js';
 import {buildAISummary} from './ai.js';
+import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles,parseScreenshots,applyParsed} from './vision.js';
 import {render} from './render.js';
 
 export function bind(){
@@ -23,7 +24,9 @@ export function bind(){
     const url=q("#apiUrlInp")?.value?.trim();
     if(!url)return alert("URL을 입력해주세요");
     setApiUrl(url);
-    S.syncMsg="✅ API URL 저장 완료 — 동기화 버튼을 눌러 연결을 확인해보세요";
+    const akey=q("#anthropicKeyInp")?.value?.trim();
+    if(akey!==undefined)setAnthropicKey(akey);
+    S.syncMsg="✅ 설정 저장 완료 — 동기화 버튼을 눌러 연결을 확인해보세요";
     S.modal=null;render();
   });
   q("#btnBulk")?.addEventListener("click",()=>{S.modal={type:"bulk"};render();});
@@ -47,6 +50,42 @@ export function bind(){
       alert("텍스트를 선택했습니다. Ctrl+C로 복사하세요.");
     });
   });
+  // 📷 매매 스크린샷 인식
+  q("#btnShot")?.addEventListener("click",()=>{clearShotFiles();S.modal={type:"screenshot"};render();});
+  q("#shotFiles")?.addEventListener("change",e=>{
+    setShotFiles(e.target.files);
+    const c=q("#shotCount");
+    if(c)c.textContent=e.target.files.length?`✅ ${e.target.files.length}장 선택됨`:'';
+  });
+  q("#execShotAnalyze")?.addEventListener("click",async()=>{
+    const keyInp=q("#shotKeyInp");
+    if(keyInp&&keyInp.value.trim())setAnthropicKey(keyInp.value.trim());
+    const st=q("#shotStatus"),btn=q("#execShotAnalyze");
+    if(!getAnthropicKey()){if(st)st.textContent="⚠️ API 키를 입력해주세요";return;}
+    if(!getShotFiles().length){if(st)st.textContent="⚠️ 스크린샷을 먼저 선택해주세요";return;}
+    btn.disabled=true;btn.textContent="⏳ Claude가 분석 중... (10~30초)";
+    try{
+      const parsed=await parseScreenshots(getShotFiles());
+      S.modal={type:"screenshotConfirm",parsed};
+      render();
+    }catch(e){
+      if(st)st.textContent="❌ "+e.message;
+      btn.disabled=false;btn.textContent="🔍 분석하기";
+    }
+  });
+  q("#execShotApply")?.addEventListener("click",()=>{
+    const items=(S.modal?.parsed||[]).filter((t,i)=>{
+      const cb=q(`[data-shot-idx="${i}"]`);
+      return cb&&cb.checked;
+    });
+    if(!items.length)return alert("반영할 거래를 체크해주세요");
+    const n=applyParsed(items);
+    clearShotFiles();
+    S.syncMsg=`✅ 스크린샷에서 ${n}건 반영 완료 (${new Date().toLocaleTimeString()})`;
+    S.modal=null;render();
+  });
+  q("#shotBack")?.addEventListener("click",()=>{S.modal={type:"screenshot"};render();});
+
   q("#btnCashToggle")?.addEventListener("click",()=>{S.showCash=!S.showCash;render();});
   q("#btnTrendToggle")?.addEventListener("click",()=>{S.showTrend=!S.showTrend;render();});
   q("#mc")?.addEventListener("click",close);

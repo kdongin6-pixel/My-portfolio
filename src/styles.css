@@ -262,3 +262,6 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .trend-section{padding:0 12px 16px}
 .trend-section-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 0 6px;border-top:1px solid #30363d;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .trend-section-title{font-size:.88em;font-weight:800;color:#a5b4fc}
+
+/* 📷 매매인식 */
+.btn-shot{background:rgba(236,72,153,.2);border:1px solid rgba(236,72,153,.4);color:#f472b6}
