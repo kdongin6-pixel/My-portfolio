@@ -7,3 +7,6 @@
 # OS files
 .DS_Store
 Thumbs.db
+
+# 앱 아이콘은 예외 (PWA 필수)
+!icons/*.png

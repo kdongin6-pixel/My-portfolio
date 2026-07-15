@@ -2,8 +2,8 @@
 
 개인 포트폴리오 주식 관리 앱 (kdongin6-pixel.github.io)
 
-단일 HTML 파일(`index.html`)과 Google Apps Script(`Code.gs`)로 구성된 프론트엔드 앱.
-localStorage에 데이터를 저장하고 Google Sheets를 통해 가격 동기화.
+브라우저 네이티브 ES 모듈(`index.html` + `src/*.js`, 빌드 없음)과 Google Apps Script(`Code.gs`)로 구성된 PWA 프론트엔드 앱.
+localStorage에 데이터를 저장하고 Google Sheets를 통해 가격 동기화. 모듈 구조는 `AGENTS.md` 참고.
 
 ## Agent skills
 
