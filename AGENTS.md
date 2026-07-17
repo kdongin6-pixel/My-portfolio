@@ -22,10 +22,10 @@
 | `src/render.js` | `render()` — 전체 리렌더 |
 | `src/main.js` | 부트스트랩 |
 | `src/styles.css` | 스타일 전체 |
-| `Code.gs` | Google Apps Script 백엔드 (~760줄). 수동으로 GAS 에디터에 복사·배포 |
+| `Code.gs` | Google Apps Script 백엔드. 수동으로 GAS 에디터에 복사·배포. 앱용 `doGet`/`doPost`(인증 없음)와 별개로 `agent_apply` 액션(`AGENT_IMPORT_TOKEN` 인증) 보유 |
 | `CLAUDE.md` | Claude Code용 지침 (이슈 트래커, 라벨, 도메인 문서 위치) |
 | `docs/agents/` | 이슈 트래커 · 트리아지 · 도메인 문서 규칙 |
-| `docs/agents/screenshot-trade-import.md` | **채팅에 스크린샷을 첨부**해 에이전트가 GAS를 직접 GET/POST하는 절차 (앱 미경유). `src/vision.js`와 계산 로직 동일 — 로직 변경 시 둘 다 갱신 |
+| `docs/agents/screenshot-trade-import.md` | **채팅에 스크린샷을 첨부**해 에이전트가 `Code.gs`의 `agent_apply`로 거래 1건을 반영하는 절차 (앱 미경유). 계산은 `Code.gs` 서버 쪽에서 전담 |
 
 배포: main 브랜치 push → GitHub Pages 자동 배포 (kdongin6-pixel.github.io/My-portfolio). 빌드 도구 없음 — 브라우저 네이티브 ES 모듈.
 
@@ -35,11 +35,20 @@
 
 ```
 index.html (정적 페이지, localStorage "pf_v3")
-   ↕ fetch
+   ↕ fetch (인증 없음 — 앱 전용 경로)
 Google Apps Script 배포 URL (사용자가 ⚙️ 설정에서 입력, 소스에 없음)
    doGet  → 실시간 가격: GOOGLEFINANCE + Yahoo v7 + Naver(KRX ETF) + 미 재무부 XML
    doPost → _appdata 숨김 시트에 상태 JSON 저장, _action:'export'면 보이는 시트 갱신
+           → _action:'agent_apply'면 AGENT_IMPORT_TOKEN으로만 인증되는 별도 경로
+             (거래 1건을 받아 서버에서 계산·반영 — docs/agents/screenshot-trade-import.md 참고)
 ```
+
+**주의**: `doGet`/`doPost`(일반 경로)는 의도적으로 인증이 없다 — GAS URL 자체가
+비밀값 역할을 한다. Google 로그인 등 소유자 인증을 앱에 추가하는 시도가
+과거에 있었으나(별도 논의), 프론트엔드 미동기화로 실제 앱이 깨지는 사고가
+있었다. **`doGet`/`doPost`에 인증 요구사항을 추가하려면 `src/cloud.js`도
+반드시 같은 PR에서 함께 수정할 것** — 안 그러면 배포 직후 전체 동기화가
+끊긴다.
 
 ## 상태 객체 S (localStorage "pf_v3")
 
