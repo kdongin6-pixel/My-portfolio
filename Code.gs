@@ -597,14 +597,57 @@ function doPost(e) {
       sheet = ss.insertSheet('_appdata');
       try { sheet.hideSheet(); } catch(e) {}
     }
-    sheet.getRange('A1').setValue(JSON.stringify(data));
-    sheet.getRange('B1').setValue(new Date().toISOString());
 
-    if (data._action === 'export') updateVisibleSheets(ss, data);
+    const lock = LockService.getScriptLock();
+    lock.waitLock(5000);
+    try {
+      // 📷 에이전트(채팅) 스크린샷 거래 반영 — AGENT_IMPORT_TOKEN으로만 인증,
+      // 앱의 일반 저장/조회와는 별도 경로. src/vision.js와 별개로 서버 쪽에서
+      // 계산까지 수행하므로 클라이언트는 거래 1건만 넘기면 된다.
+      if (data._action === 'agent_apply') {
+        const rawState = sheet.getRange('A1').getValue();
+        if (!rawState) {
+          return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'app_data_missing' }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+        const currentState = JSON.parse(rawState);
+        const expectedToken = PropertiesService.getScriptProperties().getProperty('AGENT_IMPORT_TOKEN');
+        const outcome = handleAgentApply(currentState, data, expectedToken);
+        if (!outcome.success) {
+          return ContentService.createTextOutput(JSON.stringify({ success: false, error: outcome.error }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+        if (!outcome.duplicate) {
+          sheet.getRange('A1').setValue(JSON.stringify(outcome.state));
+          sheet.getRange('B1').setValue(outcome.state.updatedAt);
+          updateVisibleSheets(ss, outcome.state);
+        }
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true, duplicate: outcome.duplicate,
+          sourceId: data.transaction && data.transaction.sourceId,
+          savedAt: outcome.state.updatedAt
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
 
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: true, savedAt: new Date().toISOString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+      // 앱의 일반 저장 — 에이전트가 반영한 거래(agentImports)를 아직 모르는
+      // 구버전 상태로 덮어쓰려 하면 거부해 데이터 유실을 방지한다.
+      const rawState = sheet.getRange('A1').getValue();
+      if (rawState && hasMissingAgentImports(JSON.parse(rawState), data)) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'agent_state_conflict' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+
+      sheet.getRange('A1').setValue(JSON.stringify(data));
+      sheet.getRange('B1').setValue(new Date().toISOString());
+
+      if (data._action === 'export') updateVisibleSheets(ss, data);
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ success: true, savedAt: new Date().toISOString() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } finally {
+      lock.releaseLock();
+    }
   } catch(err) {
     return ContentService
       .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
@@ -758,4 +801,144 @@ function updateVisibleSheets(ss, data) {
   // ✅ 행 삽입/삭제로 깨진 합계 공식 재설정
   fixSumFormula(ss.getSheetByName('메리츠증권'));
   fixSumFormula(ss.getSheetByName('ISA'));
+}
+
+// ─────────────────────────────────────────────
+// 📷 에이전트 스크린샷 거래 반영 규칙
+// (GAS 의존성 없음 — Node로 단위 테스트 가능. Google 로그인/OAuth 불필요,
+//  AGENT_IMPORT_TOKEN 스크립트 속성 하나로만 인증한다)
+// ─────────────────────────────────────────────
+const AGENT_ACCOUNT_CURRENCY = { '메리츠증권': 'USD', ISA: 'KRW' };
+const AGENT_TRANSACTION_TYPES = ['buy', 'sell', 'cash_in', 'cash_out'];
+
+function agentPositiveNumber(value, field) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) throw new Error(`${field} 값이 올바르지 않습니다.`);
+  return number;
+}
+
+function agentSafeText(value, field, maxLength, pattern) {
+  if (typeof value !== 'string') throw new Error(`${field} 값이 올바르지 않습니다.`);
+  const text = value.trim();
+  if (!text || text.length > maxLength || /[<>"' -]/.test(text) || /^[=+\-@]/.test(text) || (pattern && !pattern.test(text))) {
+    throw new Error(`${field} 값이 올바르지 않습니다.`);
+  }
+  return text;
+}
+
+function validateAgentTransaction(transaction) {
+  if (!transaction || typeof transaction !== 'object') throw new Error('거래 데이터가 없습니다.');
+  const sourceId = agentSafeText(transaction.sourceId, 'sourceId', 200, /^[A-Za-z0-9|:._+-]+$/);
+  if (!AGENT_TRANSACTION_TYPES.includes(transaction.type)) throw new Error('지원하지 않는 거래 유형입니다.');
+  if (!AGENT_ACCOUNT_CURRENCY[transaction.account]) throw new Error('지원하지 않는 계좌입니다.');
+  if (transaction.currency !== AGENT_ACCOUNT_CURRENCY[transaction.account]) throw new Error('계좌 통화가 맞지 않습니다.');
+  const tradedAt = agentSafeText(transaction.tradedAt, '체결시각', 40, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/);
+  if (Number.isNaN(new Date(tradedAt).getTime())) throw new Error('체결시각이 올바르지 않습니다.');
+
+  const normalized = {
+    ...transaction,
+    sourceId,
+    tradedAt,
+    ticker: transaction.ticker === undefined ? undefined : agentSafeText(transaction.ticker, 'ticker', 15, /^(?:[A-Z][A-Z0-9.-]{0,14}|\d{6})$/),
+    name: transaction.name === undefined ? undefined : agentSafeText(transaction.name, 'name', 100),
+    memo: transaction.memo === undefined || transaction.memo === null || transaction.memo === '' ? '' : agentSafeText(transaction.memo, 'memo', 500),
+    qty: transaction.qty === undefined ? undefined : agentPositiveNumber(transaction.qty, '수량'),
+    price: transaction.price === undefined ? undefined : agentPositiveNumber(transaction.price, '단가'),
+    amount: transaction.amount === undefined ? undefined : agentPositiveNumber(transaction.amount, '금액'),
+    fee: transaction.fee === undefined || transaction.fee === null ? 0 : Number(transaction.fee)
+  };
+  if (!Number.isFinite(normalized.fee) || normalized.fee < 0) throw new Error('수수료 값이 올바르지 않습니다.');
+  if (normalized.type === 'buy' || normalized.type === 'sell') {
+    if (!normalized.ticker || !normalized.name) throw new Error('종목명과 티커가 필요합니다.');
+    if (!normalized.qty || !normalized.price) throw new Error('수량과 단가가 필요합니다.');
+  } else if (!normalized.amount) {
+    throw new Error('현금 거래에는 금액이 필요합니다.');
+  }
+  return normalized;
+}
+
+function applyAgentTransaction(state, transaction) {
+  const tx = validateAgentTransaction(transaction);
+  const next = JSON.parse(JSON.stringify(state || {}));
+  next.stocks = Array.isArray(next.stocks) ? next.stocks : [];
+  next.txns = Array.isArray(next.txns) ? next.txns : [];
+  next.cashTxns = Array.isArray(next.cashTxns) ? next.cashTxns : [];
+  next.agentImports = Array.isArray(next.agentImports) ? next.agentImports : [];
+  next.cash = next.cash || {};
+  next.cash[tx.account] = next.cash[tx.account] || { USD: 0, KRW: 0 };
+  if (next.agentImports.some(item => (typeof item === 'string' ? item : item.sourceId) === tx.sourceId)) {
+    return { state: next, duplicate: true };
+  }
+
+  const cash = Number(next.cash[tx.account][tx.currency]) || 0;
+  const now = new Date().toISOString();
+  if (tx.type === 'buy' || tx.type === 'sell') {
+    let stock = next.stocks.find(item => item.acct === tx.account && item.ticker === tx.ticker);
+    if (tx.type === 'buy' && !stock) {
+      const id = next.stocks.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0) + 1;
+      stock = { id, name: tx.name, ticker: tx.ticker, acct: tx.account, curr: tx.currency, qty: 0, avg: 0, cur: tx.price, tag: '' };
+      next.stocks.push(stock);
+    }
+    if (!stock) throw new Error('매도할 보유 종목을 찾을 수 없습니다.');
+    if (stock.curr !== tx.currency) throw new Error('보유 종목 통화가 거래 통화와 다릅니다.');
+
+    const gross = tx.qty * tx.price;
+    let cashChange;
+    let pnl = 0;
+    if (tx.type === 'buy') {
+      const totalCost = gross + tx.fee;
+      if (cash < totalCost) throw new Error('현금이 부족합니다.');
+      const oldQty = Number(stock.qty) || 0;
+      stock.qty = oldQty + tx.qty;
+      stock.avg = (oldQty * (Number(stock.avg) || 0) + totalCost) / stock.qty;
+      stock.cur = tx.price;
+      cashChange = -totalCost;
+    } else {
+      if (tx.qty > Number(stock.qty)) throw new Error('보유수량을 초과했습니다.');
+      pnl = (tx.price - Number(stock.avg || 0)) * tx.qty - tx.fee;
+      stock.qty = Number(stock.qty) - tx.qty;
+      stock.cur = tx.price;
+      cashChange = gross - tx.fee;
+    }
+    next.cash[tx.account][tx.currency] = cash + cashChange;
+    next.txns.unshift({
+      id: Date.now(), stockId: stock.id, name: stock.name, acct: tx.account, curr: tx.currency,
+      mode: tx.type, qty: tx.qty, price: tx.price, fee: tx.fee, pnl, cashChange,
+      source: 'agent', sourceId: tx.sourceId, tradedAt: tx.tradedAt,
+      date: tx.tradedAt.slice(0, 10), time: tx.tradedAt.slice(11, 19), memo: tx.memo || ''
+    });
+  } else {
+    const direction = tx.type === 'cash_in' ? 1 : -1;
+    if (direction < 0 && cash < tx.amount) throw new Error('현금이 부족합니다.');
+    next.cash[tx.account][tx.currency] = cash + direction * tx.amount;
+    next.cashTxns.unshift({
+      id: Date.now(), acct: tx.account, curr: tx.currency, mode: direction > 0 ? 'in' : 'out',
+      amount: tx.amount, memo: tx.memo || '', source: 'agent', sourceId: tx.sourceId,
+      tradedAt: tx.tradedAt, date: tx.tradedAt.slice(0, 10), time: tx.tradedAt.slice(11, 19)
+    });
+  }
+  next.agentImports.unshift({ sourceId: tx.sourceId, processedAt: now });
+  next.agentImports = next.agentImports.slice(0, 1000);
+  next.updatedAt = now;
+  return { state: next, duplicate: false };
+}
+
+function handleAgentApply(state, payload, expectedToken) {
+  if (!expectedToken || !payload || payload.token !== expectedToken) return { success: false, error: 'unauthorized' };
+  try {
+    const result = applyAgentTransaction(state, payload.transaction);
+    return { success: true, duplicate: result.duplicate, state: result.state };
+  } catch (error) {
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
+function hasMissingAgentImports(serverState, incomingState) {
+  const serverIds = new Set((serverState && serverState.agentImports || []).map(item =>
+    typeof item === 'string' ? item : item && item.sourceId
+  ).filter(Boolean));
+  const incomingIds = new Set((incomingState && incomingState.agentImports || []).map(item =>
+    typeof item === 'string' ? item : item && item.sourceId
+  ).filter(Boolean));
+  return [...serverIds].some(sourceId => !incomingIds.has(sourceId));
 }
