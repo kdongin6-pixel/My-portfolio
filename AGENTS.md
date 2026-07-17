@@ -25,6 +25,7 @@
 | `Code.gs` | Google Apps Script 백엔드 (~760줄). 수동으로 GAS 에디터에 복사·배포 |
 | `CLAUDE.md` | Claude Code용 지침 (이슈 트래커, 라벨, 도메인 문서 위치) |
 | `docs/agents/` | 이슈 트래커 · 트리아지 · 도메인 문서 규칙 |
+| `docs/agents/screenshot-trade-import.md` | **채팅에 스크린샷을 첨부**해 에이전트가 GAS를 직접 GET/POST하는 절차 (앱 미경유). `src/vision.js`와 계산 로직 동일 — 로직 변경 시 둘 다 갱신 |
 
 배포: main 브랜치 push → GitHub Pages 자동 배포 (kdongin6-pixel.github.io/My-portfolio). 빌드 도구 없음 — 브라우저 네이티브 ES 모듈.
 
