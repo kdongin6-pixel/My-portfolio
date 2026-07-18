@@ -5,23 +5,38 @@ import {S} from './state.js';
 import {fmtMktPrice} from './helpers.js';
 import {getMarketStatus,getMktFetchTime} from './cloud.js';
 
-function mkSparkSvg(weekly,daily,key,w,h){
+function mkSparkSvg(weekly,daily,key,w,h,history){
   if(!w)w=68;if(!h)h=26;
   const up=(weekly||0)>=0;
   const col=up?'#10b981':'#f43f5e';
-  const mag=Math.min(Math.abs(weekly||0),5)/5;
-  let seed=0;
-  for(let i=0;i<(key||'X').length;i++)seed=(seed*31+(key.charCodeAt(i)||0))&0xffff;
-  const pts=[];
-  for(let i=0;i<9;i++){
-    seed=(seed*1664525+1013904223)&0xffff;
-    const noise=((seed%100)/100-.5)*h*.42*(1-mag*.35);
-    const baseY=h/2+(up?-1:1)*(i-4)*mag*h*.1;
-    pts.push([Math.round(i*(w/8)),Math.max(2,Math.min(h-2,Math.round(baseY+noise)))]);
+  const gid='sg'+Math.abs((key||'X').split('').reduce((a,c)=>(a*31+c.charCodeAt(0))|0,0)%9999);
+
+  let pts;
+  if(history&&history.length>=2){
+    // 실제 7일 종가 기반 — GAS의 Yahoo chart API에서 온 진짜 데이터
+    const lo=Math.min(...history),hi=Math.max(...history);
+    const range=hi-lo||1;
+    const n=history.length;
+    pts=history.map((v,i)=>[
+      Math.round(i*(w/(n-1))),
+      Math.max(2,Math.min(h-2,Math.round(h-2-((v-lo)/range)*(h-4))))
+    ]);
+  }else{
+    // 실데이터 없을 때만 방향·강도 기반 근사 곡선으로 폴백
+    const mag=Math.min(Math.abs(weekly||0),5)/5;
+    let seed=0;
+    for(let i=0;i<(key||'X').length;i++)seed=(seed*31+(key.charCodeAt(i)||0))&0xffff;
+    pts=[];
+    for(let i=0;i<9;i++){
+      seed=(seed*1664525+1013904223)&0xffff;
+      const noise=((seed%100)/100-.5)*h*.42*(1-mag*.35);
+      const baseY=h/2+(up?-1:1)*(i-4)*mag*h*.1;
+      pts.push([Math.round(i*(w/8)),Math.max(2,Math.min(h-2,Math.round(baseY+noise)))]);
+    }
   }
+
   const line=pts.map((p,i)=>(i?'L':'M')+p[0]+','+p[1]).join('');
   const fill='M'+pts[0][0]+','+h+' '+pts.map(p=>'L'+p[0]+','+p[1]).join(' ')+' L'+pts[pts.length-1][0]+','+h+'Z';
-  const gid='sg'+(seed%9999);
   return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".22"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${fill}" fill="url(#${gid})"/><path d="${line}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
@@ -62,6 +77,35 @@ function mktChgBadge(val,vixInv,extraCls){
   if(val===null||val===undefined)return'';
   const cls=val===0?'mkt2-neu':(vixInv?(val>0?'mkt2-neg':'mkt2-pos'):(val>0?'mkt2-pos':'mkt2-neg'));
   return `<span class="mkt2-chg-badge ${cls}${extraCls?' '+extraCls:''}">${val>=0?'+':''}${val.toFixed(2)}%</span>`;
+}
+
+// ═══════════════════════════════════════════
+// 📌 종목 탭 상단 "오늘 시황" 스트립 — 탭 전환 없이 그날 분위기 확인용
+// ═══════════════════════════════════════════
+export function mkTodayStrip(){
+  const mdata=S.marketData||[];
+  if(!mdata.length)return'';
+  const bk={};mdata.forEach(m=>bk[m.key]=m);
+  const items=[
+    {key:'IXIC',  label:'나스닥',  fmt:'num'},
+    {key:'SPX',   label:'S&P500', fmt:'num'},
+    {key:'KOSPI', label:'코스피', fmt:'num'},
+    {key:'VIX',   label:'VIX',   fmt:'dec', vixInv:true},
+    {key:'DXY',   label:'달러인덱스',fmt:'usd'},
+    {key:'USDKRW',label:'원/달러', fmt:'krw'},
+  ];
+  const cards=items.map(c=>{
+    const m=bk[c.key];
+    if(!m||!m.price)return'';
+    const priceStr=fmtMktPrice(m.price,c.fmt)+(c.fmt==='krw'?'원':'');
+    return `<div class="today-strip-item" data-goto-market="1">
+      <span class="today-strip-lbl">${c.label}</span>
+      <span class="today-strip-val">${priceStr}</span>
+      ${mktChgBadge(m.daily,!!c.vixInv)}
+    </div>`;
+  }).join('');
+  if(!cards)return'';
+  return `<div class="today-strip" data-goto-market="1">${cards}</div>`;
 }
 
 // ═══════════════════════════════════════════
@@ -116,7 +160,7 @@ export function mkMarket(){
     const price=m?m.price:0;
     const d_=m?m.daily:0, w_=m?m.weekly:0;
     const priceStr=price?fmtMktPrice(price,c.fmt):'—';
-    const spark=mkSparkSvg(w_,d_,c.key,68,28);
+    const spark=mkSparkSvg(w_,d_,c.key,68,28,m?.history);
     return `<div class="mkt2-idx-card">
       <div class="mkt2-idx-name">${c.label}</div>
       <div class="mkt2-idx-bottom">
@@ -136,7 +180,7 @@ export function mkMarket(){
   const vixM=gv('VIX');
   const vixPrice=vixM?vixM.price:0;
   const fg=vixToFG(vixPrice);
-  const vixSpark=mkSparkSvg(vixM?vixM.weekly:0,vixM?vixM.daily:0,'VIX',60,24);
+  const vixSpark=mkSparkSvg(vixM?vixM.weekly:0,vixM?vixM.daily:0,'VIX',60,24,vixM?.history);
   const sentHtml=`
     <div class="mkt2-vix-card">
       <div class="mkt2-vix-lbl">VIX 공포지수</div>
@@ -167,7 +211,7 @@ export function mkMarket(){
     const price=m?m.price:0;
     const d_=m?m.daily:0, w_=m?m.weekly:0;
     const priceStr=price?fmtMktPrice(price,c.fmt)+(c.fmt==='krw'?'원':c.fmt==='pct'?'%':''):'— %';
-    const spark=mkSparkSvg(w_,d_,c.key,54,22);
+    const spark=mkSparkSvg(w_,d_,c.key,54,22,m?.history);
     return `<div class="mkt2-rate-item">
       <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1">
         <span class="mkt2-rate-label">${c.label}</span>
@@ -194,7 +238,7 @@ export function mkMarket(){
     const price=m?m.price:0;
     const d_=m?m.daily:0;
     const priceStr=price?fmtMktPrice(price,c.fmt):'—';
-    const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,52,22);
+    const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,52,22,m?.history);
     return `<div class="mkt2-comm-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
         <div style="min-width:0;flex:1">
@@ -238,7 +282,7 @@ export function mkMarket(){
     const m=gv(c.key);
     const price=m?m.price:0;
     const d_=m?m.daily:0;
-    const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,52,22);
+    const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,52,22,m?.history);
     return `<div class="mkt2-etf-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
         <div style="min-width:0;flex:1">
@@ -266,7 +310,7 @@ export function mkMarket(){
     const m=gv(k);
     const price=m?m.price:0;
     const d_=m?m.daily:0;
-    const spark=mkSparkSvg(m?m.weekly:0,d_,k,48,20);
+    const spark=mkSparkSvg(m?m.weekly:0,d_,k,48,20,m?.history);
     return `<div class="mkt2-top-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
         <div style="min-width:0">

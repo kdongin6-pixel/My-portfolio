@@ -224,6 +224,10 @@ export function arCountdown(){
 let _mktFetchTime=0;
 export function getMktFetchTime(){return _mktFetchTime;}
 
+// 종목(list) 탭 상단 "오늘 시황" 스트립도 이 데이터를 쓰므로, market 탭이
+// 아니어도 리렌더한다.
+const shouldRerenderForMarket=()=>S.tab==="market"||S.tab==="list";
+
 export async function loadMarketData(force=false){
   if(S.marketLoading)return;
   const now=Date.now();
@@ -232,11 +236,11 @@ export async function loadMarketData(force=false){
   if(!_url){
     // No API URL — show empty state without retrying
     S.marketData=[];
-    if(S.tab==="market")render();
+    if(shouldRerenderForMarket())render();
     return;
   }
   S.marketLoading=true;
-  if(S.tab==="market")render();
+  if(shouldRerenderForMarket())render();
   try{
     const res=await fetch(_url+"?mode=market");
     if(!res.ok)throw new Error("시장 데이터 로드 실패");
@@ -248,5 +252,5 @@ export async function loadMarketData(force=false){
     _mktFetchTime=Date.now(); // Throttle retries on error (5 min cooldown)
   }
   S.marketLoading=false;
-  if(S.tab==="market")render();
+  if(shouldRerenderForMarket())render();
 }

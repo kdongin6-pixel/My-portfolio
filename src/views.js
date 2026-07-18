@@ -7,6 +7,7 @@ import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
 import {getMarketPhase} from './cloud.js';
 import {buildAISummary} from './ai.js';
 import {getAnthropicKey,getShotFiles} from './vision.js';
+import {mkTodayStrip} from './market-ui.js';
 
 export function mkHdr(){
   const fl=filt(),tot=totK(fl)+filtCashKRW();
@@ -171,6 +172,8 @@ export function mkList(){
     `:''}
   </div>`;
 
+  const todayStripHtml=mkTodayStrip();
+
   const filtersHtml=`
     <div class="filters">
       <button class="flt ${S.acct==='전체'?'on':''}" data-acct="전체">전체</button>
@@ -239,7 +242,7 @@ export function mkList(){
       <td class="gs-td"></td>
     </tr>`;
 
-    d.innerHTML=`${filtersHtml}<div class="gs-wrap"><table class="gs-tbl">
+    d.innerHTML=`${todayStripHtml}${filtersHtml}<div class="gs-wrap"><table class="gs-tbl">
       <thead><tr>
         <th class="gs-th">종목명 / 태그</th>
         <th class="gs-th">현재가</th>
@@ -292,7 +295,7 @@ export function mkList(){
     </div>`;
   }).join('');
 
-  d.innerHTML=`${filtersHtml}<div class="cards">${cards||'<div class="empty">종목이 없어요</div>'}</div>${trendSection}`;
+  d.innerHTML=`${todayStripHtml}${filtersHtml}<div class="cards">${cards||'<div class="empty">종목이 없어요</div>'}</div>${trendSection}`;
   return d;
 }
 

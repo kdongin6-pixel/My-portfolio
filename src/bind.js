@@ -94,6 +94,7 @@ export function bind(){
   q("#rateInp")?.addEventListener("change",e=>{S.rate=parseFloat(e.target.value)||1510;save();render();});
 
   qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{S.acct=el.dataset.acct;render();}));
+  qa("[data-goto-market]").forEach(el=>el.addEventListener("click",()=>{S.tab="market";render();loadMarketData();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
     S.tab=el.dataset.tab;render();
     if(el.dataset.tab==="market")loadMarketData();
