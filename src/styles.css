@@ -265,3 +265,10 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 
 /* 📷 매매인식 */
 .btn-shot{background:rgba(236,72,153,.2);border:1px solid rgba(236,72,153,.4);color:#f472b6}
+
+/* 📌 오늘 시황 스트립 */
+.today-strip{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:4px 12px 10px;cursor:pointer}
+.today-strip::-webkit-scrollbar{display:none}
+.today-strip-item{flex-shrink:0;display:flex;align-items:center;gap:6px;background:#161b22;border:1px solid #30363d;border-radius:20px;padding:6px 12px;white-space:nowrap}
+.today-strip-lbl{font-size:.72em;color:#8b949e;font-weight:700}
+.today-strip-val{font-size:.78em;color:#e6edf3;font-weight:800}

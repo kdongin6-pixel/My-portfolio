@@ -74,9 +74,6 @@ const MERITZ_DATA = [
   ["메리츠증권","💵 현금 (USD)",      "",         "USD",1,   7354,    7354]
 ];
 
-// KRX tickers not supported by GOOGLEFINANCE — fetched via Naver Finance API
-const KRX_FETCH_CODES = ['0174B0'];
-
 // Yahoo Finance symbol mapping (GOOGLEFINANCE ticker → Yahoo symbol)
 const YAHOO_SYMBOL_MAP = {
   'INDEXNASDAQ:.IXIC': '^IXIC',
@@ -189,6 +186,67 @@ function fetchYahooQuotes(symbols) {
   }
 }
 
+// ─────────────────────────────────────────────
+// Yahoo Finance v8 chart API — real historical daily closes (7d), batched
+// via fetchAll for speed. Used for: (1) real sparklines instead of the
+// frontend's noise-generated fake curve, (2) a per-symbol price fallback
+// for tickers that intermittently come back empty from the bulk v7 quote
+// endpoint (observed for futures/crypto like GC=F, BTC-USD).
+// ─────────────────────────────────────────────
+function fetchYahooCharts(symbols){
+  const uniq=[...new Set(symbols)].filter(Boolean);
+  if(!uniq.length)return{};
+  const headers={
+    'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+    'Accept':'application/json, text/plain, */*',
+    'Referer':'https://finance.yahoo.com'
+  };
+  const requests=uniq.map(sym=>({
+    url:'https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(sym)+'?range=7d&interval=1d',
+    muteHttpExceptions:true,
+    headers
+  }));
+  let responses;
+  try{
+    responses=UrlFetchApp.fetchAll(requests);
+  }catch(e){
+    Logger.log('Yahoo chart batch error: '+e);
+    return{};
+  }
+  const map={};
+  uniq.forEach((sym,i)=>{
+    try{
+      const res=responses[i];
+      if(!res||res.getResponseCode()!==200)return;
+      const json=JSON.parse(res.getContentText());
+      const result=json.chart&&json.chart.result&&json.chart.result[0];
+      if(!result)return;
+      const closesRaw=(result.indicators&&result.indicators.quote&&result.indicators.quote[0]&&result.indicators.quote[0].close)||[];
+      const closes=closesRaw.filter(v=>v!=null&&v>0);
+      const price=(result.meta&&result.meta.regularMarketPrice)||closes[closes.length-1]||0;
+      if(price>0)map[sym]={price,closes};
+    }catch(e){/* skip this symbol */}
+  });
+  Logger.log('Yahoo chart: '+Object.keys(map).length+'/'+uniq.length+' fetched');
+  return map;
+}
+
+// 30분 캐시 — 30초 간격 자동 갱신 시에도 차트 API 호출량이 하루 한도를
+// 넘지 않도록 방지 (스파크라인/가격 폴백용 데이터는 그 정도 신선도면 충분)
+function getYahooChartsCached(symbols){
+  const cache=CacheService.getScriptCache();
+  const cacheKey='yahoo_charts_v1';
+  try{
+    const cached=cache.get(cacheKey);
+    if(cached)return JSON.parse(cached);
+  }catch(e){}
+  const fresh=fetchYahooCharts(symbols);
+  if(Object.keys(fresh).length){
+    try{cache.put(cacheKey,JSON.stringify(fresh),1800);}catch(e){/* 캐시 크기 초과 시 무시 */}
+  }
+  return fresh;
+}
+
 // Fetch KRX ETF price via Naver Finance API (for tickers not in GOOGLEFINANCE)
 function fetchKrxPrice(code){
   try{
@@ -209,30 +267,35 @@ function fetchKrxPrice(code){
   }
 }
 
-// Update ISA/메리츠 sheet cells for KRX_FETCH_CODES items
+// Update ISA sheet price cells for every KRX ETF (6-digit ticker) via Naver —
+// GOOGLEFINANCE frequently lags or fails to support newly-listed KRX ETFs for
+// months, so KRX tickers bypass it entirely rather than relying on a manual
+// allow-list. Tickers are read live from the sheet's GOOGLEFINANCE formulas
+// (same extraction as getPricesFromSheet), not from the stale seed arrays.
 function updateKrxPrices(ss){
   if(!ss)ss=SpreadsheetApp.getActiveSpreadsheet();
-  if(!KRX_FETCH_CODES||!KRX_FETCH_CODES.length)return;
+  const sheet=ss.getSheetByName('ISA');
+  if(!sheet)return;
+  const lastRow=sheet.getLastRow();
+  if(lastRow<2)return;
 
-  // Build code→name map from ISA_DATA and MERITZ_DATA
-  const codeToName={};
-  [...ISA_DATA,...MERITZ_DATA].forEach(row=>{
-    if(KRX_FETCH_CODES.includes(row[2]))codeToName[row[2]]={name:row[1],acct:row[0]};
-  });
+  const names=sheet.getRange(1,1,lastRow,1).getValues();
+  const formulas=sheet.getRange(1,1,lastRow,3).getFormulas();
 
-  Object.entries(codeToName).forEach(([code,info])=>{
+  for(let i=1;i<names.length;i+=2){
+    const name=String(names[i][0]).trim();
+    if(!name||name.includes('【 집계 】')||name.includes('💵 현금'))continue;
+    const formula=formulas[i][2];
+    if(!formula)continue;
+    const match=formula.match(/GOOGLEFINANCE\(\s*"KRX:(\d{6})"/i);
+    if(!match)continue; // not a KRX 6-digit ticker — leave to GOOGLEFINANCE
+    const code=match[1];
     const fetched=fetchKrxPrice(code);
-    if(!fetched||!fetched.price)return;
-    const sheet=ss.getSheetByName(info.acct==='ISA'?'ISA':'메리츠증권');
-    if(!sheet)return;
-    const lastRow=sheet.getLastRow();
-    const names=sheet.getRange(1,1,lastRow,1).getValues();
-    const rowIdx=names.findIndex(r=>String(r[0]).trim()===info.name.trim());
-    if(rowIdx===-1)return;
-    sheet.getRange(rowIdx+1,3).setValue(fetched.price); // Update price cell
-    SpreadsheetApp.flush();
-    Logger.log(`KRX ${code} (${info.name}): ₩${fetched.price} (${fetched.daily>0?'+':''}${fetched.daily}%)`);
-  });
+    if(!fetched||!fetched.price)continue;
+    sheet.getRange(i+1,3).setValue(fetched.price);
+    Logger.log(`KRX ${code} (${name}): ₩${fetched.price} (${fetched.daily>0?'+':''}${fetched.daily}%)`);
+  }
+  SpreadsheetApp.flush();
 }
 
 function setupMarketSheet(ss){
@@ -481,23 +544,36 @@ function doGet(e) {
       .map(item => YAHOO_SYMBOL_MAP[item.ticker] || item.ticker)
       .filter(Boolean);
     const yahooMkt = fetchYahooQuotes(yahooSyms);
+    // 7일 실데이터 차트 (30분 캐시) — 진짜 스파크라인용 + 묶음 조회가 가끔
+    // 비워서 돌려주는 종목(예: 금·BTC 선물류)의 가격 폴백으로 사용
+    const chartData = getYahooChartsCached(yahooSyms);
 
     // Merge: Yahoo price/daily overrides sheet, weekly kept from sheet
     const market = baseMarket.map(item => {
       const cfg = MARKET_ITEMS.find(m => m.key === item.key);
       if (!cfg || cfg.treasuryKey) return item;
       const ySym = YAHOO_SYMBOL_MAP[cfg.ticker] || cfg.ticker;
-      const yd   = yahooMkt[ySym];
-      if (!yd || !yd.price) return item;
+      const yd    = yahooMkt[ySym];
+      const chart = chartData[ySym];
       const sc = cfg.scale || 1;
-      return {
-        ...item,
-        price:       yd.price    * sc,
-        daily:       yd.daily,
-        marketState: yd.marketState,
-        extPrice:    yd.extPrice ? yd.extPrice * sc : null,
-        extPct:      yd.extPct
-      };
+      let merged = item;
+      if (yd && yd.price) {
+        merged = {
+          ...item,
+          price:       yd.price    * sc,
+          daily:       yd.daily,
+          marketState: yd.marketState,
+          extPrice:    yd.extPrice ? yd.extPrice * sc : null,
+          extPct:      yd.extPct
+        };
+      } else if (chart && chart.price) {
+        // 묶음 조회 실패 시 차트 API 가격으로 폴백
+        merged = { ...item, price: chart.price * sc };
+      }
+      if (chart && chart.closes && chart.closes.length >= 2) {
+        merged = { ...merged, history: chart.closes.map(c => +(c * sc).toFixed(4)) };
+      }
+      return merged;
     });
 
     return ContentService
@@ -733,15 +809,12 @@ function updateVisibleSheets(ss, data) {
         if (values[i + 1] && values[i + 1][1] !== stock.avg)
           sheet.getRange(i + 3, 2).setValue(stock.avg);
         if (stock.ticker) {
-          if (KRX_FETCH_CODES.includes(stock.ticker)) {
-            // KRX_FETCH_CODES: GOOGLEFINANCE 미지원 — 값 0 유지 (updateKrxPrices가 채움)
-            sheet.getRange(i + 2, 3).setValue(0);
-          } else {
-            const prefix = (accountName === 'ISA') ? 'KRX:' : '';
-            sheet.getRange(i + 2, 3).setFormula(
-              `=IFERROR(GOOGLEFINANCE("${prefix}${stock.ticker}"),${stock.cur || 0})`
-            );
-          }
+          // KRX 6자리 티커도 GOOGLEFINANCE 수식을 그대로 둔다 — updateKrxPrices()가
+          // 매 요청마다 네이버 시세로 값을 덮어쓰고, GOOGLEFINANCE는 안전망(폴백)으로 남는다.
+          const prefix = (accountName === 'ISA') ? 'KRX:' : '';
+          sheet.getRange(i + 2, 3).setFormula(
+            `=IFERROR(GOOGLEFINANCE("${prefix}${stock.ticker}"),${stock.cur || 0})`
+          );
         }
       }
     }
@@ -768,13 +841,12 @@ function updateVisibleSheets(ss, data) {
           sheet.getRange(sumRow, 1).setValue(stock.name).setFontWeight('bold');
           sheet.getRange(sumRow, 2).setValue(stock.qty);
 
-          if (stock.ticker && !KRX_FETCH_CODES.includes(stock.ticker)) {
+          if (stock.ticker) {
             const prefix = (accountName === 'ISA') ? 'KRX:' : '';
             sheet.getRange(sumRow, 3).setFormula(
               `=IFERROR(GOOGLEFINANCE("${prefix}${stock.ticker}"),${stock.cur || 0})`
             );
           } else {
-            // KRX_FETCH_CODES or no ticker: setValue 0 (updateKrxPrices will fill it)
             sheet.getRange(sumRow, 3).setValue(0);
           }
 
