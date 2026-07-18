@@ -629,12 +629,22 @@ function doPost(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
 
-      // 앱의 일반 저장 — 에이전트가 반영한 거래(agentImports)를 아직 모르는
-      // 구버전 상태로 덮어쓰려 하면 거부해 데이터 유실을 방지한다.
+      // 앱의 일반 저장 — 앱 상태에는 agentImports(에이전트 중복 방지 장부)가 없으므로,
+      // 서버에 쌓인 기록을 저장분에 합쳐서 보존한다. 거부하면 no-cors인 앱이
+      // 실패를 인지하지 못한 채 클라우드 저장이 영구히 끊기므로 병합이 안전하다.
       const rawState = sheet.getRange('A1').getValue();
-      if (rawState && hasMissingAgentImports(JSON.parse(rawState), data)) {
-        return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'agent_state_conflict' }))
-          .setMimeType(ContentService.MimeType.JSON);
+      if (rawState) {
+        try {
+          const serverState = JSON.parse(rawState);
+          if (Array.isArray(serverState.agentImports) && serverState.agentImports.length) {
+            const incoming = Array.isArray(data.agentImports) ? data.agentImports : [];
+            const seen = new Set(incoming.map(i => typeof i === 'string' ? i : i && i.sourceId).filter(Boolean));
+            data.agentImports = incoming.concat(serverState.agentImports.filter(i => {
+              const id = typeof i === 'string' ? i : i && i.sourceId;
+              return id && !seen.has(id);
+            })).slice(0, 1000);
+          }
+        } catch (mergeErr) {}
       }
 
       sheet.getRange('A1').setValue(JSON.stringify(data));
@@ -820,7 +830,7 @@ function agentPositiveNumber(value, field) {
 function agentSafeText(value, field, maxLength, pattern) {
   if (typeof value !== 'string') throw new Error(`${field} 값이 올바르지 않습니다.`);
   const text = value.trim();
-  if (!text || text.length > maxLength || /[<>"' -]/.test(text) || /^[=+\-@]/.test(text) || (pattern && !pattern.test(text))) {
+  if (!text || text.length > maxLength || /[<>"'\u0000-\u001F]/.test(text) || /^[=+\-@]/.test(text) || (pattern && !pattern.test(text))) {
     throw new Error(`${field} 값이 올바르지 않습니다.`);
   }
   return text;
@@ -931,14 +941,4 @@ function handleAgentApply(state, payload, expectedToken) {
   } catch (error) {
     return { success: false, error: error.message || String(error) };
   }
-}
-
-function hasMissingAgentImports(serverState, incomingState) {
-  const serverIds = new Set((serverState && serverState.agentImports || []).map(item =>
-    typeof item === 'string' ? item : item && item.sourceId
-  ).filter(Boolean));
-  const incomingIds = new Set((incomingState && incomingState.agentImports || []).map(item =>
-    typeof item === 'string' ? item : item && item.sourceId
-  ).filter(Boolean));
-  return [...serverIds].some(sourceId => !incomingIds.has(sourceId));
 }
