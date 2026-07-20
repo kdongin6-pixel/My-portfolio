@@ -1,11 +1,10 @@
 // ═══════════════════════════════════════════
 // 이벤트 바인딩
 // ═══════════════════════════════════════════
-import {S,save,getApiUrl,setApiUrl} from './state.js';
+import {S,save,setApiUrl} from './state.js';
 import {fM} from './helpers.js';
 import {syncSheets,loadMarketData} from './cloud.js';
 import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from './trades.js';
-import {buildAISummary} from './ai.js';
 import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles,parseScreenshots,applyParsed} from './vision.js';
 import {render} from './render.js';
 
@@ -29,26 +28,12 @@ export function bind(){
     S.syncMsg="✅ 설정 저장 완료 — 동기화 버튼을 눌러 연결을 확인해보세요";
     S.modal=null;render();
   });
-  q("#btnBulk")?.addEventListener("click",()=>{S.modal={type:"bulk"};render();});
   q("#btnAdd")?.addEventListener("click",()=>{S.modal={type:"add",defaultAcct:S.acct!=='전체'?S.acct:'메리츠증권'};render();});
   // Auto-switch currency when account changes in add/edit modal
   q("#aa")?.addEventListener("change",e=>{
     const ac=q("#ac");if(!ac)return;
     if(e.target.value==='ISA')ac.value='KRW';
     else if(e.target.value==='메리츠증권')ac.value='USD';
-  });
-  q("#btnExport")?.addEventListener("click",()=>{S.modal={type:"export"};render();});
-  q("#btnAI")?.addEventListener("click",()=>{S.modal={type:"aiExport"};render();});
-  q("#btnAICopy")?.addEventListener("click",()=>{
-    const txt=buildAISummary();
-    navigator.clipboard.writeText(txt).then(()=>{
-      const btn=q("#btnAICopy");
-      if(btn){btn.textContent="✅ 복사됨!";btn.classList.add("copied");setTimeout(()=>{btn.textContent="📋 클립보드 복사";btn.classList.remove("copied");},2000);}
-    }).catch(()=>{
-      const box=q("#aiSummaryBox");
-      if(box){const sel=window.getSelection();const r=document.createRange();r.selectNodeContents(box);sel.removeAllRanges();sel.addRange(r);}
-      alert("텍스트를 선택했습니다. Ctrl+C로 복사하세요.");
-    });
   });
   // 📷 매매 스크린샷 인식
   q("#btnShot")?.addEventListener("click",()=>{clearShotFiles();S.modal={type:"screenshot"};render();});
@@ -243,12 +228,6 @@ export function bind(){
       save();S.modal=null;render();
     }
 
-    if(mt==="bulk"){
-      const r=parseFloat(q("#br").value);if(r>0)S.rate=r;
-      qa(".bulk-inp").forEach(inp=>{const s=S.stocks.find(x=>x.id===+inp.dataset.id);const v=parseFloat(inp.value);if(s&&v>0)s.cur=v;});
-      save();S.modal=null;render();
-    }
-
     if(mt==="cashIn"||mt==="cashOut"){
       const [acct,curr]=S.modal.target.split("|");
       execCash(acct,curr,mt==="cashIn"?"in":"out",q("#cashAmt").value,q("#cashMemo").value);
@@ -256,35 +235,6 @@ export function bind(){
 
     if(mt==="addJournal"){
       execJournal(q("#jstock").value,q("#jcat").value,q("#jcontent").value);
-    }
-  });
-
-  // ☁️ 시트 업로드
-  q("#execSheetUpload")?.addEventListener("click",async()=>{
-    const btn=q("#execSheetUpload");
-    btn.textContent="⏳ 업로드 중...";btn.disabled=true;
-    try{
-      const payload={
-        _action:'export',
-        stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
-        snapshots:S.snapshots,journal:S.journal,
-        tags:S.tags,tagColors:S.tagColors,rate:S.rate,
-        updatedAt:new Date().toISOString()
-      };
-      const _u=getApiUrl();
-      if(!_u)throw new Error("API URL 미설정 — ⚙️ 설정에서 입력해주세요");
-      await fetch(_u,{
-        method:"POST",mode:"no-cors",
-        headers:{"Content-Type":"text/plain;charset=utf-8"},
-        body:JSON.stringify(payload)
-      });
-      btn.textContent="✅ 반영 완료!";
-      S.syncMsg=`✅ 시트에 잔고 반영 완료 (${new Date().toLocaleTimeString()})`;
-      setTimeout(()=>{S.modal=null;render();},1500);
-    }catch(e){
-      btn.textContent="☁️ 시트로 업로드";
-      btn.disabled=false;
-      alert("❌ 업로드 실패: "+e.message);
     }
   });
 }
