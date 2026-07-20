@@ -49,9 +49,6 @@ export function mkTabs(){
 
 export function mkList(){
   const fl=filt(),stockTot=totK(fl);
-  const inv=fl.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
-  const pnl=stockTot-inv;
-  const pct=inv>0?pnl/inv*100:0;
   const d=document.createElement("div");
 
   // 정렬
@@ -67,8 +64,9 @@ export function mkList(){
     return S.sortDir==="desc"?bv-av:av-bv;
   });
 
-  const sortBtns=[["eval","평가금액"],["pct","수익률"],["pnl","손익"],["wt","비중"]]
-    .map(([k,l])=>`<button class="flt ${S.sortBy===k?'on':''}" data-sort="${k}">${l}${S.sortBy===k?(S.sortDir==="desc"?"↓":"↑"):""}</button>`)
+  const SORT_LABELS={eval:"평가금액",pct:"수익률",pnl:"손익",wt:"비중"};
+  const sortOptions=Object.entries(SORT_LABELS)
+    .map(([k,l])=>`<option value="${k}" ${S.sortBy===k?'selected':''}>${l}</option>`)
     .join('');
 
   // ── 현금 인라인 섹션 ──────────────────────────────
@@ -175,20 +173,15 @@ export function mkList(){
       <button class="flt ${S.acct==='전체'?'on':''}" data-acct="전체">전체</button>
       <button class="flt ${S.acct==='메리츠증권'?'on':''}" data-acct="메리츠증권">메리츠</button>
       <button class="flt ${S.acct==='ISA'?'on':''}" data-acct="ISA">ISA</button>
-      <input class="rate-inp" type="number" id="rateInp" value="${S.rate}" placeholder="환율">
-    </div>
-    <div class="filters">
-      <span style="font-size:.72em;color:#8b949e;white-space:nowrap;align-self:center">정렬</span>
-      ${sortBtns}
-      <button class="view-tog" id="btnView">${S.viewMode==="table"?"📋 카드뷰":"📊 테이블뷰"}</button>
+      <select class="sort-select" id="sortSelect">${sortOptions}</select>
+      <button class="sort-dir-btn" id="sortDirBtn" title="정렬 방향">${S.sortDir==="desc"?"↓":"↑"}</button>
+      <button class="view-tog" id="btnView">${S.viewMode==="table"?"📋":"📊"}</button>
     </div>
     <div style="padding:6px 12px 0">
       <div class="sum-card">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
           <div class="cg-item"><div class="cg-lbl">종목 평가</div><div class="cg-val">₩${fK(stockTot)}</div></div>
           <div class="cg-item"><div class="cg-lbl">현금</div><div class="cg-val">₩${fK(filtCashKRW())}</div></div>
-          <div class="cg-item"><div class="cg-lbl">손익</div><div class="cg-val ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}₩${fK(pnl)}</div></div>
-          <div class="cg-item"><div class="cg-lbl">수익률</div><div class="cg-val ${pct>=0?'pos':'neg'}">${fP(pct)}</div></div>
         </div>
         ${cashSection}
       </div>
@@ -486,6 +479,7 @@ export function mkTxn(){
   S.txns.forEach(t=>{
     const el=document.createElement("div");el.className="txn";
     let detail=`${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}`;
+    if(t.fee>0)detail+=` · 수수료 ${t.fee}`;
     if(t.mode==='sell'){
       const inv=t.prevAvg*t.qty;
       const pct=inv>0?t.pnl/inv*100:0;
@@ -516,6 +510,7 @@ export function mkModal(){
       <div style="font-size:.82em;color:#8b949e;margin-bottom:10px">💰 보유 현금: ${fM(c,s?.curr)}</div>
       <div class="field"><label>수량</label><input type="number" id="tq" placeholder="0" min="0"></div>
       <div class="field"><label>가격 (${s?.curr})</label><input type="number" id="tp" value="${s?.cur}" step="0.01"></div>
+      <div class="field"><label>수수료 (${s?.curr}, 선택)</label><input type="number" id="tf" placeholder="0" min="0" step="0.01"></div>
       <div class="preview" id="tprev"></div>
       <button class="mbtn mbtn-pri" id="exec">${S.modal.mode==='buy'?'매수 확인':'매도 확인'}</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;

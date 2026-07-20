@@ -328,8 +328,20 @@ function fetchTreasuryYields(){
     function getXml(date){
       const yyyymm=Utilities.formatDate(date,'America/New_York','yyyyMM');
       const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value=${yyyymm}`;
-      const res=UrlFetchApp.fetch(url,{muteHttpExceptions:true});
-      return res.getResponseCode()===200?res.getContentText():null;
+      // User-Agent 없는 요청은 봇으로 간주해 차단하는 경우가 있어 다른 fetch 함수들과
+      // 동일하게 브라우저 UA를 명시 (T3M/T2Y 값이 계속 비어있던 원인으로 추정)
+      const res=UrlFetchApp.fetch(url,{
+        muteHttpExceptions:true,
+        headers:{
+          'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept':'application/xml,text/xml,*/*'
+        }
+      });
+      if(res.getResponseCode()!==200){
+        Logger.log('Treasury HTTP '+res.getResponseCode()+': '+res.getContentText().slice(0,200));
+        return null;
+      }
+      return res.getContentText();
     }
     let xml=getXml(new Date());
     // If current month has no data yet (early month), try previous month
@@ -523,11 +535,100 @@ function createDetailSheet(sheet, data, currency, sumRow) {
   sheet.setColumnWidth(3,80);  sheet.setColumnWidth(4,85); sheet.setColumnWidth(5,80);
 }
 
+// ─────────────────────────────────────────────
+// 📅 일일 스냅샷 — 앱을 안 열어도 추이가 끊기지 않도록 시간 트리거로 실행
+// 등록 방법: Apps Script 에디터 좌측 "트리거" → 트리거 추가 →
+//   실행할 함수: dailySnapshot, 이벤트 소스: 시간 기반, 시간 기반 트리거 유형: 일 타이머,
+//   시간대: 오후 4~5시 (미 정규장 마감 부근) 선택
+// ─────────────────────────────────────────────
+function dailySnapshot(){
+  const ss=SpreadsheetApp.getActiveSpreadsheet();
+  const adSheet=ss.getSheetByName('_appdata');
+  if(!adSheet)return;
+  const raw=adSheet.getRange('A1').getValue();
+  if(!raw)return;
+  let state;
+  try{state=JSON.parse(raw);}catch(e){Logger.log('dailySnapshot: appData 파싱 실패');return;}
+  if(!state.stocks||!state.stocks.length)return;
+
+  updateKrxPrices(ss);
+  const priceByName={};
+  [...getPricesFromSheet(ss,'메리츠증권'),...getPricesFromSheet(ss,'ISA')].forEach(p=>{priceByName[p.name]=p.cur;});
+
+  const usTickers=[...new Set(state.stocks.filter(s=>s.ticker&&!/^\d/.test(s.ticker)).map(s=>s.ticker))];
+  const yahoo=fetchYahooQuotes(usTickers);
+
+  const rate=Number(state.rate)||1510;
+  let stockKRW=0, inv=0;
+  const byStock={};
+  state.stocks.forEach(s=>{
+    let cur=Number(s.cur)||0;
+    const yd=yahoo[s.ticker];
+    if(yd&&yd.price>0)cur=yd.price;
+    else if(priceByName[s.name]>0)cur=priceByName[s.name];
+    const qty=Number(s.qty)||0, avg=Number(s.avg)||0;
+    const ev=s.curr==='USD'?qty*cur*rate:qty*cur;
+    const iv=s.curr==='USD'?qty*avg*rate:qty*avg;
+    stockKRW+=ev; inv+=iv;
+    byStock[s.name]=Math.round(ev);
+  });
+  const cashKRW=Object.values(state.cash||{}).reduce((a,c)=>a+(Number(c.USD)||0)*rate+(Number(c.KRW)||0),0);
+  const pnl=stockKRW-inv;
+  const pct=inv>0?pnl/inv*100:0;
+  // 앱이 KST 기준 날짜로 스냅샷을 기록하므로 동일하게 맞춘다
+  const todayStr=Utilities.formatDate(new Date(),'Asia/Seoul','yyyy-MM-dd');
+
+  const snapshots=Array.isArray(state.snapshots)?state.snapshots:[];
+  const snap={date:todayStr,totalKRW:Math.round(stockKRW+cashKRW),stockKRW:Math.round(stockKRW),
+    cashKRW:Math.round(cashKRW),pnl:Math.round(pnl),pct:Number(pct.toFixed(2)),rate,byStock};
+  const idx=snapshots.findIndex(x=>x.date===todayStr);
+  if(idx>=0)snapshots[idx]=snap; else snapshots.push(snap);
+  snapshots.sort((a,b)=>a.date.localeCompare(b.date));
+  state.snapshots=snapshots;
+  state.updatedAt=new Date().toISOString();
+
+  adSheet.getRange('A1').setValue(JSON.stringify(state));
+  adSheet.getRange('B1').setValue(state.updatedAt);
+  Logger.log('일일 스냅샷 기록: '+todayStr+' 총자산 ₩'+snap.totalKRW);
+}
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('📊 포트폴리오')
     .addItem('자동 설정하기 (초기화)', 'createPortfolioSheet')
     .addToUi();
+}
+
+// 메리츠증권/ISA 시트에서 종목별 현재가·수량·평단가를 읽는다.
+// doGet과 dailySnapshot() 양쪽에서 공용으로 쓴다.
+function getPricesFromSheet(ss, sheetName) {
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return [];
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const data     = sheet.getRange(1, 1, lastRow, 5).getValues();
+  const formulas = sheet.getRange(1, 1, lastRow, 5).getFormulas();
+  const result   = [];
+
+  for (let i = 1; i < data.length; i += 2) {
+    const name = String(data[i][0]).replace(/\s+/g, ' ').trim();
+    if (!name || name.includes('【 집계 】') || name.includes('종목명')) continue;
+
+    const curPrice = parseFloat(data[i][2]);
+    const formula  = formulas[i][2];
+    let extractedTicker = '';
+    if (formula && formula.toUpperCase().includes('GOOGLEFINANCE')) {
+      const match = formula.match(/GOOGLEFINANCE\(\s*"([^"]+)"/i);
+      if (match && match[1]) extractedTicker = match[1].replace('KRX:', '');
+    }
+
+    if (name && !isNaN(curPrice)) {
+      const qty = parseFloat(data[i][1]) || 0;
+      const avg = (i + 1 < data.length) ? (parseFloat(data[i + 1][1]) || 0) : 0;
+      result.push({ name, cur: curPrice, ticker: extractedTicker, qty, avg });
+    }
+  }
+  return result;
 }
 
 function doGet(e) {
@@ -585,39 +686,9 @@ function doGet(e) {
   const sumSheet = ss.getSheetByName('종합');
   if (sumSheet) rate = Number(sumSheet.getRange('B3').getValue()) || 1510;
 
-  function getPricesFromSheet(sheetName) {
-    const sheet = ss.getSheetByName(sheetName);
-    if (!sheet) return [];
-    const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return [];
-    const data     = sheet.getRange(1, 1, lastRow, 5).getValues();
-    const formulas = sheet.getRange(1, 1, lastRow, 5).getFormulas();
-    const result   = [];
-
-    for (let i = 1; i < data.length; i += 2) {
-      const name = String(data[i][0]).replace(/\s+/g, ' ').trim();
-      if (!name || name.includes('【 집계 】') || name.includes('종목명')) continue;
-
-      const curPrice = parseFloat(data[i][2]);
-      const formula  = formulas[i][2];
-      let extractedTicker = '';
-      if (formula && formula.toUpperCase().includes('GOOGLEFINANCE')) {
-        const match = formula.match(/GOOGLEFINANCE\(\s*"([^"]+)"/i);
-        if (match && match[1]) extractedTicker = match[1].replace('KRX:', '');
-      }
-
-      if (name && !isNaN(curPrice)) {
-        const qty = parseFloat(data[i][1]) || 0;
-        const avg = (i + 1 < data.length) ? (parseFloat(data[i + 1][1]) || 0) : 0;
-        result.push({ name, cur: curPrice, ticker: extractedTicker, qty, avg });
-      }
-    }
-    return result;
-  }
-
   updateKrxPrices(ss);  // Fetch KRX tickers not supported by GOOGLEFINANCE
-  const meritz = getPricesFromSheet('메리츠증권');
-  const isa    = getPricesFromSheet('ISA');
+  const meritz = getPricesFromSheet(ss, '메리츠증권');
+  const isa    = getPricesFromSheet(ss, 'ISA');
 
   // Yahoo Finance bulk fetch for US portfolio tickers (realtime + pre/post market)
   const usTickers = new Set();

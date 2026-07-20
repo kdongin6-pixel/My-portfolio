@@ -76,8 +76,6 @@ export function bind(){
   q("#mc")?.addEventListener("click",close);
   q("#mc2")?.addEventListener("click",close);
   q("#mbg")?.addEventListener("click",e=>{if(e.target===q("#mbg"))close();});
-  q("#rateInp")?.addEventListener("change",e=>{S.rate=parseFloat(e.target.value)||1510;save();render();});
-
   qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{S.acct=el.dataset.acct;render();}));
   qa("[data-goto-market]").forEach(el=>el.addEventListener("click",()=>{S.tab="market";render();loadMarketData();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
@@ -88,11 +86,8 @@ export function bind(){
   if(S.tab==="market"&&!S.marketData&&!S.marketLoading)setTimeout(loadMarketData,50);
   qa(".flt[data-wmode]").forEach(el=>el.addEventListener("click",()=>{S.wMode=el.dataset.wmode;render();}));
   qa("[data-cview]").forEach(el=>el.addEventListener("click",()=>{S.chartView=el.dataset.cview;render();}));
-  qa("[data-sort]").forEach(el=>el.addEventListener("click",()=>{
-    if(S.sortBy===el.dataset.sort)S.sortDir=S.sortDir==="desc"?"asc":"desc";
-    else{S.sortBy=el.dataset.sort;S.sortDir="desc";}
-    render();
-  }));
+  q("#sortSelect")?.addEventListener("change",e=>{S.sortBy=e.target.value;render();});
+  q("#sortDirBtn")?.addEventListener("click",()=>{S.sortDir=S.sortDir==="desc"?"asc":"desc";render();});
   q("#btnView")?.addEventListener("click",()=>{S.viewMode=S.viewMode==="table"?"card":"table";render();});
   qa("[data-action]").forEach(b=>b.addEventListener("click",e=>{
     e.stopPropagation();
@@ -177,31 +172,36 @@ export function bind(){
   // 거래 미리보기
   const upPrev=()=>{
     const q2=parseFloat(q("#tq")?.value||0),p=parseFloat(q("#tp")?.value||0);
+    const f=Math.max(0,parseFloat(q("#tf")?.value||0));
     const s=S.stocks.find(x=>x.id===S.modal?.stockId),prev=q("#tprev");
     if(!prev||!s||!q2||!p)return;
     const c=S.cash[s.acct]?.[s.curr]||0;
+    const feeRow=f>0?`<div><span>수수료</span><span>${fM(f,s.curr)}</span></div>`:'';
     if(S.modal.mode==="buy"){
-      const na=(s.qty*s.avg+q2*p)/(s.qty+q2);
-      const cost=q2*p;
+      const totalCost=q2*p+f;
+      const na=(s.qty*s.avg+totalCost)/(s.qty+q2);
       prev.innerHTML=`<div><span>새 평균단가</span><span>${fM(na,s.curr)}</span></div>
         <div><span>새 수량</span><span>${s.qty+q2}</span></div>
-        <div><span>매수금액</span><span>${fM(cost,s.curr)}</span></div>
-        <div><span>거래 후 현금</span><span class="${c-cost<0?'neg':''}">${fM(c-cost,s.curr)}</span></div>`;
+        <div><span>매수금액</span><span>${fM(q2*p,s.curr)}</span></div>
+        ${feeRow}
+        <div><span>거래 후 현금</span><span class="${c-totalCost<0?'neg':''}">${fM(c-totalCost,s.curr)}</span></div>`;
     }else{
-      const pnl=(p-s.avg)*q2;
-      const cost=q2*p;
+      const pnl=(p-s.avg)*q2-f;
+      const cost=q2*p-f;
       prev.innerHTML=`<div><span>실현손익</span><span class="${pnl>=0?'pos':'neg'}">${fM(pnl,s.curr)}</span></div>
         <div><span>남은수량</span><span>${s.qty-q2}</span></div>
+        ${feeRow}
         <div><span>거래 후 현금</span><span>${fM(c+cost,s.curr)}</span></div>`;
     }
   };
   q("#tq")?.addEventListener("input",upPrev);
   q("#tp")?.addEventListener("input",upPrev);
+  q("#tf")?.addEventListener("input",upPrev);
 
   // 모달 안의 실행 버튼들 (💡 여기에 티커 전송 로직이 완벽하게 포함됨!)
   q("#exec")?.addEventListener("click",()=>{
     const mt=S.modal?.type; // exec 도중 S.modal이 null로 바뀌어도 안전하게
-    if(mt==="trade")execTrade(S.modal.stockId,S.modal.mode,q("#tq").value,q("#tp").value);
+    if(mt==="trade")execTrade(S.modal.stockId,S.modal.mode,q("#tq").value,q("#tp").value,q("#tf")?.value);
 
     if(mt==="add"||mt==="edit"){
       const name=q("#an").value.trim();
