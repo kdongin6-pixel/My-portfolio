@@ -210,7 +210,8 @@ export function mkMarket(){
     const m=gv(c.key);
     const price=m?m.price:0;
     const d_=m?m.daily:0, w_=m?m.weekly:0;
-    const priceStr=price?fmtMktPrice(price,c.fmt)+(c.fmt==='krw'?'원':c.fmt==='pct'?'%':''):'— %';
+    // fmtMktPrice가 pct 포맷엔 이미 %를 붙이므로 여기서 또 붙이면 "4.27%%"가 됨
+    const priceStr=price?fmtMktPrice(price,c.fmt)+(c.fmt==='krw'?'원':''):(c.fmt==='pct'?'—%':'—');
     const spark=mkSparkSvg(w_,d_,c.key,54,22,m?.history);
     return `<div class="mkt2-rate-item">
       <div style="display:flex;flex-direction:column;gap:2px;min-width:0;flex:1">

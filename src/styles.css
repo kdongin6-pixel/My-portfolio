@@ -19,16 +19,19 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .hdr-btn{flex:1;padding:9px 0;border-radius:10px;font-size:.82em;font-weight:700;text-align:center;min-width:90px}
 .btn-add{background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);color:#34d399}
 
-.tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;position:sticky;top:0;z-index:10;overflow-x:auto}
-.tabs::-webkit-scrollbar{display:none}
-.tab{flex:1;min-width:80px;padding:13px 4px;text-align:center;font-size:.82em;font-weight:700;color:#8b949e;border-bottom:2px solid transparent;transition:.15s;white-space:nowrap}
-.tab.on{color:#a5b4fc;border-bottom-color:#6366f1;background:rgba(99,102,241,.06)}
+/* 하단 고정 탭바 — 엄지로 닿기 쉬운 위치, 모바일 앱 표준 패턴 */
+.tabs{display:flex;background:#161b22;border-top:1px solid #30363d;position:fixed;left:0;right:0;bottom:0;z-index:20;padding-bottom:env(safe-area-inset-bottom)}
+.tab{flex:1;min-width:0;padding:9px 2px 8px;text-align:center;font-size:.68em;font-weight:700;color:#8b949e;border-top:2px solid transparent;transition:.15s;white-space:nowrap}
+.tab.on{color:#a5b4fc;border-top-color:#6366f1;background:rgba(99,102,241,.06)}
+/* 하단 탭바에 콘텐츠가 가려지지 않도록 여백 확보 */
+#app{padding-bottom:56px}
 
 .filters{display:flex;gap:8px;padding:12px 14px;background:#161b22;border-bottom:1px solid #30363d;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .filters::-webkit-scrollbar{display:none}
 .flt{padding:7px 16px;border-radius:20px;font-size:.82em;font-weight:700;border:1px solid #30363d;color:#8b949e;white-space:nowrap;background:transparent}
 .flt.on{background:rgba(99,102,241,.2);border-color:rgba(99,102,241,.5);color:#a5b4fc}
-.rate-inp{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:8px;padding:6px 10px;font-size:.82em;width:90px;margin-left:auto;flex-shrink:0}
+.sort-select{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:20px;padding:7px 10px;font-size:.82em;font-weight:700;color:#e6edf3;margin-left:auto;flex-shrink:0}
+.sort-dir-btn{background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:20px;padding:7px 11px;font-size:.82em;font-weight:700;color:#a5b4fc;flex-shrink:0}
 
 .cards{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
 .card{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:14px;transition:.1s}
