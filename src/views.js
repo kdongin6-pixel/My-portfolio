@@ -5,7 +5,6 @@ import {S,getApiUrl} from './state.js';
 import {APP_VERSION,JOURNAL_CATEGORIES} from './constants.js';
 import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
 import {getMarketPhase} from './cloud.js';
-import {buildAISummary} from './ai.js';
 import {getAnthropicKey,getShotFiles} from './vision.js';
 import {mkTodayStrip} from './market-ui.js';
 
@@ -28,11 +27,8 @@ export function mkHdr(){
       <div class="asset-card"><div class="ac-lbl">수익률</div><div class="ac-val ${pct>=0?'pos':'neg'}">${fP(pct)}</div></div>
     </div>
     <div class="btn-row">
-      <button class="hdr-btn btn-bulk" id="btnBulk">📝 일괄</button>
       <button class="hdr-btn btn-add" id="btnAdd">+ 종목</button>
-      <button class="hdr-btn btn-export" id="btnExport">📤 출력</button>
       <button class="hdr-btn btn-shot" id="btnShot">📷 매매인식</button>
-      <button class="hdr-btn btn-ai" id="btnAI">🤖 AI분석</button>
       <button class="hdr-btn" id="btnSettings" style="background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.25);color:#94a3b8;min-width:40px;flex:0">⚙️</button>
     </div>`;
   return d;
@@ -546,19 +542,6 @@ export function mkModal(){
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
   }
 
-  if(S.modal.type==="bulk"){
-    const rows=S.stocks.map(s=>`<div class="bulk-row">
-      <div class="bulk-name">${s.name}<br><span class="bulk-sub">${s.curr} · ${s.acct}</span></div>
-      <input class="bulk-inp" data-id="${s.id}" type="number" value="${s.cur}" step="0.01">
-    </div>`).join('');
-    d.innerHTML=`<div class="modal">
-      <div class="modal-title">📝 일괄 가격 입력<button class="modal-close" id="mc">×</button></div>
-      <div class="field"><label>환율 (USD/KRW)</label><input type="number" id="br" value="${S.rate}"></div>
-      <div style="max-height:52vh;overflow-y:auto;margin:8px 0">${rows}</div>
-      <button class="mbtn mbtn-pri" id="exec">적용</button>
-      <button class="mbtn mbtn-sec" id="mc2">닫기</button></div>`;
-  }
-
   if(S.modal.type==="cashIn"||S.modal.type==="cashOut"){
     const [acct,curr]=S.modal.target.split("|");
     const mode=S.modal.type==="cashIn"?"in":"out";
@@ -716,34 +699,6 @@ export function mkModal(){
       <button class="mbtn mbtn-pri" id="execShotApply">✅ 선택한 거래 반영</button>
       <button class="mbtn mbtn-sec" id="shotBack">← 다시 선택</button>
       <button class="mbtn mbtn-sec" id="mc2">닫기</button>
-    </div>`;
-  }
-
-  if(S.modal.type==="export"){
-    d.innerHTML=`<div class="modal">
-      <div class="modal-title">📤 시트에 반영<button class="modal-close" id="mc">×</button></div>
-      <div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.35);border-radius:12px;padding:14px;margin-bottom:12px">
-        <div style="font-size:.95em;font-weight:800;color:#a5b4fc;margin-bottom:6px">☁️ 시트에 잔고 반영</div>
-        <div style="font-size:.78em;color:#8b949e;margin-bottom:12px;line-height:1.5">
-          매수/매도/입출금한 결과를 <b style="color:#a5b4fc">메리츠증권 · ISA 시트</b>에 반영해요.<br>
-          ✅ 종목별 <b>수량 · 평단가</b> 업데이트<br>
-          ✅ 현금 잔고 업데이트<br>
-          ✅ 시트 구조 · 수식 · 현재가(GOOGLEFINANCE) 그대로 유지
-        </div>
-        <button class="mbtn mbtn-pri" id="execSheetUpload">☁️ 시트에 반영하기</button>
-      </div>
-      <button class="mbtn mbtn-sec" id="mc2">닫기</button>
-    </div>`;
-  }
-
-  if(S.modal.type==="aiExport"){
-    const txt=buildAISummary();
-    d.innerHTML=`<div class="modal">
-      <div class="modal-title">🤖 AI 분석용 텍스트<button class="modal-close" id="mc">×</button></div>
-      <div style="font-size:.78em;color:#8b949e;margin-bottom:8px;line-height:1.5">아래 텍스트를 복사해서 Claude.ai 또는 ChatGPT에 붙여넣으세요.</div>
-      <div class="ai-summary-box" id="aiSummaryBox">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-      <button class="ai-copy-btn" id="btnAICopy">📋 클립보드 복사</button>
-      <button class="mbtn mbtn-sec" id="mc2" style="margin-top:8px">닫기</button>
     </div>`;
   }
 

@@ -17,13 +17,7 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 
 .btn-row{display:flex;gap:8px;flex-wrap:wrap}
 .hdr-btn{flex:1;padding:9px 0;border-radius:10px;font-size:.82em;font-weight:700;text-align:center;min-width:90px}
-.btn-bulk{background:rgba(245,158,11,.2);border:1px solid rgba(245,158,11,.4);color:#fbbf24}
 .btn-add{background:rgba(16,185,129,.2);border:1px solid rgba(16,185,129,.4);color:#34d399}
-.btn-export{background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.4);color:#60a5fa}
-.btn-ai{background:rgba(168,85,247,.2);border:1px solid rgba(168,85,247,.4);color:#c084fc}
-.ai-summary-box{background:rgba(255,255,255,.04);border:1px solid #30363d;border-radius:10px;padding:12px;margin:10px 0;font-size:.78em;font-family:monospace;white-space:pre-wrap;color:#8b949e;max-height:52vh;overflow-y:auto;line-height:1.6}
-.ai-copy-btn{width:100%;padding:13px;border-radius:12px;font-size:.95em;font-weight:800;background:#6366f1;color:#fff;border:none;margin-top:4px;cursor:pointer}
-.ai-copy-btn.copied{background:#10b981}
 
 .tabs{display:flex;background:#161b22;border-bottom:1px solid #30363d;position:sticky;top:0;z-index:10;overflow-x:auto}
 .tabs::-webkit-scrollbar{display:none}
@@ -112,12 +106,6 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .tag-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(255,255,255,.04);border-radius:8px;margin-bottom:6px}
 .tag-row-name{font-size:.88em;font-weight:600}
 .tag-row-del{background:rgba(244,63,94,.15);color:#f43f5e;padding:4px 10px;border-radius:6px;font-size:.75em;font-weight:700}
-
-.bulk-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(48,54,61,.6)}
-.bulk-row:last-child{border-bottom:none}
-.bulk-name{flex:1;font-size:.88em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e6edf3}
-.bulk-sub{font-size:.7em;color:#8b949e}
-.bulk-inp{width:110px;background:rgba(255,255,255,.07);border:1px solid #30363d;border-radius:8px;padding:8px 10px;font-size:.88em;text-align:right;color:#e6edf3}
 
 .chart-wrap{padding:16px}
 .chart-box{max-width:300px;margin:0 auto 20px}
