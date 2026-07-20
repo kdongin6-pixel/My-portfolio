@@ -61,13 +61,15 @@ export async function loadFromCloud(showAlert){
 
     if(data.appData){
       const a=data.appData;
-      // 로컬 종목이 비어있을 때만 클라우드 종목으로 복원 (캐시 삭제 후 복구)
-      if(a.stocks&&a.stocks.length&&!S.stocks.length){
-        S.stocks=a.stocks.filter(s=>s&&s.name).map(s=>({...s,cur:s.cur||s.avg||0}));
-      }
-      // 로컬이 클라우드보다 최신이면 현금/거래 데이터 덮어쓰기 금지
+      // 로컬이 클라우드보다 최신이면 현금/거래/종목 데이터 덮어쓰기 금지
       // (매수/매도 직후 동기화 시 구버전 클라우드 데이터가 덮어씌워지는 버그 방지)
       const localNewer=S.updatedAt&&a.updatedAt&&S.updatedAt>a.updatedAt;
+      // 종목: 로컬이 비어있거나(캐시 삭제 후 복구) 클라우드가 더 최신이면 반영.
+      // 채팅으로 반영한 잔고 교정처럼 앱 UI를 거치지 않고 클라우드가 바뀌는
+      // 경우, 로컬에 이미 종목이 있다는 이유만으로 영원히 반영이 막히면 안 됨.
+      if(a.stocks&&a.stocks.length&&(!S.stocks.length||!localNewer)){
+        S.stocks=a.stocks.filter(s=>s&&s.name).map(s=>({...s,cur:s.cur||s.avg||0}));
+      }
       if(a.cash&&!localNewer)S.cash=a.cash;
       if(a.cashTxns&&!localNewer)S.cashTxns=a.cashTxns;
       if(a.txns&&!localNewer)S.txns=a.txns;
