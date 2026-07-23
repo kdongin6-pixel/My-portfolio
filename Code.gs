@@ -323,33 +323,20 @@ function setupMarketSheet(ss){
 }
 
 // Fetch US Treasury yield curve from official Treasury XML API
-// _debug: 실행 로그 UI 접근이 어려운 환경에서도 doGet 응답에 실어 보내
-// curl로 직접 원인 확인할 수 있도록 임시로 추가 (문제 해결 후 제거 예정)
 function fetchTreasuryYields(){
-  const debug={attempts:[]};
   try{
     function getXml(date){
       const yyyymm=Utilities.formatDate(date,'America/New_York','yyyyMM');
       const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xmlview?data=daily_treasury_yield_curve&field_tdr_date_value_month=${yyyymm}`;
-      let res;
-      try{
-        res=UrlFetchApp.fetch(url,{
-          muteHttpExceptions:true,
-          headers:{
-            'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-            'Accept':'application/xml,text/xml,*/*'
-          }
-        });
-      }catch(fetchErr){
-        debug.attempts.push({url, thrown:String(fetchErr)});
-        return null;
-      }
-      const body=res.getContentText();
-      debug.attempts.push({url, status:res.getResponseCode(), len:body.length, head:body.slice(0,200)});
-      if(res.getResponseCode()!==200){
-        return null;
-      }
-      return body;
+      const res=UrlFetchApp.fetch(url,{
+        muteHttpExceptions:true,
+        headers:{
+          'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept':'application/xml,text/xml,*/*'
+        }
+      });
+      if(res.getResponseCode()!==200) return null;
+      return res.getContentText();
     }
     let xml=getXml(new Date());
     // If current month has no data yet (early month), try previous month
@@ -357,9 +344,7 @@ function fetchTreasuryYields(){
       const prev=new Date(); prev.setMonth(prev.getMonth()-1);
       xml=getXml(prev);
     }
-    if(!xml){
-      return {_debug:debug};
-    }
+    if(!xml) return {};
 
     const parseKey=key=>{
       const matches=[...xml.matchAll(new RegExp(`<d:${key}[^>]*>([\\d.]+)<\\/d:${key}>`, 'g'))];
@@ -375,17 +360,14 @@ function fetchTreasuryYields(){
       return {price, daily:+(price-prev1).toFixed(3), weekly:+(price-prev5).toFixed(3)};
     };
 
-    const m3=parseKey('BC_3MONTH'), y2=parseKey('BC_2YEAR');
-    debug.parsed={T3M:m3.length,T2Y:y2.length};
     return {
-      T3M: build(m3),
-      T2Y: build(y2),
-      T5Y: null,  // T5Y uses GOOGLEFINANCE FVX — no need to fetch here
-      _debug: debug
+      T3M: build(parseKey('BC_3MONTH')),
+      T2Y: build(parseKey('BC_2YEAR')),
+      T5Y: null  // T5Y uses GOOGLEFINANCE FVX — no need to fetch here
     };
   }catch(e){
-    debug.error=String(e);
-    return {_debug:debug};
+    Logger.log('Treasury fetch error: '+e);
+    return {};
   }
 }
 
@@ -393,10 +375,10 @@ function fetchTreasuryYields(){
 function updateTreasuryRates(ss){
   if(!ss) ss=SpreadsheetApp.getActiveSpreadsheet();
   const sheet=ss.getSheetByName('_market');
-  if(!sheet) return null;
+  if(!sheet) return;
   const yields=fetchTreasuryYields();
   const lastRow=sheet.getLastRow();
-  if(lastRow<2) return yields;
+  if(lastRow<2) return;
   const keys=sheet.getRange(2,1,lastRow-1,1).getValues().map(r=>String(r[0]));
   MARKET_ITEMS.forEach(item=>{
     if(!item.treasuryKey) return;
@@ -410,7 +392,6 @@ function updateTreasuryRates(ss){
     sheet.getRange(row,4).setValue(data.weekly);
   });
   SpreadsheetApp.flush();
-  return yields;
 }
 
 function getMarketData(ss){
@@ -650,7 +631,7 @@ function doGet(e) {
   const mode = (e && e.parameter && e.parameter.mode) || 'portfolio';
 
   if (mode === 'market') {
-    const _treasuryDebug = (updateTreasuryRates(ss) || {})._debug || null;  // Fetch T2Y from US Treasury API
+    updateTreasuryRates(ss);  // Fetch T2Y from US Treasury API
     const baseMarket = getMarketData(ss);  // GOOGLEFINANCE sheet data (has weekly %)
 
     // Bulk-fetch Yahoo for realtime prices (overrides 15-min delayed GOOGLEFINANCE)
@@ -692,7 +673,7 @@ function doGet(e) {
     });
 
     return ContentService
-      .createTextOutput(JSON.stringify({ market, _treasuryDebug }))
+      .createTextOutput(JSON.stringify({ market }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
