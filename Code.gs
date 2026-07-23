@@ -327,10 +327,6 @@ function fetchTreasuryYields(){
   try{
     function getXml(date){
       const yyyymm=Utilities.formatDate(date,'America/New_York','yyyyMM');
-      // Treasury가 XML 피드 URL을 변경함: 옛 경로(pages/xml)+파라미터(field_tdr_date_value=yyyyMM)는
-      // 200 OK에 빈 피드(항목 0개)만 돌려줌 — field_tdr_date_value가 이제 연도(yyyy) 단위로 쓰이면서
-      // yyyyMM 값이 어떤 연도와도 매치되지 않았던 것. 새 경로(pages/xmlview)+월 단위 파라미터
-      // (field_tdr_date_value_month=yyyyMM)로 교체.
       const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xmlview?data=daily_treasury_yield_curve&field_tdr_date_value_month=${yyyymm}`;
       const res=UrlFetchApp.fetch(url,{
         muteHttpExceptions:true,
@@ -339,24 +335,16 @@ function fetchTreasuryYields(){
           'Accept':'application/xml,text/xml,*/*'
         }
       });
-      const body=res.getContentText();
-      Logger.log('Treasury HTTP '+res.getResponseCode()+' len='+body.length+' head='+body.slice(0,300));
-      if(res.getResponseCode()!==200){
-        return null;
-      }
-      return body;
+      if(res.getResponseCode()!==200) return null;
+      return res.getContentText();
     }
     let xml=getXml(new Date());
     // If current month has no data yet (early month), try previous month
     if(!xml||xml.indexOf('BC_2YEAR')===-1){
-      Logger.log('Treasury: BC_2YEAR not found in current-month response, trying previous month');
       const prev=new Date(); prev.setMonth(prev.getMonth()-1);
       xml=getXml(prev);
     }
-    if(!xml){
-      Logger.log('Treasury: no xml at all, returning {}');
-      return {};
-    }
+    if(!xml) return {};
 
     const parseKey=key=>{
       const matches=[...xml.matchAll(new RegExp(`<d:${key}[^>]*>([\\d.]+)<\\/d:${key}>`, 'g'))];
@@ -372,11 +360,9 @@ function fetchTreasuryYields(){
       return {price, daily:+(price-prev1).toFixed(3), weekly:+(price-prev5).toFixed(3)};
     };
 
-    const m3=parseKey('BC_3MONTH'), y2=parseKey('BC_2YEAR');
-    Logger.log('Treasury parsed: BC_3MONTH count='+m3.length+' BC_2YEAR count='+y2.length);
     return {
-      T3M: build(m3),
-      T2Y: build(y2),
+      T3M: build(parseKey('BC_3MONTH')),
+      T2Y: build(parseKey('BC_2YEAR')),
       T5Y: null  // T5Y uses GOOGLEFINANCE FVX — no need to fetch here
     };
   }catch(e){
