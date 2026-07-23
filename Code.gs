@@ -323,24 +323,29 @@ function setupMarketSheet(ss){
 }
 
 // Fetch US Treasury yield curve from official Treasury XML API
+// _debug: 실행 로그 UI 접근이 어려운 환경에서도 doGet 응답에 실어 보내
+// curl로 직접 원인 확인할 수 있도록 임시로 추가 (문제 해결 후 제거 예정)
 function fetchTreasuryYields(){
+  const debug={attempts:[]};
   try{
     function getXml(date){
       const yyyymm=Utilities.formatDate(date,'America/New_York','yyyyMM');
-      // Treasury가 XML 피드 URL을 변경함: 옛 경로(pages/xml)+파라미터(field_tdr_date_value=yyyyMM)는
-      // 200 OK에 빈 피드(항목 0개)만 돌려줌 — field_tdr_date_value가 이제 연도(yyyy) 단위로 쓰이면서
-      // yyyyMM 값이 어떤 연도와도 매치되지 않았던 것. 새 경로(pages/xmlview)+월 단위 파라미터
-      // (field_tdr_date_value_month=yyyyMM)로 교체.
       const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xmlview?data=daily_treasury_yield_curve&field_tdr_date_value_month=${yyyymm}`;
-      const res=UrlFetchApp.fetch(url,{
-        muteHttpExceptions:true,
-        headers:{
-          'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-          'Accept':'application/xml,text/xml,*/*'
-        }
-      });
+      let res;
+      try{
+        res=UrlFetchApp.fetch(url,{
+          muteHttpExceptions:true,
+          headers:{
+            'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Accept':'application/xml,text/xml,*/*'
+          }
+        });
+      }catch(fetchErr){
+        debug.attempts.push({url, thrown:String(fetchErr)});
+        return null;
+      }
       const body=res.getContentText();
-      Logger.log('Treasury HTTP '+res.getResponseCode()+' len='+body.length+' head='+body.slice(0,300));
+      debug.attempts.push({url, status:res.getResponseCode(), len:body.length, head:body.slice(0,200)});
       if(res.getResponseCode()!==200){
         return null;
       }
@@ -349,13 +354,11 @@ function fetchTreasuryYields(){
     let xml=getXml(new Date());
     // If current month has no data yet (early month), try previous month
     if(!xml||xml.indexOf('BC_2YEAR')===-1){
-      Logger.log('Treasury: BC_2YEAR not found in current-month response, trying previous month');
       const prev=new Date(); prev.setMonth(prev.getMonth()-1);
       xml=getXml(prev);
     }
     if(!xml){
-      Logger.log('Treasury: no xml at all, returning {}');
-      return {};
+      return {_debug:debug};
     }
 
     const parseKey=key=>{
@@ -373,15 +376,16 @@ function fetchTreasuryYields(){
     };
 
     const m3=parseKey('BC_3MONTH'), y2=parseKey('BC_2YEAR');
-    Logger.log('Treasury parsed: BC_3MONTH count='+m3.length+' BC_2YEAR count='+y2.length);
+    debug.parsed={T3M:m3.length,T2Y:y2.length};
     return {
       T3M: build(m3),
       T2Y: build(y2),
-      T5Y: null  // T5Y uses GOOGLEFINANCE FVX — no need to fetch here
+      T5Y: null,  // T5Y uses GOOGLEFINANCE FVX — no need to fetch here
+      _debug: debug
     };
   }catch(e){
-    Logger.log('Treasury fetch error: '+e);
-    return {};
+    debug.error=String(e);
+    return {_debug:debug};
   }
 }
 
@@ -389,10 +393,10 @@ function fetchTreasuryYields(){
 function updateTreasuryRates(ss){
   if(!ss) ss=SpreadsheetApp.getActiveSpreadsheet();
   const sheet=ss.getSheetByName('_market');
-  if(!sheet) return;
+  if(!sheet) return null;
   const yields=fetchTreasuryYields();
   const lastRow=sheet.getLastRow();
-  if(lastRow<2) return;
+  if(lastRow<2) return yields;
   const keys=sheet.getRange(2,1,lastRow-1,1).getValues().map(r=>String(r[0]));
   MARKET_ITEMS.forEach(item=>{
     if(!item.treasuryKey) return;
@@ -406,6 +410,7 @@ function updateTreasuryRates(ss){
     sheet.getRange(row,4).setValue(data.weekly);
   });
   SpreadsheetApp.flush();
+  return yields;
 }
 
 function getMarketData(ss){
@@ -645,7 +650,7 @@ function doGet(e) {
   const mode = (e && e.parameter && e.parameter.mode) || 'portfolio';
 
   if (mode === 'market') {
-    updateTreasuryRates(ss);  // Fetch T2Y from US Treasury API
+    const _treasuryDebug = (updateTreasuryRates(ss) || {})._debug || null;  // Fetch T2Y from US Treasury API
     const baseMarket = getMarketData(ss);  // GOOGLEFINANCE sheet data (has weekly %)
 
     // Bulk-fetch Yahoo for realtime prices (overrides 15-min delayed GOOGLEFINANCE)
@@ -687,7 +692,7 @@ function doGet(e) {
     });
 
     return ContentService
-      .createTextOutput(JSON.stringify({ market }))
+      .createTextOutput(JSON.stringify({ market, _treasuryDebug }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
