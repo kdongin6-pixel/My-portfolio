@@ -337,19 +337,24 @@ function fetchTreasuryYields(){
           'Accept':'application/xml,text/xml,*/*'
         }
       });
+      const body=res.getContentText();
+      Logger.log('Treasury HTTP '+res.getResponseCode()+' len='+body.length+' head='+body.slice(0,300));
       if(res.getResponseCode()!==200){
-        Logger.log('Treasury HTTP '+res.getResponseCode()+': '+res.getContentText().slice(0,200));
         return null;
       }
-      return res.getContentText();
+      return body;
     }
     let xml=getXml(new Date());
     // If current month has no data yet (early month), try previous month
     if(!xml||xml.indexOf('BC_2YEAR')===-1){
+      Logger.log('Treasury: BC_2YEAR not found in current-month response, trying previous month');
       const prev=new Date(); prev.setMonth(prev.getMonth()-1);
       xml=getXml(prev);
     }
-    if(!xml) return {};
+    if(!xml){
+      Logger.log('Treasury: no xml at all, returning {}');
+      return {};
+    }
 
     const parseKey=key=>{
       const matches=[...xml.matchAll(new RegExp(`<d:${key}[^>]*>([\\d.]+)<\\/d:${key}>`, 'g'))];
@@ -365,9 +370,11 @@ function fetchTreasuryYields(){
       return {price, daily:+(price-prev1).toFixed(3), weekly:+(price-prev5).toFixed(3)};
     };
 
+    const m3=parseKey('BC_3MONTH'), y2=parseKey('BC_2YEAR');
+    Logger.log('Treasury parsed: BC_3MONTH count='+m3.length+' BC_2YEAR count='+y2.length);
     return {
-      T3M: build(parseKey('BC_3MONTH')),
-      T2Y: build(parseKey('BC_2YEAR')),
+      T3M: build(m3),
+      T2Y: build(y2),
       T5Y: null  // T5Y uses GOOGLEFINANCE FVX — no need to fetch here
     };
   }catch(e){
