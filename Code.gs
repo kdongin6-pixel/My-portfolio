@@ -327,9 +327,11 @@ function fetchTreasuryYields(){
   try{
     function getXml(date){
       const yyyymm=Utilities.formatDate(date,'America/New_York','yyyyMM');
-      const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value=${yyyymm}`;
-      // User-Agent 없는 요청은 봇으로 간주해 차단하는 경우가 있어 다른 fetch 함수들과
-      // 동일하게 브라우저 UA를 명시 (T3M/T2Y 값이 계속 비어있던 원인으로 추정)
+      // Treasury가 XML 피드 URL을 변경함: 옛 경로(pages/xml)+파라미터(field_tdr_date_value=yyyyMM)는
+      // 200 OK에 빈 피드(항목 0개)만 돌려줌 — field_tdr_date_value가 이제 연도(yyyy) 단위로 쓰이면서
+      // yyyyMM 값이 어떤 연도와도 매치되지 않았던 것. 새 경로(pages/xmlview)+월 단위 파라미터
+      // (field_tdr_date_value_month=yyyyMM)로 교체.
+      const url=`https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xmlview?data=daily_treasury_yield_curve&field_tdr_date_value_month=${yyyymm}`;
       const res=UrlFetchApp.fetch(url,{
         muteHttpExceptions:true,
         headers:{
