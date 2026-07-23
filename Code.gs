@@ -652,22 +652,27 @@ function doGet(e) {
       const yd    = yahooMkt[ySym];
       const chart = chartData[ySym];
       const sc = cfg.scale || 1;
+      // Yahoo가 국채수익률(^FVX/^TNX)을 예전 방식(예: 44.07 = 4.407%, ×10)과
+      // 실제 값(4.407) 그대로 주는 방식을 오갈 때가 있어, 고정 배율 대신
+      // 값 크기로 이미 스케일된 값인지 판단해 이중 축소를 방지한다.
+      // (금리는 통상 0~20% 범위이므로 20을 기준으로 판단)
+      const autoScale = v => (sc !== 1 && v <= 20) ? v : v * sc;
       let merged = item;
       if (yd && yd.price) {
         merged = {
           ...item,
-          price:       yd.price    * sc,
+          price:       autoScale(yd.price),
           daily:       yd.daily,
           marketState: yd.marketState,
-          extPrice:    yd.extPrice ? yd.extPrice * sc : null,
+          extPrice:    yd.extPrice ? autoScale(yd.extPrice) : null,
           extPct:      yd.extPct
         };
       } else if (chart && chart.price) {
         // 묶음 조회 실패 시 차트 API 가격으로 폴백
-        merged = { ...item, price: chart.price * sc };
+        merged = { ...item, price: autoScale(chart.price) };
       }
       if (chart && chart.closes && chart.closes.length >= 2) {
-        merged = { ...merged, history: chart.closes.map(c => +(c * sc).toFixed(4)) };
+        merged = { ...merged, history: chart.closes.map(c => +autoScale(c).toFixed(4)) };
       }
       return merged;
     });
