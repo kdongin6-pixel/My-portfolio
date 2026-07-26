@@ -531,60 +531,86 @@ function createDetailSheet(sheet, data, currency, sumRow) {
 }
 
 // ─────────────────────────────────────────────
-// 📅 일일 스냅샷 — 앱을 안 열어도 추이가 끊기지 않도록 시간 트리거로 실행
-// 등록 방법: Apps Script 에디터 좌측 "트리거" → 트리거 추가 →
-//   실행할 함수: dailySnapshot, 이벤트 소스: 시간 기반, 시간 기반 트리거 유형: 일 타이머,
-//   시간대: 오후 4~5시 (미 정규장 마감 부근) 선택
+// 📈 자동 스냅샷 — 앱을 열지 않아도 Apps Script 시간 트리거가 기록한다.
+// hourlySnapshot()은 매시간 1회 실행하며 48시간치 시간별 포인트를 보관한다.
+// dailySnapshot()은 하위 호환용으로 같은 기록 루틴을 호출한다.
 // ─────────────────────────────────────────────
-function dailySnapshot(){
+function upsertHourlySnapshot(state,snap,nowIso){
+  const dt=nowIso||snap.dt||new Date().toISOString();
+  const currentMs=new Date(dt).getTime();
+  const cutoffMs=currentMs-48*60*60*1000;
+  const hourKey=dt.slice(0,13); // UTC 시간 단위 중복 제거
+  const points=(Array.isArray(state.intradaySnaps)?state.intradaySnaps:[])
+    .filter(point=>{
+      const pointMs=new Date(point.dt).getTime();
+      return Number.isFinite(pointMs)&&pointMs>=cutoffMs&&String(point.dt).slice(0,13)!==hourKey;
+    });
+  points.push({...snap,dt});
+  points.sort((a,b)=>new Date(a.dt)-new Date(b.dt));
+  state.intradaySnaps=points;
+  return state;
+}
+
+function dailySnapshot(){recordPortfolioSnapshot();}
+function hourlySnapshot(){recordPortfolioSnapshot();}
+
+function recordPortfolioSnapshot(){
   const ss=SpreadsheetApp.getActiveSpreadsheet();
   const adSheet=ss.getSheetByName('_appdata');
   if(!adSheet)return;
   const raw=adSheet.getRange('A1').getValue();
   if(!raw)return;
   let state;
-  try{state=JSON.parse(raw);}catch(e){Logger.log('dailySnapshot: appData 파싱 실패');return;}
+  try{state=JSON.parse(raw);}catch(e){Logger.log('recordPortfolioSnapshot: appData 파싱 실패');return;}
   if(!state.stocks||!state.stocks.length)return;
 
   updateKrxPrices(ss);
   const priceByName={};
   [...getPricesFromSheet(ss,'메리츠증권'),...getPricesFromSheet(ss,'ISA')].forEach(p=>{priceByName[p.name]=p.cur;});
-
   const usTickers=[...new Set(state.stocks.filter(s=>s.ticker&&!/^\d/.test(s.ticker)).map(s=>s.ticker))];
   const yahoo=fetchYahooQuotes(usTickers);
 
   const rate=Number(state.rate)||1510;
-  let stockKRW=0, inv=0;
+  let stockKRW=0,inv=0;
   const byStock={};
   state.stocks.forEach(s=>{
     let cur=Number(s.cur)||0;
     const yd=yahoo[s.ticker];
     if(yd&&yd.price>0)cur=yd.price;
     else if(priceByName[s.name]>0)cur=priceByName[s.name];
-    const qty=Number(s.qty)||0, avg=Number(s.avg)||0;
+    const qty=Number(s.qty)||0,avg=Number(s.avg)||0;
     const ev=s.curr==='USD'?qty*cur*rate:qty*cur;
     const iv=s.curr==='USD'?qty*avg*rate:qty*avg;
-    stockKRW+=ev; inv+=iv;
-    byStock[s.name]=Math.round(ev);
+    stockKRW+=ev;inv+=iv;byStock[s.name]=Math.round(ev);
   });
   const cashKRW=Object.values(state.cash||{}).reduce((a,c)=>a+(Number(c.USD)||0)*rate+(Number(c.KRW)||0),0);
   const pnl=stockKRW-inv;
   const pct=inv>0?pnl/inv*100:0;
-  // 앱이 KST 기준 날짜로 스냅샷을 기록하므로 동일하게 맞춘다
+  const nowIso=new Date().toISOString();
   const todayStr=Utilities.formatDate(new Date(),'Asia/Seoul','yyyy-MM-dd');
-
-  const snapshots=Array.isArray(state.snapshots)?state.snapshots:[];
   const snap={date:todayStr,totalKRW:Math.round(stockKRW+cashKRW),stockKRW:Math.round(stockKRW),
     cashKRW:Math.round(cashKRW),pnl:Math.round(pnl),pct:Number(pct.toFixed(2)),rate,byStock};
+  const snapshots=Array.isArray(state.snapshots)?state.snapshots:[];
   const idx=snapshots.findIndex(x=>x.date===todayStr);
-  if(idx>=0)snapshots[idx]=snap; else snapshots.push(snap);
+  if(idx>=0)snapshots[idx]=snap;else snapshots.push(snap);
   snapshots.sort((a,b)=>a.date.localeCompare(b.date));
   state.snapshots=snapshots;
-  state.updatedAt=new Date().toISOString();
+  upsertHourlySnapshot(state,{dt:nowIso,totalKRW:snap.totalKRW,pct:snap.pct},nowIso);
+  state.updatedAt=nowIso;
 
   adSheet.getRange('A1').setValue(JSON.stringify(state));
   adSheet.getRange('B1').setValue(state.updatedAt);
-  Logger.log('일일 스냅샷 기록: '+todayStr+' 총자산 ₩'+snap.totalKRW);
+  Logger.log('시간별 스냅샷 기록: '+nowIso+' 총자산 ₩'+snap.totalKRW);
+}
+
+// Apps Script 에디터에서 한 번 수동 실행·승인하면 매시간 트리거가 등록된다.
+// 기존 dailySnapshot/hourlySnapshot 트리거만 교체하며 다른 자동화는 건드리지 않는다.
+function installHourlySnapshotTrigger(){
+  ScriptApp.getProjectTriggers().forEach(trigger=>{
+    const handler=trigger.getHandlerFunction();
+    if(handler==='dailySnapshot'||handler==='hourlySnapshot')ScriptApp.deleteTrigger(trigger);
+  });
+  ScriptApp.newTrigger('hourlySnapshot').timeBased().everyHours(1).create();
 }
 
 function onOpen() {
