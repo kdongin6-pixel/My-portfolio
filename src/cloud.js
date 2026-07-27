@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════
 // 클라우드 동기화 (Google Sheets) + 자동 갱신 엔진 + 시장 데이터
 // ═══════════════════════════════════════════
-import {S,getApiUrl,save,updateTodaySnapshot,updateIntradaySnap} from './state.js';
+import {S,getApiUrl,getApiSecret,save,updateTodaySnapshot,updateIntradaySnap} from './state.js';
 import {REFRESH_MS} from './constants.js';
 import {render} from './render.js';
 
@@ -39,11 +39,14 @@ export async function saveToCloud(){
 export async function loadFromCloud(showAlert){
   const _url=getApiUrl();
   if(!_url){S.cloudStatus="error";S.syncMsg="❌ API URL 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
+  const _secret=getApiSecret();
+  if(!_secret){S.cloudStatus="error";S.syncMsg="❌ 공유 시크릿 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
   S.cloudStatus="saving";renderCloudBadge();
   try{
-    const res=await fetch(_url);
+    const res=await fetch(_url+"?secret="+encodeURIComponent(_secret));
     if(!res.ok)throw new Error("로드 실패");
     const data=await res.json();
+    if(data.error==="unauthorized")throw new Error("인증 실패 — 공유 시크릿을 확인해주세요");
 
     let priceCount=0;
     if(data.rate&&data.rate>0)S.rate=data.rate;
@@ -247,8 +250,9 @@ export async function loadMarketData(force=false){
   const now=Date.now();
   if(!force&&_mktFetchTime&&now-_mktFetchTime<5*60*1000)return;
   const _url=getApiUrl();
-  if(!_url){
-    // No API URL — show empty state without retrying
+  const _secret=getApiSecret();
+  if(!_url||!_secret){
+    // No API URL / secret — show empty state without retrying
     S.marketData=[];
     if(shouldRerenderForMarket())render();
     return;
@@ -256,9 +260,10 @@ export async function loadMarketData(force=false){
   S.marketLoading=true;
   if(shouldRerenderForMarket())render();
   try{
-    const res=await fetch(_url+"?mode=market");
+    const res=await fetch(_url+"?mode=market&secret="+encodeURIComponent(_secret));
     if(!res.ok)throw new Error("시장 데이터 로드 실패");
     const data=await res.json();
+    if(data.error==="unauthorized")throw new Error("인증 실패 — 공유 시크릿을 확인해주세요");
     S.marketData=data.market||[];
     _mktFetchTime=Date.now();
   }catch(e){

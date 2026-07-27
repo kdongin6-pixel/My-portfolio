@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════
 // 화면 조립 (헤더 / 탭 / 목록 / 차트 / 추이 / 일지 / 내역 / 모달)
 // ═══════════════════════════════════════════
-import {S,getApiUrl} from './state.js';
+import {S,getApiUrl,getApiSecret} from './state.js';
 import {APP_VERSION,JOURNAL_CATEGORIES} from './constants.js';
 import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
 import {getMarketPhase} from './cloud.js';
@@ -620,6 +620,7 @@ export function mkModal(){
 
   if(S.modal.type==="settings"){
     const cur=getApiUrl();
+    const curSecret=getApiSecret();
     const akey=getAnthropicKey();
     d.innerHTML=`<div class="modal">
       <div class="modal-title">⚙️ 설정<button class="modal-close" id="mc">×</button></div>
@@ -627,6 +628,11 @@ export function mkModal(){
         <label>Google Apps Script 배포 URL</label>
         <input type="text" id="apiUrlInp" value="${cur}" placeholder="https://script.google.com/macros/s/...">
         <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
+      </div>
+      <div class="field">
+        <label>공유 시크릿 (SHARED_SECRET)</label>
+        <input type="password" id="apiSecretInp" value="${curSecret}" placeholder="Apps Script 스크립트 속성의 SHARED_SECRET">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">조회 시 인증에 필요합니다. Apps Script 프로젝트 설정 → 스크립트 속성에서 확인.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
       </div>
       <div class="field">
         <label>Anthropic API 키 (📷 매매인식용, 선택)</label>
