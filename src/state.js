@@ -8,6 +8,10 @@ import {scheduleCloudSave} from './cloud.js';
 export function getApiUrl(){return localStorage.getItem('pf_api_url')||'';}
 export function setApiUrl(url){localStorage.setItem('pf_api_url',url.trim());}
 
+// GAS 조회(doGet/doPost) 인증용 공유 시크릿 — localStorage에만 저장
+export function getApiSecret(){return localStorage.getItem('pf_api_secret')||'';}
+export function setApiSecret(secret){localStorage.setItem('pf_api_secret',secret.trim());}
+
 export let S={
   stocks:[],
   cash:{메리츠증권:{USD:0,KRW:0},ISA:{USD:0,KRW:0}},

@@ -626,10 +626,34 @@ function getPricesFromSheet(ss, sheetName) {
   return result;
 }
 
-function doGet(e) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const mode = (e && e.parameter && e.parameter.mode) || 'portfolio';
+// ─────────────────────────────────────────────
+// 공유 시크릿 검증 — 조회(GET/POST 양쪽)에 SHARED_SECRET 요구.
+// 저장(doPost의 일반 저장·agent_apply)은 대상이 아니며 기존 방식 그대로 둠.
+// ─────────────────────────────────────────────
+function constantTimeEquals_(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const key = Utilities.getUuid();
+  const macA = Utilities.computeHmacSha256Signature(a, key);
+  const macB = Utilities.computeHmacSha256Signature(b, key);
+  if (macA.length !== macB.length) return false;
+  let diff = 0;
+  for (let i = 0; i < macA.length; i++) diff |= macA[i] ^ macB[i];
+  return diff === 0;
+}
 
+function checkSecret_(providedSecret) {
+  const expected = PropertiesService.getScriptProperties().getProperty('SHARED_SECRET');
+  if (!expected) return false; // 스크립트 속성 미설정 시 절대 통과 안 시킴
+  return constantTimeEquals_(String(providedSecret || ''), expected);
+}
+
+function unauthorizedResponse_() {
+  return ContentService.createTextOutput(JSON.stringify({ error: 'unauthorized' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// doGet과 doPost(Hermes 읽기 경로) 공용 — 기존 doGet 본문 그대로, 라우팅만 분리
+function handlePortfolioRequest_(mode, ss) {
   if (mode === 'market') {
     updateTreasuryRates(ss);  // Fetch T2Y from US Treasury API
     const baseMarket = getMarketData(ss);  // GOOGLEFINANCE sheet data (has weekly %)
@@ -730,6 +754,15 @@ function doGet(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
+// GET 조회 — 프런트엔드(src/cloud.js)용. 쿼리파라미터 secret 필요.
+function doGet(e) {
+  const secret = e && e.parameter && e.parameter.secret;
+  if (!checkSecret_(secret)) return unauthorizedResponse_();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const mode = (e && e.parameter && e.parameter.mode) || 'portfolio';
+  return handlePortfolioRequest_(mode, ss);
+}
+
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -738,6 +771,13 @@ function doPost(e) {
     }
     const data = JSON.parse(e.postData.contents);
     const ss   = SpreadsheetApp.getActiveSpreadsheet();
+
+    // Hermes 등 서버 간 조회 — body에 secret이 있으면 조회 요청으로 취급.
+    // 앱의 일반 저장/agent_apply 페이로드에는 top-level secret 필드가 없으므로 안전하게 구분됨.
+    if (data.secret !== undefined) {
+      if (!checkSecret_(data.secret)) return unauthorizedResponse_();
+      return handlePortfolioRequest_(data.mode || 'portfolio', ss);
+    }
 
     let sheet = ss.getSheetByName('_appdata');
     if (!sheet) {

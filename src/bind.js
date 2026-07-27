@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════
 // 이벤트 바인딩
 // ═══════════════════════════════════════════
-import {S,save,setApiUrl} from './state.js';
+import {S,save,setApiUrl,setApiSecret} from './state.js';
 import {fM} from './helpers.js';
 import {syncSheets,loadMarketData} from './cloud.js';
 import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from './trades.js';
@@ -23,6 +23,9 @@ export function bind(){
     const url=q("#apiUrlInp")?.value?.trim();
     if(!url)return alert("URL을 입력해주세요");
     setApiUrl(url);
+    const secret=q("#apiSecretInp")?.value?.trim();
+    if(!secret)return alert("공유 시크릿을 입력해주세요");
+    setApiSecret(secret);
     const akey=q("#anthropicKeyInp")?.value?.trim();
     if(akey!==undefined)setAnthropicKey(akey);
     S.syncMsg="✅ 설정 저장 완료 — 동기화 버튼을 눌러 연결을 확인해보세요";
