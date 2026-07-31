@@ -255,7 +255,10 @@ function fetchKrxPrice(code){
       muteHttpExceptions:true,
       headers:{'User-Agent':'Mozilla/5.0','Referer':'https://finance.naver.com'}
     });
-    if(res.getResponseCode()!==200)return null;
+    if(res.getResponseCode()!==200){
+      Logger.log(`KRX ${code} HTTP ${res.getResponseCode()}: ${res.getContentText().slice(0,200)}`);
+      return null;
+    }
     const data=JSON.parse(res.getContentText());
     // Naver itemSummary API: now=현재가, rate=등락률(%), diff=전일대비
     const price=parseFloat(data.now)||0;
@@ -287,11 +290,18 @@ function updateKrxPrices(ss){
     if(!name||name.includes('【 집계 】')||name.includes('💵 현금'))continue;
     const formula=formulas[i][2];
     if(!formula)continue;
-    const match=formula.match(/GOOGLEFINANCE\(\s*"KRX:(\d{6})"/i);
-    if(!match)continue; // not a KRX 6-digit ticker — leave to GOOGLEFINANCE
+    // 국내 액티브 ETF 코드는 순수 숫자 6자리(예: 426030)뿐 아니라 영문자가 섞인
+    // 6자리(예: 0174B0, 0093D0, 0046A0)도 있음 — 예전엔 \d{6}만 매칭해서
+    // 영문자 섞인 코드가 네이버 갱신 대상에서 조용히 빠지고 GOOGLEFINANCE에만
+    // 의존했음(느리고 신규 액티브 ETF는 자주 실패)
+    const match=formula.match(/GOOGLEFINANCE\(\s*"KRX:([0-9A-Z]{6})"/i);
+    if(!match)continue; // KRX 종목코드 형식이 아님 — GOOGLEFINANCE에 맡김
     const code=match[1];
     const fetched=fetchKrxPrice(code);
-    if(!fetched||!fetched.price)continue;
+    if(!fetched||!fetched.price){
+      Logger.log(`KRX ${code} (${name}): 네이버 시세 갱신 실패 — GOOGLEFINANCE 값 유지`);
+      continue;
+    }
     sheet.getRange(i+1,3).setValue(fetched.price);
     Logger.log(`KRX ${code} (${name}): ₩${fetched.price} (${fetched.daily>0?'+':''}${fetched.daily}%)`);
   }
