@@ -847,7 +847,11 @@ function doPost(e) {
       sheet.getRange('A1').setValue(JSON.stringify(data));
       sheet.getRange('B1').setValue(new Date().toISOString());
 
-      if (data._action === 'export') updateVisibleSheets(ss, data);
+      // 예전엔 "출력" 버튼을 눌러야만(_action:'export') 보이는 시트(메리츠증권/ISA)에
+      // 반영됐는데, 그 버튼이 제거되면서 수동 종목추가/수정이 시트에 전혀 반영되지
+      // 않는 문제가 생김(예: 티커를 새로 넣어도 시트 수식이 안 만들어져 KRX 시세
+      // 갱신 대상에서 계속 빠짐). 매 저장마다 자동으로 반영되도록 변경.
+      updateVisibleSheets(ss, data);
 
       return ContentService
         .createTextOutput(JSON.stringify({ success: true, savedAt: new Date().toISOString() }))
