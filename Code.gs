@@ -302,7 +302,10 @@ function updateKrxPrices(ss){
       Logger.log(`KRX ${code} (${name}): 네이버 시세 갱신 실패 — GOOGLEFINANCE 값 유지`);
       continue;
     }
-    sheet.getRange(i+1,3).setValue(fetched.price);
+    // setValue()로 값만 쓰면 GOOGLEFINANCE 수식 자체가 지워져서, 다음 실행 때
+    // 이 셀에서 티커를 다시 읽을 수식이 없어져 영구히 갱신이 멈춤(정확히
+    // 지금 겪은 버그). setFormula()로 IFERROR의 폴백값만 최신화해 수식은 보존.
+    sheet.getRange(i+1,3).setFormula(`=IFERROR(GOOGLEFINANCE("KRX:${code}"),${fetched.price})`);
     Logger.log(`KRX ${code} (${name}): ₩${fetched.price} (${fetched.daily>0?'+':''}${fetched.daily}%)`);
   }
   SpreadsheetApp.flush();
