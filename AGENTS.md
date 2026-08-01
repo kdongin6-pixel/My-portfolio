@@ -34,10 +34,11 @@
 
 ```
 index.html (정적 페이지, localStorage "pf_v3")
-   ↕ fetch (인증 없음 — 앱 전용 경로)
+   ↕ fetch (조회는 SHARED_SECRET 필요 — docs/agents/portfolio-read-api.md 참고)
 Google Apps Script 배포 URL (사용자가 ⚙️ 설정에서 입력, 소스에 없음)
    doGet  → 실시간 가격: GOOGLEFINANCE + Yahoo v7 + Naver(KRX ETF) + 미 재무부 XML
-   doPost → _appdata 숨김 시트에 상태 JSON 저장, _action:'export'면 보이는 시트 갱신
+   doPost → secret 필드 있으면 조회 요청(Hermes 등 서버간 호출), 없으면 저장
+           → 일반 저장: _appdata 숨김 시트에 상태 JSON 저장 + 보이는 시트(메리츠증권/ISA) 자동 갱신
            → _action:'agent_apply'면 AGENT_IMPORT_TOKEN으로만 인증되는 별도 경로
              (거래 1건을 받아 서버에서 계산·반영 — docs/agents/screenshot-trade-import.md 참고)
 ```
