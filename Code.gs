@@ -719,9 +719,22 @@ function handlePortfolioRequest_(mode, ss) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  let rate = 1510;
   const sumSheet = ss.getSheetByName('종합');
+  let rate = 1510;
   if (sumSheet) rate = Number(sumSheet.getRange('B3').getValue()) || 1510;
+  // 예전엔 '종합'!B3가 고정 숫자값이라 아무도 손대지 않으면 환율이 영원히 안 바뀜
+  // (시장 탭의 실시간 원/달러와는 별개 경로였음). Yahoo에서 실시간으로 가져와
+  // 총자산 계산에 반영하고, 성공하면 시트 B3도 같이 갱신해 시트 자체를 열어봐도
+  // 최신값이 보이게 한다. 실패하면 기존 B3 값을 그대로 폴백으로 사용.
+  try {
+    const fx = fetchYahooQuotes(['USDKRW=X'])['USDKRW=X'];
+    if (fx && fx.price > 0) {
+      rate = fx.price;
+      if (sumSheet) sumSheet.getRange('B3').setValue(rate);
+    }
+  } catch (fxErr) {
+    Logger.log('USDKRW fetch error: ' + fxErr);
+  }
 
   updateKrxPrices(ss);  // Fetch KRX tickers not supported by GOOGLEFINANCE
   const meritz = getPricesFromSheet(ss, '메리츠증권');
