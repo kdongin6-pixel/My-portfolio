@@ -613,6 +613,19 @@ function testYahoo(){
   const chart = fetchYahooCharts(['USDKRW=X','GOOGL']);
   Logger.log('v8 chart 결과 개수: ' + Object.keys(chart).length);
   Logger.log(JSON.stringify(chart));
+
+  // v7 대체 가능 여부 판단용 — v8의 meta 원본에 등락률(previousClose)·
+  // 장 상태(marketState) 필드가 있는지 직접 확인 (fetchYahooCharts는
+  // 현재 regularMarketPrice/closes만 뽑아써서 meta 전체를 못 봄)
+  const raw = UrlFetchApp.fetch(
+    'https://query1.finance.yahoo.com/v8/finance/chart/GOOGL?range=7d&interval=1d',
+    { muteHttpExceptions:true, headers:{
+      'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      'Accept':'application/json, text/plain, */*','Referer':'https://finance.yahoo.com'
+    }}
+  );
+  const rawJson = JSON.parse(raw.getContentText());
+  Logger.log('v8 meta 원본: ' + JSON.stringify(rawJson.chart.result[0].meta));
 }
 
 function onOpen() {
