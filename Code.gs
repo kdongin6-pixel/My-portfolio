@@ -605,8 +605,14 @@ function dailySnapshot(){
 // 선택해 실행하면 실행 로그에 결과가 그대로 찍힘.
 function testYahoo(){
   const result = fetchYahooQuotes(['USDKRW=X','GOOGL','PLTR']);
-  Logger.log('결과 개수: ' + Object.keys(result).length);
+  Logger.log('v7 quote 결과 개수: ' + Object.keys(result).length);
   Logger.log(JSON.stringify(result));
+
+  // v7이 401로 막혔을 경우, v8 차트 API(fetchYahooCharts)는 아직 살아있는지 확인.
+  // 이건 인증 없이 되던 별개 엔드포인트라 여전히 열려있을 가능성이 있음.
+  const chart = fetchYahooCharts(['USDKRW=X','GOOGL']);
+  Logger.log('v8 chart 결과 개수: ' + Object.keys(chart).length);
+  Logger.log(JSON.stringify(chart));
 }
 
 function onOpen() {
