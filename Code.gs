@@ -600,6 +600,15 @@ function dailySnapshot(){
   Logger.log('일일 스냅샷 기록: '+todayStr+' 총자산 ₩'+snap.totalKRW);
 }
 
+// 임시 진단용 — Yahoo 조회가 왜 빈 값(yahooData:{})을 돌려주는지 확인하려고
+// 추가. 원인 확인되면 제거할 예정. Apps Script 에디터에서 이 함수를 직접
+// 선택해 실행하면 실행 로그에 결과가 그대로 찍힘.
+function testYahoo(){
+  const result = fetchYahooQuotes(['USDKRW=X','GOOGL','PLTR']);
+  Logger.log('결과 개수: ' + Object.keys(result).length);
+  Logger.log(JSON.stringify(result));
+}
+
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('📊 포트폴리오')
