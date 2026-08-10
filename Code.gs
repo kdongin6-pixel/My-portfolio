@@ -132,66 +132,10 @@ function fixSumFormula(sheet) {
 }
 
 // ─────────────────────────────────────────────
-// Yahoo Finance v7 — realtime bulk quotes (pre/post market included)
-// ─────────────────────────────────────────────
-function fetchYahooQuotes(symbols) {
-  if (!symbols || !symbols.length) return {};
-  try {
-    const syms = [...new Set(symbols)].filter(Boolean).join(',');
-    const url = 'https://query1.finance.yahoo.com/v7/finance/quote?symbols=' + encodeURIComponent(syms);
-    const res = UrlFetchApp.fetch(url, {
-      muteHttpExceptions: true,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Referer': 'https://finance.yahoo.com',
-      }
-    });
-    if (res.getResponseCode() !== 200) {
-      Logger.log('Yahoo HTTP ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
-      return {};
-    }
-    const json = JSON.parse(res.getContentText());
-    const results = (json.quoteResponse && json.quoteResponse.result) || [];
-    const map = {};
-    results.forEach(q => {
-      const state = q.marketState || 'CLOSED'; // REGULAR | PRE | POST | CLOSED
-      let extPrice = null, extPct = null, extType = null;
-      if (state === 'PRE' && q.preMarketPrice) {
-        extPrice = q.preMarketPrice;
-        extPct   = q.preMarketChangePercent || 0;
-        extType  = 'pre';
-      } else if ((state === 'POST' || state === 'CLOSED') && q.postMarketPrice) {
-        extPrice = q.postMarketPrice;
-        extPct   = q.postMarketChangePercent || 0;
-        extType  = 'post';
-      }
-      // Live price: extended-hours if available, otherwise regular market
-      const livePrice = (state === 'REGULAR') ? (q.regularMarketPrice || 0)
-                                               : (extPrice || q.regularMarketPrice || 0);
-      map[q.symbol] = {
-        price:       livePrice,
-        regPrice:    q.regularMarketPrice || 0,
-        daily:       q.regularMarketChangePercent || 0,
-        marketState: state,
-        extPrice, extPct, extType
-      };
-    });
-    Logger.log('Yahoo: ' + Object.keys(map).length + '/' + symbols.length + ' fetched');
-    return map;
-  } catch(e) {
-    Logger.log('Yahoo error: ' + e);
-    return {};
-  }
-}
-
-// ─────────────────────────────────────────────
 // Yahoo Finance v8 chart API — real historical daily closes (7d), batched
-// via fetchAll for speed. Used for: (1) real sparklines instead of the
-// frontend's noise-generated fake curve, (2) a per-symbol price fallback
-// for tickers that intermittently come back empty from the bulk v7 quote
-// endpoint (observed for futures/crypto like GC=F, BTC-USD).
+// via fetchAll for speed. 현재가·등락률(daily%)·스파크라인의 유일한 소스
+// (2026-08부터 v7 시세 조회는 Yahoo가 401/429로 막아 완전히 폐기됨).
+// fetchYahooQuotesV8()이 이 함수를 감싸 v7과 비슷한 모양으로 재포장한다.
 // ─────────────────────────────────────────────
 function fetchYahooCharts(symbols){
   const uniq=[...new Set(symbols)].filter(Boolean);
@@ -223,11 +167,32 @@ function fetchYahooCharts(symbols){
       if(!result)return;
       const closesRaw=(result.indicators&&result.indicators.quote&&result.indicators.quote[0]&&result.indicators.quote[0].close)||[];
       const closes=closesRaw.filter(v=>v!=null&&v>0);
-      const price=(result.meta&&result.meta.regularMarketPrice)||closes[closes.length-1]||0;
-      if(price>0)map[sym]={price,closes};
+      const meta=result.meta||{};
+      const price=meta.regularMarketPrice||closes[closes.length-1]||0;
+      // chartPreviousClose: v7 quote API가 401/429로 막힌 뒤(2026-08) 등락률(daily%)을
+      // 계산할 유일한 소스 — fetchYahooQuotesV8()에서 사용
+      const previousClose=meta.chartPreviousClose||meta.previousClose||0;
+      if(price>0)map[sym]={price,closes,previousClose};
     }catch(e){/* skip this symbol */}
   });
   Logger.log('Yahoo chart: '+Object.keys(map).length+'/'+uniq.length+' fetched');
+  return map;
+}
+
+// v7 시세 조회(fetchYahooQuotes)가 Yahoo 쪽에서 401/429로 막혀 더 이상 신뢰할 수
+// 없게 되어(2026-08), v8 차트 API로 만든 대체 함수. v7과 같은 모양의 맵을
+// 돌려주지만 marketState/extPrice(장중·프리·애프터마켓 실시간가)는 v8 meta에
+// 없어서 항상 null — 정규장 가격 기준으로만 동작한다.
+function fetchYahooQuotesV8(symbols){
+  const chart=fetchYahooCharts(symbols);
+  const map={};
+  Object.entries(chart).forEach(([sym,c])=>{
+    const daily=c.previousClose>0?(c.price-c.previousClose)/c.previousClose*100:0;
+    map[sym]={
+      price:c.price, regPrice:c.price, daily,
+      marketState:null, extPrice:null, extPct:null, extType:null
+    };
+  });
   return map;
 }
 
@@ -564,7 +529,7 @@ function dailySnapshot(){
   [...getPricesFromSheet(ss,'메리츠증권'),...getPricesFromSheet(ss,'ISA')].forEach(p=>{priceByName[p.name]=p.cur;});
 
   const usTickers=[...new Set(state.stocks.filter(s=>s.ticker&&!/^\d/.test(s.ticker)).map(s=>s.ticker))];
-  const yahoo=fetchYahooQuotes(usTickers);
+  const yahoo=fetchYahooQuotesV8(usTickers);
 
   const rate=Number(state.rate)||1510;
   let stockKRW=0, inv=0;
@@ -598,34 +563,6 @@ function dailySnapshot(){
   adSheet.getRange('A1').setValue(JSON.stringify(state));
   adSheet.getRange('B1').setValue(state.updatedAt);
   Logger.log('일일 스냅샷 기록: '+todayStr+' 총자산 ₩'+snap.totalKRW);
-}
-
-// 임시 진단용 — Yahoo 조회가 왜 빈 값(yahooData:{})을 돌려주는지 확인하려고
-// 추가. 원인 확인되면 제거할 예정. Apps Script 에디터에서 이 함수를 직접
-// 선택해 실행하면 실행 로그에 결과가 그대로 찍힘.
-function testYahoo(){
-  const result = fetchYahooQuotes(['USDKRW=X','GOOGL','PLTR']);
-  Logger.log('v7 quote 결과 개수: ' + Object.keys(result).length);
-  Logger.log(JSON.stringify(result));
-
-  // v7이 401로 막혔을 경우, v8 차트 API(fetchYahooCharts)는 아직 살아있는지 확인.
-  // 이건 인증 없이 되던 별개 엔드포인트라 여전히 열려있을 가능성이 있음.
-  const chart = fetchYahooCharts(['USDKRW=X','GOOGL']);
-  Logger.log('v8 chart 결과 개수: ' + Object.keys(chart).length);
-  Logger.log(JSON.stringify(chart));
-
-  // v7 대체 가능 여부 판단용 — v8의 meta 원본에 등락률(previousClose)·
-  // 장 상태(marketState) 필드가 있는지 직접 확인 (fetchYahooCharts는
-  // 현재 regularMarketPrice/closes만 뽑아써서 meta 전체를 못 봄)
-  const raw = UrlFetchApp.fetch(
-    'https://query1.finance.yahoo.com/v8/finance/chart/GOOGL?range=7d&interval=1d',
-    { muteHttpExceptions:true, headers:{
-      'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-      'Accept':'application/json, text/plain, */*','Referer':'https://finance.yahoo.com'
-    }}
-  );
-  const rawJson = JSON.parse(raw.getContentText());
-  Logger.log('v8 meta 원본: ' + JSON.stringify(rawJson.chart.result[0].meta));
 }
 
 function onOpen() {
@@ -704,9 +641,10 @@ function handlePortfolioRequest_(mode, ss) {
       .filter(item => !item.treasuryKey && item.ticker)
       .map(item => YAHOO_SYMBOL_MAP[item.ticker] || item.ticker)
       .filter(Boolean);
-    const yahooMkt = fetchYahooQuotes(yahooSyms);
-    // 7일 실데이터 차트 (30분 캐시) — 진짜 스파크라인용 + 묶음 조회가 가끔
-    // 비워서 돌려주는 종목(예: 금·BTC 선물류)의 가격 폴백으로 사용
+    // 7일 실데이터 차트 (30분 캐시) — 진짜 스파크라인 + 현재가·등락률까지 전부
+    // 이 하나의 v8 호출에서 뽑아 쓴다. v7 시세 조회(fetchYahooQuotes)가 401/429로
+    // 막혀(2026-08) 더 이상 못 쓰게 되면서, 같은 심볼을 v8로 두 번(현재가용+
+    // 차트용) 부르던 걸 하나로 합쳤다 — 요청 과다(429) 위험을 줄이기 위함.
     const chartData = getYahooChartsCached(yahooSyms);
 
     // Merge: Yahoo price/daily overrides sheet, weekly kept from sheet
@@ -714,7 +652,6 @@ function handlePortfolioRequest_(mode, ss) {
       const cfg = MARKET_ITEMS.find(m => m.key === item.key);
       if (!cfg || cfg.treasuryKey) return item;
       const ySym = YAHOO_SYMBOL_MAP[cfg.ticker] || cfg.ticker;
-      const yd    = yahooMkt[ySym];
       const chart = chartData[ySym];
       const sc = cfg.scale || 1;
       // Yahoo가 국채수익률(^FVX/^TNX)을 예전 방식(예: 44.07 = 4.407%, ×10)과
@@ -723,18 +660,9 @@ function handlePortfolioRequest_(mode, ss) {
       // (금리는 통상 0~20% 범위이므로 20을 기준으로 판단)
       const autoScale = v => (sc !== 1 && v <= 20) ? v : v * sc;
       let merged = item;
-      if (yd && yd.price) {
-        merged = {
-          ...item,
-          price:       autoScale(yd.price),
-          daily:       yd.daily,
-          marketState: yd.marketState,
-          extPrice:    yd.extPrice ? autoScale(yd.extPrice) : null,
-          extPct:      yd.extPct
-        };
-      } else if (chart && chart.price) {
-        // 묶음 조회 실패 시 차트 API 가격으로 폴백
-        merged = { ...item, price: autoScale(chart.price) };
+      if (chart && chart.price) {
+        const daily = chart.previousClose > 0 ? (chart.price - chart.previousClose) / chart.previousClose * 100 : item.daily;
+        merged = { ...item, price: autoScale(chart.price), daily, marketState: null, extPrice: null, extPct: null };
       }
       if (chart && chart.closes && chart.closes.length >= 2) {
         merged = { ...merged, history: chart.closes.map(c => +autoScale(c).toFixed(4)) };
@@ -755,7 +683,7 @@ function handlePortfolioRequest_(mode, ss) {
   // 총자산 계산에 반영하고, 성공하면 시트 B3도 같이 갱신해 시트 자체를 열어봐도
   // 최신값이 보이게 한다. 실패하면 기존 B3 값을 그대로 폴백으로 사용.
   try {
-    const fx = fetchYahooQuotes(['USDKRW=X'])['USDKRW=X'];
+    const fx = fetchYahooQuotesV8(['USDKRW=X'])['USDKRW=X'];
     if (fx && fx.price > 0) {
       rate = fx.price;
       if (sumSheet) sumSheet.getRange('B3').setValue(rate);
@@ -773,7 +701,7 @@ function handlePortfolioRequest_(mode, ss) {
   [...meritz, ...isa].forEach(item => {
     if (item.ticker && !/^\d/.test(item.ticker)) usTickers.add(item.ticker);
   });
-  const yahooPortfolio = fetchYahooQuotes([...usTickers]);
+  const yahooPortfolio = fetchYahooQuotesV8([...usTickers]);
   // Build yahooData: ticker → {price, regPrice, daily, marketState, extPrice, extPct, extType}
   const yahooData = {};
   Object.entries(yahooPortfolio).forEach(([sym, data]) => { yahooData[sym] = data; });
