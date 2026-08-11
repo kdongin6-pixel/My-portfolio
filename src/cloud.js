@@ -92,7 +92,10 @@ export async function loadFromCloud(showAlert){
       if(a.journal)S.journal=a.journal;
       if(a.tags)S.tags=a.tags;
       if(a.tagColors)S.tagColors=a.tagColors;
-      if(a.rate)S.rate=a.rate;
+      // rate는 여기서 appData의 옛 스냅샷 값으로 덮어쓰지 않는다 — 위에서 이미
+      // 서버가 실시간으로 가져온 data.rate로 설정했고(52행), appData.rate는
+      // 마지막 저장 시점의 낡은 값일 뿐이라 이걸로 덮어쓰면 환율이 항상
+      // 구식으로 고정되는 버그가 생긴다.
       // 현재가·티커 업데이트 (수량·평단가 건드리지 않음)
       (data.meritz||[]).forEach(item=>{
         const s=S.stocks.find(x=>x.name===item.name&&x.acct==='메리츠증권');
