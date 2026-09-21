@@ -17,6 +17,7 @@ export let S={
   cash:{메리츠증권:{USD:0,KRW:0},ISA:{USD:0,KRW:0}},
   cashTxns:[],
   txns:[],
+  agentImports:[],
   snapshots:[],
   intradaySnaps:[],
   journal:[],
@@ -51,6 +52,7 @@ export function load(){
       }
       S.cashTxns=d.cashTxns||[];
       S.txns=d.txns||[];
+      S.agentImports=d.agentImports||[];
       S.updatedAt=d.updatedAt||null;
       S.snapshots=(d.snapshots||[]).filter(s=>s&&!isNaN(s.totalKRW));
       S.intradaySnaps=d.intradaySnaps||[];
@@ -112,7 +114,7 @@ export function save(){
   updateIntradaySnap();
   S.updatedAt=new Date().toISOString();
   localStorage.setItem("pf_v3",JSON.stringify({
-    stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,
+    stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
     snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
     tags:S.tags,tagColors:S.tagColors,rate:S.rate,
     updatedAt:S.updatedAt
