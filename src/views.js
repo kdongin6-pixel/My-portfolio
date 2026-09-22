@@ -1,12 +1,13 @@
 // ═══════════════════════════════════════════
 // 화면 조립 (헤더 / 탭 / 목록 / 차트 / 추이 / 일지 / 내역 / 모달)
 // ═══════════════════════════════════════════
-import {S,getApiUrl,getApiSecret} from './state.js';
+import {S,getApiUrl} from './state.js';
 import {APP_VERSION,JOURNAL_CATEGORIES} from './constants.js';
 import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
 import {getMarketPhase} from './cloud.js';
 import {getAnthropicKey,getShotFiles} from './vision.js';
 import {mkTodayStrip} from './market-ui.js';
+import {profileFor,analysisTag,calcStress,cycleCards} from './intelligence.js';
 
 export function mkHdr(){
   const fl=filt(),tot=totK(fl)+filtCashKRW();
@@ -621,7 +622,6 @@ export function mkModal(){
 
   if(S.modal.type==="settings"){
     const cur=getApiUrl();
-    const curSecret=getApiSecret();
     const akey=getAnthropicKey();
     d.innerHTML=`<div class="modal">
       <div class="modal-title">⚙️ 설정<button class="modal-close" id="mc">×</button></div>
@@ -629,11 +629,6 @@ export function mkModal(){
         <label>Google Apps Script 배포 URL</label>
         <input type="text" id="apiUrlInp" value="${cur}" placeholder="https://script.google.com/macros/s/...">
         <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
-      </div>
-      <div class="field">
-        <label>공유 시크릿 (SHARED_SECRET)</label>
-        <input type="password" id="apiSecretInp" value="${curSecret}" placeholder="Apps Script 스크립트 속성의 SHARED_SECRET">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">조회 시 인증에 필요합니다. Apps Script 프로젝트 설정 → 스크립트 속성에서 확인.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
       </div>
       <div class="field">
         <label>Anthropic API 키 (📷 매매인식용, 선택)</label>
@@ -731,11 +726,20 @@ export function mkAnalysis(){
   const thesis=(S.journal||[]).filter(j=>j.category==='buy_thesis'||j.category==='sell_thesis'||j.category==='earnings').slice(0,5);
   const thesisCards=thesis.map(j=>{const c=JOURNAL_CATEGORIES[j.category]||JOURNAL_CATEGORIES.etc;return `<article class="thesis-card" style="border-left-color:${c.color}"><div><b style="color:${c.color}">${c.label}</b><span>${j.stockName||'전체'} · ${j.date||''}</span></div><p>${j.content||''}</p></article>`;}).join('')||'<div class="analysis-empty">아직 투자논지가 없습니다. 일지에서 매수논리·매도논리를 기록해보세요.</div>';
   const latest=snaps[snaps.length-1];
+  const stress=calcStress(stocks,S.rate,total);
+  const cycle=cycleCards(stocks,S.rate).filter(x=>x.value>0);
+  const thesisProfiles=stocks.filter(s=>s.qty>0).map(s=>({s,p:profileFor(s)})).filter(x=>x.p).sort((a,b)=>evK(b.s)-evK(a.s)).slice(0,6);
+  const profileCards=thesisProfiles.map(({s,p})=>`<article class="thesis-card intel-thesis"><div><b>${s.ticker}</b><span>${p.role}</span></div><p>${p.thesis}</p><small><b>drivers:</b> ${p.drivers.join(' · ')}</small><small class="intel-falsifier"><b>반증:</b> ${p.falsifiers.join(' · ')}</small></article>`).join('')||'<div class="analysis-empty">등록된 투자논지 프로필이 없습니다.</div>';
+  const stressTop=stress.rows.sort((a,b)=>a.loss-b.loss).slice(0,5).map(r=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${r.ticker}</b><b class="neg">${fP(r.shock*100)}</b></div><small>${r.tag} · 스트레스 손실 ₩${fK(Math.abs(r.loss))}</small></div>`).join('');
+  const cycleCardsHtml=cycle.map(c=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${c.label}</b><b>₩${fK(c.value)}</b></div><small>${c.phase}</small><small>확인: ${c.check}</small></div>`).join('');
   d.innerHTML=`<main class="analysis-wrap"><div class="analysis-hero"><div><span class="analysis-kicker">PORTFOLIO INTELLIGENCE</span><h2>🧭 한눈에 보는 분석</h2><p>실제 저장된 스냅샷·현금흐름·태그·일지만 사용합니다.</p></div><span class="analysis-fresh">${latest?`기준 ${latest.date}`:'스냅샷 없음'}</span></div>
     <section class="analysis-section"><div class="analysis-section-title">📈 수익률</div><div class="analysis-grid three"><div class="analysis-metric"><small>시간가중수익률*</small><strong class="${(twr??0)>=0?'pos':'neg'}">${twr===null?'—':fP(twr)}</strong><span>${snaps.length}개 일별 스냅샷</span></div><div class="analysis-metric"><small>현재 총자산</small><strong>₩${fK(total)}</strong><span>주식 + 현금</span></div><div class="analysis-metric"><small>현금 비중</small><strong>${cashPct.toFixed(1)}%</strong><span>₩${fK(cashK)}</span></div></div><div class="analysis-note">* 입출금은 조정했으며, 일별 스냅샷·입출금이 장 마감 기준이라는 가정의 근사치입니다.</div></section>
     <section class="analysis-section"><div class="analysis-section-title">⚠️ 위험 신호</div><div class="analysis-grid three"><div class="analysis-metric"><small>최대낙폭</small><strong class="${maxDd<0?'neg':'pos'}">${snaps.length>1?maxDd.toFixed(1)+'%':'—'}</strong><span>스냅샷 고점 대비</span></div><div class="analysis-metric"><small>최대 보유 비중</small><strong>${topPct.toFixed(1)}%</strong><span>${top?.s.name||'—'}</span></div><div class="analysis-metric"><small>종목 수</small><strong>${stocks.length}</strong><span>현재 보유 기준</span></div></div></section>
     <section class="analysis-section"><div class="analysis-section-title">🏷️ 태그별 노출</div><div class="analysis-mini-grid">${tagCards}</div></section>
     <section class="analysis-section"><div class="analysis-section-title">🧠 투자논지 <small>최근 기록</small></div><div class="thesis-list">${thesisCards}</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🎯 종목별 논지 카드</div><div class="thesis-list">${profileCards}</div><div class="analysis-note">기업 보고서의 논지·drivers·반증조건을 앱에서 확인하는 읽기 전용 요약입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🧪 스트레스 테스트 <small>가정 손실</small></div><div class="analysis-metric"><small>기본 스트레스 합계</small><strong class="neg">−₩${fK(Math.abs(stress.totalLoss))}</strong><span>${stress.totalLossPct.toFixed(1)}% · 태그별 단일충격 가정</span></div><div class="analysis-mini-grid">${stressTop}</div><div class="analysis-note">예측이나 자동매매 신호가 아닙니다. 레버리지·공통 팩터 손실을 중복 합산하지 않는 1차 민감도입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🔄 AI·반도체·전력·금융 사이클</div><div class="analysis-mini-grid">${cycleCardsHtml}</div><div class="analysis-note">현재 보유 태그와 등록된 기업 논지를 연결한 확인 목록입니다. 실제 사이클 판정은 공식 공시·산업 데이터 갱신 후 확정합니다.</div></section>
     <section class="analysis-section analysis-disclaimer"><b>해석 주의</b><p>분석 수치는 기록된 데이터 범위 안에서만 계산됩니다. 태그는 사용자가 지정한 분류이며, 자동 ETF 룩스루나 투자 판단을 의미하지 않습니다.</p></section></main>`;
   return d;
 }
