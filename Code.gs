@@ -383,6 +383,117 @@ function getMarketData(ss){
     .filter(item=>item.key&&item.key!=='');
 }
 
+// ─────────────────────────────────────────────
+// _appdata 대용량 저장 — Google Sheets 셀당 50,000자 제한 회피
+// A1에는 작은 manifest만 두고 C/D 열의 비활성 슬롯에 40,000자 청크를
+// 완전히 쓴 뒤 포인터를 전환한다. 기존 A1 단일 JSON도 계속 읽는다.
+// ─────────────────────────────────────────────
+const APP_DATA_STORAGE_FORMAT = 'chunked-v1';
+const APP_DATA_CHUNK_SIZE = 40000;
+const APP_DATA_SLOT_COLUMNS = { C: 3, D: 4 };
+const APP_DATA_CELL_PREFIX = '\u200B';
+
+function appDataDigest_(text) {
+  return Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    text,
+    Utilities.Charset.UTF_8
+  ).map(value => (value < 0 ? value + 256 : value).toString(16).padStart(2, '0')).join('');
+}
+
+function parseAppDataManifest_(raw) {
+  if (!raw) return null;
+  let value;
+  try { value = JSON.parse(String(raw)); } catch (error) { return null; }
+  if (!value || value._format !== APP_DATA_STORAGE_FORMAT) return null;
+  if (!Object.prototype.hasOwnProperty.call(APP_DATA_SLOT_COLUMNS, value.active) ||
+      !Number.isInteger(value.chunks) || value.chunks < 1 || value.chunks > 10000 ||
+      !Number.isInteger(value.length) || value.length < 1 ||
+      typeof value.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(value.sha256)) {
+    throw new Error('app_data_manifest_invalid');
+  }
+  return value;
+}
+
+function splitAppDataChunks_(text) {
+  const chunks = [];
+  for (let start = 0; start < text.length;) {
+    let end = Math.min(start + APP_DATA_CHUNK_SIZE, text.length);
+    const lastCode = text.charCodeAt(end - 1);
+    if (end < text.length && lastCode >= 0xD800 && lastCode <= 0xDBFF) end -= 1;
+    chunks.push(text.slice(start, end));
+    start = end;
+  }
+  return chunks;
+}
+
+function readAppDataRecord_(sheet) {
+  const raw = sheet.getRange('A1').getValue();
+  if (!raw) return { text: '', savedAt: sheet.getRange('B1').getValue() };
+  const manifest = parseAppDataManifest_(raw);
+  if (!manifest) return { text: String(raw), savedAt: sheet.getRange('B1').getValue() };
+  const column = APP_DATA_SLOT_COLUMNS[manifest.active];
+  const values = sheet.getRange(1, column, manifest.chunks, 1).getValues();
+  const text = values.map(row => {
+    const cell = String(row[0] === undefined || row[0] === null ? '' : row[0]);
+    if (!cell.startsWith(APP_DATA_CELL_PREFIX)) throw new Error('app_data_chunk_invalid');
+    return cell.slice(APP_DATA_CELL_PREFIX.length);
+  }).join('');
+  if (text.length !== manifest.length || appDataDigest_(text) !== manifest.sha256) {
+    throw new Error('app_data_integrity_error');
+  }
+  return { text, savedAt: manifest.savedAt || '' };
+}
+
+function readAppData_(sheet) {
+  return readAppDataRecord_(sheet).text;
+}
+
+function readAppDataSavedAt_(sheet) {
+  return readAppDataRecord_(sheet).savedAt;
+}
+
+function ensureAppDataCapacity_(sheet, column, rows) {
+  const maxColumns = sheet.getMaxColumns();
+  if (maxColumns < column) sheet.insertColumnsAfter(maxColumns, column - maxColumns);
+  const maxRows = sheet.getMaxRows();
+  if (maxRows < rows) sheet.insertRowsAfter(maxRows, rows - maxRows);
+}
+
+function writeAppData_(sheet, stateOrJson, savedAt) {
+  const text = typeof stateOrJson === 'string' ? stateOrJson : JSON.stringify(stateOrJson);
+  if (!text) throw new Error('app_data_empty');
+  const legacyRaw = sheet.getRange('A1').getValue();
+  const current = parseAppDataManifest_(legacyRaw);
+  const active = current && current.active === 'C' ? 'D' : 'C';
+  const column = APP_DATA_SLOT_COLUMNS[active];
+  const chunks = splitAppDataChunks_(text);
+  ensureAppDataCapacity_(sheet, column, chunks.length);
+  sheet.getRange(1, column, chunks.length, 1).setValues(chunks.map(chunk => [APP_DATA_CELL_PREFIX + chunk]));
+
+  const written = sheet.getRange(1, column, chunks.length, 1).getValues()
+    .map(row => {
+      const cell = String(row[0] === undefined || row[0] === null ? '' : row[0]);
+      if (!cell.startsWith(APP_DATA_CELL_PREFIX)) throw new Error('app_data_write_verify_failed');
+      return cell.slice(APP_DATA_CELL_PREFIX.length);
+    }).join('');
+  const sha256 = appDataDigest_(text);
+  if (written !== text || appDataDigest_(written) !== sha256) throw new Error('app_data_write_verify_failed');
+
+  let legacyBackup = current && current.legacyBackup ? current.legacyBackup : '';
+  if (!current && legacyRaw) {
+    ensureAppDataCapacity_(sheet, 5, 1);
+    sheet.getRange('E1').setValue(String(legacyRaw));
+    if (String(sheet.getRange('E1').getValue()) !== String(legacyRaw)) throw new Error('app_data_legacy_backup_failed');
+    legacyBackup = 'E1';
+  }
+  const timestamp = String(savedAt || new Date().toISOString());
+  const manifest = { _format: APP_DATA_STORAGE_FORMAT, active, chunks: chunks.length, length: text.length, sha256, savedAt: timestamp, legacyBackup };
+  sheet.getRange('A1').setValue(JSON.stringify(manifest));
+  try { sheet.getRange('B1').setValue(timestamp); } catch (error) { Logger.log('writeAppData_: B1 호환 시각 기록 실패'); }
+  return manifest;
+}
+
 function createPortfolioSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const tempName = "TEMP_RESET_" + Date.now();
@@ -392,26 +503,26 @@ function createPortfolioSheet() {
   let appdataValue = null, appdataB = null;
   const adSheetOld = ss.getSheetByName('_appdata');
   if (adSheetOld) {
-    appdataValue = adSheetOld.getRange('A1').getValue();
-    appdataB     = adSheetOld.getRange('B1').getValue();
+    const appdataRecord = readAppDataRecord_(adSheetOld);
+    appdataValue = appdataRecord.text;
+    appdataB     = appdataRecord.savedAt;
   }
 
   ss.getSheets().forEach(s => {
-    if (s.getName() !== tempName) ss.deleteSheet(s);
+    if (s.getName() !== tempName && s.getName() !== '_appdata') ss.deleteSheet(s);
   });
 
   const sumSheet    = ss.insertSheet('종합');
   const meritzSheet = ss.insertSheet('메리츠증권');
   const isaSheet    = ss.insertSheet('ISA');
-  const adSheet     = ss.insertSheet('_appdata');
+  const adSheet     = adSheetOld || ss.insertSheet('_appdata');
   try { adSheet.hideSheet(); } catch(e) {}
 
   ss.deleteSheet(tempSheet);
 
   // _appdata 복원
-  if (appdataValue) {
-    adSheet.getRange('A1').setValue(appdataValue);
-    adSheet.getRange('B1').setValue(appdataB || new Date().toISOString());
+  if (appdataValue && !adSheetOld) {
+    writeAppData_(adSheet, appdataValue, appdataB || new Date().toISOString());
   }
 
   createSummarySheet(sumSheet);
@@ -514,11 +625,21 @@ function createDetailSheet(sheet, data, currency, sumRow) {
 //   실행할 함수: dailySnapshot, 이벤트 소스: 시간 기반, 시간 기반 트리거 유형: 일 타이머,
 //   시간대: 오후 4~5시 (미 정규장 마감 부근) 선택
 // ─────────────────────────────────────────────
+function upsertDailySnapshot_(state, snap, nowIso) {
+  const snapshots = Array.isArray(state.snapshots) ? state.snapshots : [];
+  const idx = snapshots.findIndex(item => item.date === snap.date);
+  if (idx >= 0) snapshots[idx] = snap; else snapshots.push(snap);
+  snapshots.sort((a, b) => a.date.localeCompare(b.date));
+  state.snapshots = snapshots;
+  state.updatedAt = nowIso || new Date().toISOString();
+  return state;
+}
+
 function dailySnapshot(){
   const ss=SpreadsheetApp.getActiveSpreadsheet();
   const adSheet=ss.getSheetByName('_appdata');
   if(!adSheet)return;
-  const raw=adSheet.getRange('A1').getValue();
+  const raw=readAppData_(adSheet);
   if(!raw)return;
   let state;
   try{state=JSON.parse(raw);}catch(e){Logger.log('dailySnapshot: appData 파싱 실패');return;}
@@ -551,17 +672,19 @@ function dailySnapshot(){
   // 앱이 KST 기준 날짜로 스냅샷을 기록하므로 동일하게 맞춘다
   const todayStr=Utilities.formatDate(new Date(),'Asia/Seoul','yyyy-MM-dd');
 
-  const snapshots=Array.isArray(state.snapshots)?state.snapshots:[];
   const snap={date:todayStr,totalKRW:Math.round(stockKRW+cashKRW),stockKRW:Math.round(stockKRW),
     cashKRW:Math.round(cashKRW),pnl:Math.round(pnl),pct:Number(pct.toFixed(2)),rate,byStock};
-  const idx=snapshots.findIndex(x=>x.date===todayStr);
-  if(idx>=0)snapshots[idx]=snap; else snapshots.push(snap);
-  snapshots.sort((a,b)=>a.date.localeCompare(b.date));
-  state.snapshots=snapshots;
-  state.updatedAt=new Date().toISOString();
-
-  adSheet.getRange('A1').setValue(JSON.stringify(state));
-  adSheet.getRange('B1').setValue(state.updatedAt);
+  const lock=LockService.getScriptLock();
+  lock.waitLock(5000);
+  try{
+    const latestRaw=readAppData_(adSheet);
+    if(!latestRaw)throw new Error('app_data_missing');
+    const latest=JSON.parse(latestRaw);
+    upsertDailySnapshot_(latest,snap,new Date().toISOString());
+    writeAppData_(adSheet,latest,latest.updatedAt);
+  }finally{
+    lock.releaseLock();
+  }
   Logger.log('일일 스냅샷 기록: '+todayStr+' 총자산 ₩'+snap.totalKRW);
 }
 
@@ -725,11 +848,16 @@ function handlePortfolioRequest_(mode, ss) {
   try {
     const adSheet = ss.getSheetByName('_appdata');
     if (adSheet) {
-      const v = adSheet.getRange('A1').getValue();
-      if (v) appData = JSON.parse(v);
-      savedAt = adSheet.getRange('B1').getValue();
+      const appdataRecord = readAppDataRecord_(adSheet);
+      if (appdataRecord.text) appData = JSON.parse(appdataRecord.text);
+      savedAt = appdataRecord.savedAt;
     }
-  } catch(err) {}
+  } catch(err) {
+    Logger.log('handlePortfolioRequest_: appData 읽기 실패');
+    return ContentService
+      .createTextOutput(JSON.stringify({ success: false, error: 'app_data_read_failed' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 
   return ContentService
     .createTextOutput(JSON.stringify({ rate, meritz, isa, appData, savedAt, sheetCash, yahooData }))
@@ -774,7 +902,7 @@ function doPost(e) {
       // 앱의 일반 저장/조회와는 별도 경로. src/vision.js와 별개로 서버 쪽에서
       // 계산까지 수행하므로 클라이언트는 거래 1건만 넘기면 된다.
       if (data._action === 'agent_apply') {
-        const rawState = sheet.getRange('A1').getValue();
+        const rawState = readAppData_(sheet);
         if (!rawState) {
           return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'app_data_missing' }))
             .setMimeType(ContentService.MimeType.JSON);
@@ -787,8 +915,7 @@ function doPost(e) {
             .setMimeType(ContentService.MimeType.JSON);
         }
         if (!outcome.duplicate) {
-          sheet.getRange('A1').setValue(JSON.stringify(outcome.state));
-          sheet.getRange('B1').setValue(outcome.state.updatedAt);
+          writeAppData_(sheet,outcome.state,outcome.state.updatedAt);
           updateVisibleSheets(ss, outcome.state);
         }
         return ContentService.createTextOutput(JSON.stringify({
@@ -798,26 +925,43 @@ function doPost(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
 
+      // 📓 에이전트가 명시적으로 요청받아 작성한 매매일지. 거래 반영과는
+      // 별도 액션이며, AGENT_IMPORT_TOKEN 인증과 sourceId 멱등성을 사용한다.
+      if (data._action === 'agent_add_journal') {
+        const rawState = readAppData_(sheet);
+        if (!rawState) {
+          return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'app_data_missing' }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+        const currentState = JSON.parse(rawState);
+        const expectedToken = PropertiesService.getScriptProperties().getProperty('AGENT_IMPORT_TOKEN');
+        const outcome = handleAgentJournal(currentState, data, expectedToken);
+        if (!outcome.success) {
+          return ContentService.createTextOutput(JSON.stringify({ success: false, error: outcome.error }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+        if (!outcome.duplicate) {
+          writeAppData_(sheet,outcome.state,outcome.state.updatedAt);
+        }
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true, duplicate: outcome.duplicate,
+          sourceId: data.journal && data.journal.sourceId,
+          savedAt: outcome.state.updatedAt
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+
       // 앱의 일반 저장 — 앱 상태에는 agentImports(에이전트 중복 방지 장부)가 없으므로,
       // 서버에 쌓인 기록을 저장분에 합쳐서 보존한다. 거부하면 no-cors인 앱이
       // 실패를 인지하지 못한 채 클라우드 저장이 영구히 끊기므로 병합이 안전하다.
-      const rawState = sheet.getRange('A1').getValue();
+      const rawState = readAppData_(sheet);
       if (rawState) {
         try {
           const serverState = JSON.parse(rawState);
-          if (Array.isArray(serverState.agentImports) && serverState.agentImports.length) {
-            const incoming = Array.isArray(data.agentImports) ? data.agentImports : [];
-            const seen = new Set(incoming.map(i => typeof i === 'string' ? i : i && i.sourceId).filter(Boolean));
-            data.agentImports = incoming.concat(serverState.agentImports.filter(i => {
-              const id = typeof i === 'string' ? i : i && i.sourceId;
-              return id && !seen.has(id);
-            })).slice(0, 1000);
-          }
+          mergeServerAgentTransactionHistory(data, serverState);
         } catch (mergeErr) {}
       }
 
-      sheet.getRange('A1').setValue(JSON.stringify(data));
-      sheet.getRange('B1').setValue(new Date().toISOString());
+      writeAppData_(sheet,data,new Date().toISOString());
 
       // 예전엔 "출력" 버튼을 눌러야만(_action:'export') 보이는 시트(메리츠증권/ISA)에
       // 반영됐는데, 그 버튼이 제거되면서 수동 종목추가/수정이 시트에 전혀 반영되지
@@ -836,6 +980,31 @@ function doPost(e) {
       .createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// 일반 앱 저장이 빈 로컬 거래·입출금·일지를 올리더라도, 서버에서
+// agent 경로로 기록한 원장을 sourceId 기준으로 보존한다.
+function mergeServerAgentTransactionHistory(incoming, serverState) {
+  const next = incoming || {};
+  const server = serverState || {};
+  ['txns', 'cashTxns', 'journal'].forEach(key => {
+    const localRows = Array.isArray(next[key]) ? next[key] : [];
+    const serverRows = Array.isArray(server[key]) ? server[key] : [];
+    const seen = new Set(localRows.map(row => row && row.sourceId).filter(Boolean));
+    next[key] = localRows.concat(serverRows.filter(row =>
+      row && row.source === 'agent' && row.sourceId && !seen.has(row.sourceId)
+    ));
+  });
+  ['agentImports', 'agentJournalImports'].forEach(key => {
+    const localRows = Array.isArray(next[key]) ? next[key] : [];
+    const serverRows = Array.isArray(server[key]) ? server[key] : [];
+    const seen = new Set(localRows.map(item => typeof item === 'string' ? item : item && item.sourceId).filter(Boolean));
+    next[key] = localRows.concat(serverRows.filter(item => {
+      const id = typeof item === 'string' ? item : item && item.sourceId;
+      return id && !seen.has(id);
+    })).slice(0, 1000);
+  });
+  return next;
 }
 
 function updateVisibleSheets(ss, data) {
@@ -1106,6 +1275,44 @@ function handleAgentApply(state, payload, expectedToken) {
   if (!expectedToken || !payload || payload.token !== expectedToken) return { success: false, error: 'unauthorized' };
   try {
     const result = applyAgentTransaction(state, payload.transaction);
+    return { success: true, duplicate: result.duplicate, state: result.state };
+  } catch (error) {
+    return { success: false, error: error.message || String(error) };
+  }
+}
+
+const AGENT_JOURNAL_CATEGORIES = ['buy_thesis', 'sell_thesis', 'news', 'thought', 'earnings', 'etc'];
+function validateAgentJournal(journal, state) {
+  if (!journal || typeof journal !== 'object') throw new Error('일지 데이터가 없습니다.');
+  const sourceId = agentSafeText(journal.sourceId, 'sourceId', 200, /^[A-Za-z0-9|:._+-]+$/);
+  const category = agentSafeText(journal.category, '일지 분류', 20, /^[a-z_]+$/);
+  if (!AGENT_JOURNAL_CATEGORIES.includes(category)) throw new Error('지원하지 않는 일지 분류입니다.');
+  const content = agentSafeText(journal.content, '일지 내용', 5000);
+  const createdAt = agentSafeText(journal.createdAt, '작성시각', 40, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/);
+  if (Number.isNaN(new Date(createdAt).getTime())) throw new Error('작성시각이 올바르지 않습니다.');
+  const ticker = journal.ticker === undefined || journal.ticker === null || journal.ticker === '' ? '' : agentSafeText(journal.ticker, 'ticker', 15, /^(?:[A-Z][A-Z0-9.-]{0,14}|\d{6})$/);
+  const stocks = Array.isArray(state && state.stocks) ? state.stocks : [];
+  const stock = ticker ? stocks.find(item => item && item.ticker === ticker) : null;
+  if (ticker && !stock) throw new Error('일지 대상 보유 종목을 찾을 수 없습니다.');
+  return { sourceId, category, content, createdAt, stock };
+}
+function applyAgentJournal(state, journal) {
+  const entry = validateAgentJournal(journal, state);
+  const next = JSON.parse(JSON.stringify(state || {}));
+  next.journal = Array.isArray(next.journal) ? next.journal : [];
+  next.agentJournalImports = Array.isArray(next.agentJournalImports) ? next.agentJournalImports : [];
+  if (next.agentJournalImports.some(item => (typeof item === 'string' ? item : item && item.sourceId) === entry.sourceId)) return { state: next, duplicate: true };
+  const stock = entry.stock;
+  next.journal.unshift({ id: Date.now(), stockId: stock ? stock.id : null, stockName: stock ? stock.name : '', category: entry.category, content: entry.content, date: entry.createdAt.slice(0, 10), time: entry.createdAt.slice(11, 19), source: 'agent', sourceId: entry.sourceId, createdAt: entry.createdAt });
+  next.agentJournalImports.unshift({ sourceId: entry.sourceId, processedAt: new Date().toISOString() });
+  next.agentJournalImports = next.agentJournalImports.slice(0, 1000);
+  next.updatedAt = new Date().toISOString();
+  return { state: next, duplicate: false };
+}
+function handleAgentJournal(state, payload, expectedToken) {
+  if (!expectedToken || !payload || payload.token !== expectedToken) return { success: false, error: 'unauthorized' };
+  try {
+    const result = applyAgentJournal(state, payload.journal);
     return { success: true, duplicate: result.duplicate, state: result.state };
   } catch (error) {
     return { success: false, error: error.message || String(error) };
