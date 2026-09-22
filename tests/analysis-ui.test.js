@@ -24,6 +24,7 @@ test('analysis view exposes TWR approximation, risk, thesis, and taxonomy sectio
 
 test('default taxonomy separates leverage, infrastructure, and defensive roles', () => {
   assert.match(constants, /AI·데이터센터/);
+  assert.match(constants, /소프트웨어/);
   assert.match(constants, /레버리지·개별주/);
   assert.match(constants, /초단기채·현금성/);
   assert.match(constants, /배당·방어/);
