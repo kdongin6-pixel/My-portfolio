@@ -40,6 +40,7 @@ export function mkTabs(){
     <div class="tab ${S.tab==='list'?'on':''}" data-tab="list">📋 종목</div>
     <div class="tab ${S.tab==='chart'?'on':''}" data-tab="chart">📊 비중</div>
     <div class="tab ${S.tab==='trend'?'on':''}" data-tab="trend">📈 추이</div>
+    <div class="tab ${S.tab==='analysis'?'on':''}" data-tab="analysis">🧭 분석</div>
     <div class="tab ${S.tab==='market'?'on':''}" data-tab="market">🌐 시장</div>
     <div class="tab ${S.tab==='journal'?'on':''}" data-tab="journal">📓 일지</div>
     <div class="tab ${S.tab==='txn'?'on':''}" data-tab="txn">📒 내역</div>
@@ -703,5 +704,38 @@ export function mkModal(){
     </div>`;
   }
 
+  return d;
+}
+
+// 새 기능 통합 분석 화면: 스냅샷·입출금·태그·일지를 읽기 전용으로 요약한다.
+export function mkAnalysis(){
+  const d=document.createElement('div');
+  const stocks=Array.isArray(S.stocks)?S.stocks:[];
+  const cash=S.cash||{};
+  const cashK=Object.values(cash).reduce((a,c)=>a+(Number(c?.KRW)||0)+(Number(c?.USD)||0)*S.rate,0);
+  const stockK=stocks.reduce((a,s)=>a+evK(s),0);
+  const total=stockK+cashK;
+  const ranked=stocks.map(s=>({s,v:evK(s)})).sort((a,b)=>b.v-a.v);
+  const top=ranked[0];
+  const topPct=total>0?(top?.v||0)/total*100:0;
+  const cashPct=total>0?cashK/total*100:0;
+  const snaps=[...(S.snapshots||[])].filter(x=>Number(x.totalKRW)>0).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const flows={};
+  (S.cashTxns||[]).forEach(t=>{const date=t.date||String(t.tradedAt||'').slice(0,10);if(!date)return;const amount=(Number(t.amount)||0)*(t.curr==='USD'?S.rate:1);flows[date]=(flows[date]||0)+(t.mode==='out'?-amount:amount);});
+  let chain=1;
+  for(let i=1;i<snaps.length;i++){const base=Number(snaps[i-1].totalKRW)||0,end=Number(snaps[i].totalKRW)||0;if(base>0)chain*=Math.max(0,(end-(flows[snaps[i].date]||0))/base);}
+  const twr=snaps.length>1?(chain-1)*100:null;
+  let peak=0,maxDd=0;snaps.forEach(x=>{const v=Number(x.totalKRW)||0;peak=Math.max(peak,v);if(peak>0)maxDd=Math.min(maxDd,(v/peak-1)*100);});
+  const tags={};ranked.forEach(({s,v})=>{const tag=s.tag||'태그 없음';tags[tag]=(tags[tag]||0)+v;});
+  const tagCards=Object.entries(tags).sort((a,b)=>b[1]-a[1]).map(([tag,v])=>{const pct=total>0?v/total*100:0,color=S.tagColors?.[tag]||'#94a3b8';return `<div class="analysis-mini-card"><div class="analysis-mini-top"><b style="color:${color}">● ${tag}</b><b>${pct.toFixed(1)}%</b></div><div class="analysis-bar"><i style="width:${Math.min(100,pct)}%;background:${color}"></i></div><small>₩${fK(v)}</small></div>`;}).join('')||'<div class="analysis-empty">태그가 붙은 종목이 없습니다.</div>';
+  const thesis=(S.journal||[]).filter(j=>j.category==='buy_thesis'||j.category==='sell_thesis'||j.category==='earnings').slice(0,5);
+  const thesisCards=thesis.map(j=>{const c=JOURNAL_CATEGORIES[j.category]||JOURNAL_CATEGORIES.etc;return `<article class="thesis-card" style="border-left-color:${c.color}"><div><b style="color:${c.color}">${c.label}</b><span>${j.stockName||'전체'} · ${j.date||''}</span></div><p>${j.content||''}</p></article>`;}).join('')||'<div class="analysis-empty">아직 투자논지가 없습니다. 일지에서 매수논리·매도논리를 기록해보세요.</div>';
+  const latest=snaps[snaps.length-1];
+  d.innerHTML=`<main class="analysis-wrap"><div class="analysis-hero"><div><span class="analysis-kicker">PORTFOLIO INTELLIGENCE</span><h2>🧭 한눈에 보는 분석</h2><p>실제 저장된 스냅샷·현금흐름·태그·일지만 사용합니다.</p></div><span class="analysis-fresh">${latest?`기준 ${latest.date}`:'스냅샷 없음'}</span></div>
+    <section class="analysis-section"><div class="analysis-section-title">📈 수익률</div><div class="analysis-grid three"><div class="analysis-metric"><small>시간가중수익률*</small><strong class="${(twr??0)>=0?'pos':'neg'}">${twr===null?'—':fP(twr)}</strong><span>${snaps.length}개 일별 스냅샷</span></div><div class="analysis-metric"><small>현재 총자산</small><strong>₩${fK(total)}</strong><span>주식 + 현금</span></div><div class="analysis-metric"><small>현금 비중</small><strong>${cashPct.toFixed(1)}%</strong><span>₩${fK(cashK)}</span></div></div><div class="analysis-note">* 입출금은 조정했으며, 일별 스냅샷·입출금이 장 마감 기준이라는 가정의 근사치입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">⚠️ 위험 신호</div><div class="analysis-grid three"><div class="analysis-metric"><small>최대낙폭</small><strong class="${maxDd<0?'neg':'pos'}">${snaps.length>1?maxDd.toFixed(1)+'%':'—'}</strong><span>스냅샷 고점 대비</span></div><div class="analysis-metric"><small>최대 보유 비중</small><strong>${topPct.toFixed(1)}%</strong><span>${top?.s.name||'—'}</span></div><div class="analysis-metric"><small>종목 수</small><strong>${stocks.length}</strong><span>현재 보유 기준</span></div></div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🏷️ 태그별 노출</div><div class="analysis-mini-grid">${tagCards}</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🧠 투자논지 <small>최근 기록</small></div><div class="thesis-list">${thesisCards}</div></section>
+    <section class="analysis-section analysis-disclaimer"><b>해석 주의</b><p>분석 수치는 기록된 데이터 범위 안에서만 계산됩니다. 태그는 사용자가 지정한 분류이며, 자동 ETF 룩스루나 투자 판단을 의미하지 않습니다.</p></section></main>`;
   return d;
 }

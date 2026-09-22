@@ -312,4 +312,44 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
   .gs-name,.gs-sub{white-space:normal;overflow-wrap:anywhere}
   .gs-more{min-width:36px;min-height:36px;padding:3px 6px}
   .today-strip{padding-left:10px;padding-right:10px}
+  .analysis-wrap{padding:10px 10px 16px}
+  .analysis-grid.three{grid-template-columns:1fr 1fr;gap:7px}
+  .analysis-grid.three .analysis-metric:first-child{grid-column:1 / -1}
+  .analysis-hero{padding:15px 13px;display:block}
+  .analysis-hero h2{font-size:1.18em;margin:5px 0}
+  .analysis-fresh{display:inline-block;margin-top:8px}
+  .analysis-section{padding:12px 10px;margin-bottom:9px}
+  .analysis-mini-grid{grid-template-columns:1fr;gap:7px}
+  .analysis-metric{min-height:82px;padding:10px}
+  .analysis-metric strong{font-size:1.15em}
+  .thesis-card p{font-size:.86em;line-height:1.5}
+}
+
+/* ── 분석 탭 ── */
+.analysis-wrap{padding:14px 12px 24px;max-width:900px;margin:0 auto}
+.analysis-hero{background:linear-gradient(135deg,#1e1b4b,#172554);border:1px solid rgba(129,140,248,.35);border-radius:18px;padding:19px;margin-bottom:12px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.analysis-kicker{font-size:.62em;letter-spacing:1.5px;color:#a5b4fc;font-weight:800}
+.analysis-hero h2{font-size:1.35em;margin:7px 0 4px;color:#f8fafc}
+.analysis-hero p{font-size:.8em;color:#cbd5e1;line-height:1.45}
+.analysis-fresh{font-size:.72em;color:#c4b5fd;white-space:nowrap}
+.analysis-section{background:#161b22;border:1px solid #30363d;border-radius:15px;padding:14px;margin-bottom:10px}
+.analysis-section-title{font-size:.9em;font-weight:800;color:#e2e8f0;margin-bottom:10px;display:flex;justify-content:space-between}.analysis-section-title small{font-size:.72em;color:#8b949e;font-weight:600}
+.analysis-grid{display:grid;gap:8px}.analysis-grid.three{grid-template-columns:repeat(3,1fr)}
+.analysis-metric{background:rgba(255,255,255,.045);border:1px solid rgba(148,163,184,.14);border-radius:11px;padding:11px;min-width:0}
+.analysis-metric small{display:block;color:#94a3b8;font-size:.72em;margin-bottom:7px}.analysis-metric strong{display:block;color:#f8fafc;font-size:1.18em;overflow-wrap:anywhere}.analysis-metric span{display:block;color:#64748b;font-size:.7em;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.analysis-note{font-size:.7em;color:#94a3b8;line-height:1.45;margin-top:9px}.analysis-mini-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.analysis-mini-card{background:rgba(255,255,255,.04);border:1px solid rgba(148,163,184,.14);border-radius:10px;padding:10px}.analysis-mini-top{display:flex;justify-content:space-between;font-size:.82em;margin-bottom:8px}.analysis-mini-card small{color:#94a3b8;font-size:.72em}.analysis-bar{height:5px;background:#30363d;border-radius:5px;overflow:hidden;margin-bottom:6px}.analysis-bar i{display:block;height:100%;border-radius:5px}
+.thesis-list{display:flex;flex-direction:column;gap:7px}.thesis-card{border-left:3px solid #6366f1;background:rgba(255,255,255,.04);border-radius:0 10px 10px 0;padding:10px 11px}.thesis-card>div{display:flex;justify-content:space-between;gap:8px;font-size:.75em}.thesis-card>div span{color:#94a3b8}.thesis-card p{margin-top:6px;color:#dbeafe;font-size:.82em;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}.analysis-empty{color:#94a3b8;font-size:.82em;line-height:1.5;padding:8px 2px}.analysis-disclaimer{background:rgba(245,158,11,.06);border-color:rgba(245,158,11,.25);color:#fbbf24;font-size:.76em}.analysis-disclaimer p{color:#cbd5e1;margin-top:5px;line-height:1.5}
+
+@media (max-width:480px){
+  .analysis-wrap{padding:10px 10px 16px}
+  .analysis-grid.three{grid-template-columns:1fr 1fr;gap:7px}
+  .analysis-grid.three .analysis-metric:first-child{grid-column:1 / -1}
+  .analysis-hero{padding:15px 13px;display:block}
+  .analysis-hero h2{font-size:1.18em;margin:5px 0}
+  .analysis-fresh{display:inline-block;margin-top:8px}
+  .analysis-section{padding:12px 10px;margin-bottom:9px}
+  .analysis-mini-grid{grid-template-columns:1fr;gap:7px}
+  .analysis-metric{min-height:82px;padding:10px}
+  .analysis-metric strong{font-size:1.15em}
+  .thesis-card p{font-size:.86em;line-height:1.5}
 }
