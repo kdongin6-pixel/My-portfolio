@@ -263,3 +263,53 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .today-strip-item{flex-shrink:0;display:flex;align-items:center;gap:6px;background:#161b22;border:1px solid #30363d;border-radius:20px;padding:6px 12px;white-space:nowrap}
 .today-strip-lbl{font-size:.72em;color:#8b949e;font-weight:700}
 .today-strip-val{font-size:.78em;color:#e6edf3;font-weight:800}
+
+/* ── 모바일 사용성 레이어: 360~480px ── */
+@media (max-width:480px){
+  body{font-size:16px;overflow-x:hidden;padding-bottom:env(safe-area-inset-bottom)}
+  .hdr{padding:12px 12px 14px;position:sticky;top:0;z-index:15;box-shadow:0 4px 18px rgba(0,0,0,.22)}
+  .hdr-row1{gap:6px;margin-bottom:10px}
+  .hdr-title{font-size:1em;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hdr-row1 .sync-btn{min-height:44px;padding:8px 10px;font-size:.76em}
+  .asset-cards{grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+  .asset-card:first-child{grid-column:1 / -1;padding:12px 14px}
+  .asset-card:first-child .ac-val{font-size:1.28em}
+  .asset-card{min-height:58px;padding:9px 10px}
+  .btn-row{gap:6px}
+  .hdr-btn{min-height:44px;min-width:0;padding:10px 4px;font-size:.78em}
+  .btn-row #btnSettings{min-width:44px;min-height:44px}
+  .tabs{min-height:60px;overflow-x:auto;justify-content:flex-start;padding-bottom:max(4px,env(safe-area-inset-bottom));scroll-snap-type:x proximity}
+  .tab{flex:0 0 16.666%;min-width:60px;min-height:56px;padding:10px 3px 8px;font-size:.72em;display:flex;align-items:center;justify-content:center;scroll-snap-align:start}
+  #app{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
+  .filters{position:sticky;top:116px;z-index:10;padding:8px 12px;gap:6px}
+  .flt,.sort-select,.sort-dir-btn,.view-tog{min-height:44px;padding-top:9px;padding-bottom:9px}
+  .flt{padding-left:13px;padding-right:13px}
+  .sort-select{font-size:.8em;max-width:112px}
+  .cards{padding:8px 10px}
+  .card{padding:13px 12px}
+  .card-grid{grid-template-columns:1fr 1fr;gap:6px}
+  .card-grid .cg-item:last-child{grid-column:1 / -1}
+  .cbtn{min-height:44px;padding:9px 12px}
+  .cur-inp{min-height:44px;font-size:16px;width:112px}
+  .sum-card{margin:0 8px 12px;padding:12px}
+  .cash-btn,.mbtn{min-height:44px}
+  .modal{padding:16px 14px calc(20px + env(safe-area-inset-bottom));max-height:92vh}
+  .field input,.field select,.field textarea{font-size:16px;min-height:44px}
+  .field textarea{min-height:120px}
+  .modal-close{min-width:44px;min-height:44px}
+  .trend-wrap,.chart-wrap,.mkt-wrap{padding:10px}
+  .trend-summary{gap:6px}
+  .ts-item{padding:9px 8px;min-width:0}
+  .ts-val{font-size:.86em}
+  .trend-chart-box{padding:10px;margin-bottom:8px}
+  .gs-wrap{overflow-x:hidden;padding:2px 8px 10px}
+  .gs-tbl{table-layout:fixed}
+  .gs-th:first-child,.gs-td:first-child{min-width:0;width:38%;max-width:none}
+  .gs-th:nth-child(2),.gs-td:nth-child(2){width:24%}
+  .gs-th:nth-child(3),.gs-td:nth-child(3){width:28%}
+  .gs-th:last-child,.gs-td:last-child{width:10%}
+  .gs-td{padding:5px 4px;font-size:.76em;overflow:hidden}
+  .gs-name,.gs-sub{white-space:normal;overflow-wrap:anywhere}
+  .gs-more{min-width:36px;min-height:36px;padding:3px 6px}
+  .today-strip{padding-left:10px;padding-right:10px}
+}
