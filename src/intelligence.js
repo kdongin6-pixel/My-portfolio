@@ -54,3 +54,67 @@ export function cycleCards(stocks,rate=1){
     {key:'market_activity',label:'금융시장 활동',value:counts.market_activity,phase:'거래량 의존',check:'거래량·수수료·청산 안정성'}
   ];
 }
+
+function positionValue(s,rate=1){return Number(s?.qty)>0?Number(s.qty)*Number(s.cur||0)*(s.curr==='USD'?rate:1):0;}
+function nativeToKrw(value,curr,rate=1){return Number(value||0)*(curr==='USD'?rate:1);}
+
+// 원장과 현재 평가액을 분리해 보여주는 읽기 전용 손익 기여도.
+export function calcPerformanceAttribution(stocks,txns=[],rate=1){
+  const byKey=new Map();
+  for(const s of stocks||[]){
+    const key=String(s.ticker||s.name||'');
+    if(!key)continue;
+    const value=positionValue(s,rate), cost=nativeToKrw(Number(s.qty||0)*Number(s.avg||0),s.curr,rate);
+    byKey.set(key,{ticker:s.ticker||'',name:s.name||key,value,cost,realized:0,day:0});
+  }
+  for(const t of txns||[]){
+    const key=String(t.ticker||'');
+    const row=byKey.get(key)||byKey.get(String(t.name||''));
+    if(!row)continue;
+    row.realized+=nativeToKrw(Number(t.pnl||0),t.curr,rate);
+  }
+  const rows=[...byKey.values()].map(r=>({...r,unrealized:r.value-r.cost,contribution:r.value-r.cost+r.realized}));
+  const totalContribution=rows.reduce((a,r)=>a+r.contribution,0);
+  return {rows:rows.sort((a,b)=>b.contribution-a.contribution),totalContribution,unrealized:rows.reduce((a,r)=>a+r.unrealized,0),realized:rows.reduce((a,r)=>a+r.realized,0)};
+}
+
+// 최근 두 일별 스냅샷에서 확인 가능한 가격·평가액 변화 기여도.
+export function calcDayAttribution(snapshots=[]){
+  const snaps=[...(snapshots||[])].filter(s=>s&&s.byStock).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  if(snaps.length<2)return {date:null,rows:[],totalChange:null};
+  const prev=snaps[snaps.length-2],last=snaps[snaps.length-1];
+  const names=new Set([...Object.keys(prev.byStock||{}),...Object.keys(last.byStock||{})]);
+  const rows=[...names].map(name=>({name,change:Number(last.byStock?.[name]||0)-Number(prev.byStock?.[name]||0)})).sort((a,b)=>b.change-a.change);
+  return {date:last.date,previousDate:prev.date,rows,totalChange:Number(last.totalKRW||0)-Number(prev.totalKRW||0)};
+}
+
+export const RISK_BUDGETS={single:25,leverage:10,highVol:20,cashFloor:5};
+export function calcRiskBudget(stocks,cash={},rate=1,total=0){
+  const rows=(stocks||[]).filter(s=>Number(s.qty)>0).map(s=>({ticker:s.ticker,name:s.name,tag:analysisTag(s),value:positionValue(s,rate)}));
+  const securities=rows.reduce((a,r)=>a+r.value,0);
+  const cashValue=Object.values(cash||{}).reduce((a,c)=>a+nativeToKrw(c?.KRW,'KRW',rate)+nativeToKrw(c?.USD,'USD',rate),0);
+  const nav=total||securities+cashValue;
+  const top=rows.slice().sort((a,b)=>b.value-a.value)[0]||null;
+  const leverageValue=rows.filter(r=>r.tag.startsWith('레버리지')).reduce((a,r)=>a+r.value,0);
+  const highVolValue=rows.filter(r=>['레버리지·지수','레버리지·개별주','양자컴퓨팅','디지털자산·고변동'].includes(r.tag)).reduce((a,r)=>a+r.value,0);
+  const pct=v=>nav>0?v/nav*100:0;
+  const checks=[
+    {key:'single',label:'단일 종목 집중',value:pct(top?.value||0),limit:RISK_BUDGETS.single,unit:'%',status:pct(top?.value||0)>RISK_BUDGETS.single?'주의':'정상',detail:top?.name||'—'},
+    {key:'leverage',label:'레버리지 노출',value:pct(leverageValue),limit:RISK_BUDGETS.leverage,unit:'%',status:pct(leverageValue)>RISK_BUDGETS.leverage?'주의':'정상',detail:'레버리지 ETF·개별주'},
+    {key:'highVol',label:'고변동 위성 노출',value:pct(highVolValue),limit:RISK_BUDGETS.highVol,unit:'%',status:pct(highVolValue)>RISK_BUDGETS.highVol?'주의':'정상',detail:'레버리지·양자·디지털자산'},
+    {key:'cash',label:'현금 완충',value:pct(cashValue),limit:RISK_BUDGETS.cashFloor,unit:'%',status:pct(cashValue)<RISK_BUDGETS.cashFloor?'주의':'정상',detail:'USD·KRW 현금 환산'}
+  ];
+  return {nav,securities,cashValue,cashPct:pct(cashValue),top,checks,leverageValue,highVolValue};
+}
+
+export const EVENT_CALENDAR=[
+  {id:'us-midterm-2026',date:'2026-11-03',title:'미국 중간선거',type:'정책·선거',impact:'높음',tags:['미국지수·코어','AI·빅테크','전력·원전'],note:'정책·금리·위험선호 변동성 점검'},
+  {id:'fomc-2026-10',date:'2026-10-28',title:'FOMC 금리결정',type:'금리',impact:'높음',tags:['미국지수·코어','소프트웨어','반도체'],note:'금리 경로와 성장주 밸류에이션 점검'},
+  {id:'cpi-2026-10',date:'2026-10-14',title:'미국 CPI',type:'물가',impact:'높음',tags:['미국지수·코어','레버리지·지수','배당·방어'],note:'실질금리·달러·레버리지 노출 점검'},
+  {id:'jobs-2026-10',date:'2026-10-02',title:'미국 고용보고서',type:'고용',impact:'중간',tags:['미국지수·코어','금융·시장인프라'],note:'경기 둔화와 인하 기대의 방향 확인'},
+  {id:'pce-2026-10',date:'2026-10-30',title:'미국 PCE 물가',type:'물가',impact:'높음',tags:['미국지수·코어','소프트웨어','반도체'],note:'연준 선호 물가와 금리 민감도 점검'}
+];
+export function eventCards(now=new Date(),events=EVENT_CALENDAR){
+  const today=new Date(now);today.setHours(0,0,0,0);
+  return (events||[]).map(e=>{const date=e.date?new Date(`${e.date}T00:00:00`):null;const days=date?Math.ceil((date-today)/86400000):null;return {...e,days,status:days===null?'일정 입력 필요':days<0?'지난 일정':days===0?'오늘':`D-${days}`};}).sort((a,b)=>(a.days??99999)-(b.days??99999));
+}

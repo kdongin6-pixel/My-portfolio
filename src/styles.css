@@ -352,4 +352,17 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
   .analysis-metric{min-height:82px;padding:10px}
   .analysis-metric strong{font-size:1.15em}
   .thesis-card p{font-size:.86em;line-height:1.5}
+  .risk-budget-row{gap:8px;padding:9px 8px}
+  .risk-budget-value{font-size:.78em}
+  .event-date{min-width:58px}
 }
+
+/* 1단계 분석 기능 */
+.analysis-subtitle{font-size:.74em;color:#a5b4fc;font-weight:800;margin:12px 0 7px}
+.risk-budget-list{display:flex;flex-direction:column;gap:6px}
+.risk-budget-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:rgba(255,255,255,.04);border:1px solid rgba(148,163,184,.14);border-radius:10px;padding:10px 11px}
+.risk-budget-row b{display:block;font-size:.8em}.risk-budget-row small{display:block;color:#94a3b8;font-size:.69em;margin-top:3px}
+.risk-budget-value{font-weight:800;font-size:.82em;text-align:right;white-space:nowrap}.risk-budget-value span{display:block;font-size:.72em;margin-top:3px;color:inherit}
+.event-list{display:flex;flex-direction:column;gap:7px}.event-card{display:flex;gap:10px;background:rgba(255,255,255,.04);border:1px solid rgba(148,163,184,.14);border-radius:10px;padding:10px}
+.event-date{min-width:70px;color:#a5b4fc;font-size:.78em;font-weight:800}.event-date small{display:block;color:#64748b;font-size:.75em;margin-top:4px;font-weight:600}
+.event-body{min-width:0;display:flex;flex-direction:column;gap:3px}.event-body b{font-size:.82em}.event-body span,.event-body small{color:#94a3b8;font-size:.7em;line-height:1.35}
