@@ -33,6 +33,15 @@ test('analysis view exposes all first-stage features',()=>{
   assert.match(views,/eventCards/);
 });
 
+test('event calendar renders a month grid with all scheduled events',()=>{
+  assert.match(views,/calendar-grid/);
+  assert.match(views,/calendar-day/);
+  assert.match(views,/eventsByDate/);
+  assert.match(styles,/event-calendar/);
+  assert.match(styles,/calendar-weekday/);
+  assert.match(styles,/calendar-event/);
+});
+
 test('mobile styles cover risk and event cards',()=>{
   assert.match(styles,/risk-budget-row/);
   assert.match(styles,/event-card/);

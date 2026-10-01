@@ -731,7 +731,7 @@ export function mkAnalysis(){
   const attribution=calcPerformanceAttribution(stocks,S.txns||[],S.rate);
   const dayAttr=calcDayAttribution(S.snapshots||[]);
   const risk=calcRiskBudget(stocks,cash,S.rate,total);
-  const events=eventCards(new Date()).filter(e=>e.days===null||e.days>=0).slice(0,5);
+  const events=eventCards(new Date()).filter(e=>e.days===null||e.days>=0);
   const thesisProfiles=stocks.filter(s=>s.qty>0).map(s=>({s,p:profileFor(s)})).filter(x=>x.p).sort((a,b)=>evK(b.s)-evK(a.s)).slice(0,6);
   const profileCards=thesisProfiles.map(({s,p})=>`<article class="thesis-card intel-thesis"><div><b>${s.ticker}</b><span>${p.role}</span></div><p>${p.thesis}</p><small><b>drivers:</b> ${p.drivers.join(' · ')}</small><small class="intel-falsifier"><b>반증:</b> ${p.falsifiers.join(' · ')}</small></article>`).join('')||'<div class="analysis-empty">등록된 투자논지 프로필이 없습니다.</div>';
   const stressTop=stress.rows.sort((a,b)=>a.loss-b.loss).slice(0,5).map(r=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${r.ticker}</b><b class="neg">${fP(r.shock*100)}</b></div><small>${r.tag} · 스트레스 손실 ₩${fK(Math.abs(r.loss))}</small></div>`).join('');
@@ -739,7 +739,24 @@ export function mkAnalysis(){
   const attributionHtml=attribution.rows.slice(0,6).map(r=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${r.ticker||r.name}</b><b class="${r.contribution>=0?'pos':'neg'}">${r.contribution>=0?'+':''}₩${fK(r.contribution)}</b></div><small>미실현 ${r.unrealized>=0?'+':''}₩${fK(r.unrealized)} · 실현 ${r.realized>=0?'+':''}₩${fK(r.realized)}</small></div>`).join('')||'<div class="analysis-empty">보유종목 데이터가 없습니다.</div>';
   const dayAttrHtml=dayAttr.rows.slice(0,5).map(r=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${r.name}</b><b class="${r.change>=0?'pos':'neg'}">${r.change>=0?'+':''}₩${fK(r.change)}</b></div></div>`).join('')||'<div class="analysis-empty">비교 가능한 일별 스냅샷이 부족합니다.</div>';
   const riskHtml=risk.checks.map(r=>`<div class="risk-budget-row"><div><b>${r.label}</b><small>${r.detail} · 기준 ${r.limit}%</small></div><div class="risk-budget-value ${r.status==='주의'?'neg':'pos'}">${r.value.toFixed(1)}%<span>${r.status}</span></div></div>`).join('');
-  const eventHtml=events.map(e=>`<article class="event-card"><div class="event-date">${e.status}<small>${e.date}</small></div><div class="event-body"><b>${e.title}</b><span>${e.type} · 영향도 ${e.impact}</span><small>${e.note}</small></div></article>`).join('')||'<div class="analysis-empty">등록된 예정 이벤트가 없습니다.</div>';
+  const calendarMonth=events.find(e=>e.date)?.date?.slice(0,7)||new Date().toISOString().slice(0,7);
+  const [calendarYear,calendarMonthNum]=calendarMonth.split('-').map(Number);
+  const firstWeekday=new Date(Date.UTC(calendarYear,calendarMonthNum-1,1)).getUTCDay();
+  const daysInMonth=new Date(Date.UTC(calendarYear,calendarMonthNum,0)).getUTCDate();
+  const eventsByDate=events.reduce((map,e)=>{(map[e.date]||(map[e.date]=[])).push(e);return map;},{});
+  const weekdayHtml=['일','월','화','수','목','금','토'].map((day,i)=>`<div class="calendar-weekday ${i===0?'sun':''} ${i===6?'sat':''}">${day}</div>`).join('');
+  const calendarCells=[];
+  for(let i=0;i<firstWeekday;i++)calendarCells.push('<div class="calendar-day is-empty"></div>');
+  for(let day=1;day<=daysInMonth;day++){
+    const key=`${calendarYear}-${String(calendarMonthNum).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayEvents=eventsByDate[key]||[];
+    const dayHtml=dayEvents.map(e=>`<div class="calendar-event impact-${e.impact==='높음'?'high':'medium'}" title="${e.title} · ${e.note}"><b>${e.title}</b><small>${e.status}</small></div>`).join('');
+    calendarCells.push(`<div class="calendar-day ${dayEvents.length?'has-event':''}"><span class="calendar-number">${day}</span>${dayHtml}</div>`);
+  }
+  while(calendarCells.length%7)calendarCells.push('<div class="calendar-day is-empty"></div>');
+  const calendarTitle=`${calendarYear}년 ${calendarMonthNum}월`;
+  const calendarHtml=`<div class="event-calendar"><div class="calendar-toolbar"><b>${calendarTitle}</b><span>예정 ${events.length}건</span></div><div class="calendar-grid calendar-head">${weekdayHtml}</div><div class="calendar-grid calendar-body">${calendarCells.join('')}</div><div class="calendar-legend"><span><i class="legend-dot high"></i>영향도 높음</span><span><i class="legend-dot medium"></i>영향도 중간</span></div></div>`;
+  const eventHtml=events.length?calendarHtml:'<div class="analysis-empty">등록된 예정 이벤트가 없습니다.</div>';
   d.innerHTML=`<main class="analysis-wrap"><div class="analysis-hero"><div><span class="analysis-kicker">PORTFOLIO INTELLIGENCE</span><h2>🧭 한눈에 보는 분석</h2><p>실제 저장된 스냅샷·현금흐름·태그·일지만 사용합니다.</p></div><span class="analysis-fresh">${latest?`기준 ${latest.date}`:'스냅샷 없음'}</span></div>
     <section class="analysis-section"><div class="analysis-section-title">📈 수익률</div><div class="analysis-grid three"><div class="analysis-metric"><small>시간가중수익률*</small><strong class="${(twr??0)>=0?'pos':'neg'}">${twr===null?'—':fP(twr)}</strong><span>${snaps.length}개 일별 스냅샷</span></div><div class="analysis-metric"><small>현재 총자산</small><strong>₩${fK(total)}</strong><span>주식 + 현금</span></div><div class="analysis-metric"><small>현금 비중</small><strong>${cashPct.toFixed(1)}%</strong><span>₩${fK(cashK)}</span></div></div><div class="analysis-note">* 입출금은 조정했으며, 일별 스냅샷·입출금이 장 마감 기준이라는 가정의 근사치입니다.</div></section>
     <section class="analysis-section"><div class="analysis-section-title">💹 손익 기여도</div><div class="analysis-grid three"><div class="analysis-metric"><small>총 기여손익</small><strong class="${attribution.totalContribution>=0?'pos':'neg'}">${attribution.totalContribution>=0?'+':''}₩${fK(attribution.totalContribution)}</strong><span>현재 평가 + 실현손익</span></div><div class="analysis-metric"><small>최근 일간 변화</small><strong class="${(dayAttr.totalChange??0)>=0?'pos':'neg'}">${dayAttr.totalChange===null?'—':(dayAttr.totalChange>=0?'+':'')+'₩'+fK(dayAttr.totalChange)}</strong><span>${dayAttr.date||'스냅샷 부족'}</span></div><div class="analysis-metric"><small>실현손익</small><strong class="${attribution.realized>=0?'pos':'neg'}">${attribution.realized>=0?'+':''}₩${fK(attribution.realized)}</strong><span>거래 원장 기준</span></div></div><div class="analysis-mini-grid">${attributionHtml}</div><div class="analysis-note">원가·현재 평가액·거래 원장의 실현손익을 합산한 참고값입니다. 입출금과 평가시점 차이로 전체 자산 변화와 일치하지 않을 수 있습니다.</div><div class="analysis-subtitle">최근 일간 기여</div><div class="analysis-mini-grid">${dayAttrHtml}</div></section>
