@@ -2,10 +2,12 @@
 // 화면 조립 (헤더 / 탭 / 목록 / 차트 / 추이 / 일지 / 내역 / 모달)
 // ═══════════════════════════════════════════
 import {S,getApiUrl} from './state.js';
-import {APP_VERSION,JOURNAL_CATEGORIES,RISK_EVENT_TYPES} from './constants.js';
+import {APP_VERSION,JOURNAL_CATEGORIES} from './constants.js';
 import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
 import {getMarketPhase} from './cloud.js';
-import {buildAISummary} from './ai.js';
+import {getAnthropicKey,getShotFiles} from './vision.js';
+import {mkTodayStrip} from './market-ui.js';
+import {profileFor,analysisTag,calcStress,cycleCards,calcPerformanceAttribution,calcDayAttribution,calcRiskBudget,eventCards,RISK_BUDGETS} from './intelligence.js';
 
 export function mkHdr(){
   const fl=filt(),tot=totK(fl)+filtCashKRW();
@@ -26,10 +28,8 @@ export function mkHdr(){
       <div class="asset-card"><div class="ac-lbl">수익률</div><div class="ac-val ${pct>=0?'pos':'neg'}">${fP(pct)}</div></div>
     </div>
     <div class="btn-row">
-      <button class="hdr-btn btn-bulk" id="btnBulk">📝 일괄</button>
       <button class="hdr-btn btn-add" id="btnAdd">+ 종목</button>
-      <button class="hdr-btn btn-export" id="btnExport">📤 출력</button>
-      <button class="hdr-btn btn-ai" id="btnAI">🤖 AI분석</button>
+      <button class="hdr-btn btn-shot" id="btnShot">📷 매매인식</button>
       <button class="hdr-btn" id="btnSettings" style="background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.25);color:#94a3b8;min-width:40px;flex:0">⚙️</button>
     </div>`;
   return d;
@@ -41,9 +41,9 @@ export function mkTabs(){
     <div class="tab ${S.tab==='list'?'on':''}" data-tab="list">📋 종목</div>
     <div class="tab ${S.tab==='chart'?'on':''}" data-tab="chart">📊 비중</div>
     <div class="tab ${S.tab==='trend'?'on':''}" data-tab="trend">📈 추이</div>
+    <div class="tab ${S.tab==='analysis'?'on':''}" data-tab="analysis">🧭 분석</div>
     <div class="tab ${S.tab==='market'?'on':''}" data-tab="market">🌐 시장</div>
     <div class="tab ${S.tab==='journal'?'on':''}" data-tab="journal">📓 일지</div>
-    <div class="tab ${S.tab==='risk'?'on':''}" data-tab="risk">⚠️ 리스크</div>
     <div class="tab ${S.tab==='txn'?'on':''}" data-tab="txn">📒 내역</div>
   </div>`;
   return d;
@@ -51,9 +51,6 @@ export function mkTabs(){
 
 export function mkList(){
   const fl=filt(),stockTot=totK(fl);
-  const inv=fl.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
-  const pnl=stockTot-inv;
-  const pct=inv>0?pnl/inv*100:0;
   const d=document.createElement("div");
 
   // 정렬
@@ -69,8 +66,9 @@ export function mkList(){
     return S.sortDir==="desc"?bv-av:av-bv;
   });
 
-  const sortBtns=[["eval","평가금액"],["pct","수익률"],["pnl","손익"],["wt","비중"]]
-    .map(([k,l])=>`<button class="flt ${S.sortBy===k?'on':''}" data-sort="${k}">${l}${S.sortBy===k?(S.sortDir==="desc"?"↓":"↑"):""}</button>`)
+  const SORT_LABELS={eval:"평가금액",pct:"수익률",pnl:"손익",wt:"비중"};
+  const sortOptions=Object.entries(SORT_LABELS)
+    .map(([k,l])=>`<option value="${k}" ${S.sortBy===k?'selected':''}>${l}</option>`)
     .join('');
 
   // ── 현금 인라인 섹션 ──────────────────────────────
@@ -170,25 +168,22 @@ export function mkList(){
     `:''}
   </div>`;
 
+  const todayStripHtml=mkTodayStrip();
+
   const filtersHtml=`
     <div class="filters">
       <button class="flt ${S.acct==='전체'?'on':''}" data-acct="전체">전체</button>
       <button class="flt ${S.acct==='메리츠증권'?'on':''}" data-acct="메리츠증권">메리츠</button>
       <button class="flt ${S.acct==='ISA'?'on':''}" data-acct="ISA">ISA</button>
-      <input class="rate-inp" type="number" id="rateInp" value="${S.rate}" placeholder="환율">
-    </div>
-    <div class="filters">
-      <span style="font-size:.72em;color:#8b949e;white-space:nowrap;align-self:center">정렬</span>
-      ${sortBtns}
-      <button class="view-tog" id="btnView">${S.viewMode==="table"?"📋 카드뷰":"📊 테이블뷰"}</button>
+      <select class="sort-select" id="sortSelect">${sortOptions}</select>
+      <button class="sort-dir-btn" id="sortDirBtn" title="정렬 방향">${S.sortDir==="desc"?"↓":"↑"}</button>
+      <button class="view-tog" id="btnView">${S.viewMode==="table"?"📋":"📊"}</button>
     </div>
     <div style="padding:6px 12px 0">
       <div class="sum-card">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
           <div class="cg-item"><div class="cg-lbl">종목 평가</div><div class="cg-val">₩${fK(stockTot)}</div></div>
           <div class="cg-item"><div class="cg-lbl">현금</div><div class="cg-val">₩${fK(filtCashKRW())}</div></div>
-          <div class="cg-item"><div class="cg-lbl">손익</div><div class="cg-val ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}₩${fK(pnl)}</div></div>
-          <div class="cg-item"><div class="cg-lbl">수익률</div><div class="cg-val ${pct>=0?'pos':'neg'}">${fP(pct)}</div></div>
         </div>
         ${cashSection}
       </div>
@@ -238,7 +233,7 @@ export function mkList(){
       <td class="gs-td"></td>
     </tr>`;
 
-    d.innerHTML=`${filtersHtml}<div class="gs-wrap"><table class="gs-tbl">
+    d.innerHTML=`${todayStripHtml}${filtersHtml}<div class="gs-wrap"><table class="gs-tbl">
       <thead><tr>
         <th class="gs-th">종목명 / 태그</th>
         <th class="gs-th">현재가</th>
@@ -291,7 +286,7 @@ export function mkList(){
     </div>`;
   }).join('');
 
-  d.innerHTML=`${filtersHtml}<div class="cards">${cards||'<div class="empty">종목이 없어요</div>'}</div>${trendSection}`;
+  d.innerHTML=`${todayStripHtml}${filtersHtml}<div class="cards">${cards||'<div class="empty">종목이 없어요</div>'}</div>${trendSection}`;
   return d;
 }
 
@@ -441,36 +436,8 @@ export function mkTrend(){
   return d;
 }
 
-export function mkRiskCalendar(){
-  const d=document.createElement("div");
-  const now=new Date();
-  if(!S.riskMonth)S.riskMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const [year,month]=S.riskMonth.split('-').map(Number);
-  const first=new Date(year,month-1,1),last=new Date(year,month,0);
-  const start=first.getDay(),days=last.getDate();
-  const monthLabel=`${year}년 ${month}월`;
-  const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  const byDate={};
-  (S.riskEvents||[]).forEach(e=>{if(e&&e.date)(byDate[e.date]||(byDate[e.date]=[])).push(e);});
-  const cells=[];
-  for(let i=0;i<start;i++)cells.push('<div class="risk-day risk-day-empty"></div>');
-  for(let day=1;day<=days;day++){
-    const key=`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-    const events=byDate[key]||[];
-    const dots=events.slice(0,3).map(e=>{const c=RISK_EVENT_TYPES[e.type]?.color||'#94a3b8';return `<span class="risk-dot" style="background:${c}" title="${e.title||''}"></span>`;}).join('');
-    cells.push(`<button class="risk-day ${key===today?'is-today':''} ${key===S.riskSelectedDate?'is-selected':''}" data-risk-date="${key}"><span class="risk-day-num">${day}</span><span class="risk-dots">${dots}</span>${events.length>3?`<span class="risk-more">+${events.length-3}</span>`:''}</button>`);
-  }
-  const selected=S.riskSelectedDate||today;
-  const selectedEvents=byDate[selected]||[];
-  const upcoming=(S.riskEvents||[]).filter(e=>e&&e.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,5);
-  const eventHtml=selectedEvents.length?selectedEvents.map(e=>{const meta=RISK_EVENT_TYPES[e.type]||{label:'기타',color:'#94a3b8'};return `<div class="risk-event" style="border-left-color:${meta.color}"><div class="risk-event-top"><strong>${e.title||'미정 이벤트'}</strong><span class="risk-level risk-${e.risk||'medium'}">${e.risk==='high'?'높음':e.risk==='low'?'낮음':'중간'}</span></div><div class="risk-event-meta">${meta.label}${e.time?` · ${e.time}`:''}${e.related?` · ${e.related}`:''}</div>${e.source?`<a class="risk-source" href="${e.source}" target="_blank" rel="noopener">출처 보기 ↗</a>`:''}</div>`;}).join(''):'<div class="risk-empty">선택한 날짜에 등록된 이벤트가 없습니다.</div>';
-  const upcomingHtml=upcoming.length?upcoming.map(e=>`<div class="risk-upcoming"><span class="risk-upcoming-date">${e.date.slice(5).replace('-','/')}</span><span>${e.title||'미정 이벤트'}</span><span class="risk-level risk-${e.risk||'medium'}">${e.risk==='high'?'높음':e.risk==='low'?'낮음':'중간'}</span></div>`).join(''):'<div class="risk-empty">공식 일정이 동기화되면 여기에 표시됩니다.</div>';
-  d.innerHTML=`<div class="risk-wrap"><div class="risk-head"><div><div class="risk-title">⚠️ 이벤트 리스크 캘린더</div><div class="risk-sub">날짜를 누르면 해당일의 시장 변동 요인을 확인합니다.</div></div><button class="risk-sync" id="btnRiskSync">↻ 갱신</button></div><div class="risk-calendar-card"><div class="risk-month-head"><button class="risk-nav" id="riskPrev">‹</button><strong>${monthLabel}</strong><button class="risk-nav" id="riskNext">›</button></div><div class="risk-week"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div class="risk-grid">${cells.join('')}</div><div class="risk-legend"><span><i style="background:#f43f5e"></i>높음</span><span><i style="background:#f59e0b"></i>중간</span><span><i style="background:#38bdf8"></i>낮음</span></div></div><div class="risk-detail"><div class="risk-detail-title">${selected.replaceAll('-','.') } 일정</div>${eventHtml}</div><div class="risk-upcoming-box"><div class="risk-detail-title">다가오는 주요 일정</div>${upcomingHtml}</div></div>`;
-  return d;
-}
-
 // ═══════════════════════════════════════════
-// 일지
+// 📓 매매일지 탭
 // ═══════════════════════════════════════════
 export function mkJournal(){
   const d=document.createElement("div");
@@ -514,6 +481,7 @@ export function mkTxn(){
   S.txns.forEach(t=>{
     const el=document.createElement("div");el.className="txn";
     let detail=`${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}`;
+    if(t.fee>0)detail+=` · 수수료 ${t.fee}`;
     if(t.mode==='sell'){
       const inv=t.prevAvg*t.qty;
       const pct=inv>0?t.pnl/inv*100:0;
@@ -544,6 +512,7 @@ export function mkModal(){
       <div style="font-size:.82em;color:#8b949e;margin-bottom:10px">💰 보유 현금: ${fM(c,s?.curr)}</div>
       <div class="field"><label>수량</label><input type="number" id="tq" placeholder="0" min="0"></div>
       <div class="field"><label>가격 (${s?.curr})</label><input type="number" id="tp" value="${s?.cur}" step="0.01"></div>
+      <div class="field"><label>수수료 (${s?.curr}, 선택)</label><input type="number" id="tf" placeholder="0" min="0" step="0.01"></div>
       <div class="preview" id="tprev"></div>
       <button class="mbtn mbtn-pri" id="exec">${S.modal.mode==='buy'?'매수 확인':'매도 확인'}</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
@@ -568,19 +537,6 @@ export function mkModal(){
       <div class="field"><label>태그</label><select id="at">${tagOpts}</select></div>
       <button class="mbtn mbtn-pri" id="exec">${isEdit?'저장':'추가'}</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
-  }
-
-  if(S.modal.type==="bulk"){
-    const rows=S.stocks.map(s=>`<div class="bulk-row">
-      <div class="bulk-name">${s.name}<br><span class="bulk-sub">${s.curr} · ${s.acct}</span></div>
-      <input class="bulk-inp" data-id="${s.id}" type="number" value="${s.cur}" step="0.01">
-    </div>`).join('');
-    d.innerHTML=`<div class="modal">
-      <div class="modal-title">📝 일괄 가격 입력<button class="modal-close" id="mc">×</button></div>
-      <div class="field"><label>환율 (USD/KRW)</label><input type="number" id="br" value="${S.rate}"></div>
-      <div style="max-height:52vh;overflow-y:auto;margin:8px 0">${rows}</div>
-      <button class="mbtn mbtn-pri" id="exec">적용</button>
-      <button class="mbtn mbtn-sec" id="mc2">닫기</button></div>`;
   }
 
   if(S.modal.type==="cashIn"||S.modal.type==="cashOut"){
@@ -666,6 +622,7 @@ export function mkModal(){
 
   if(S.modal.type==="settings"){
     const cur=getApiUrl();
+    const akey=getAnthropicKey();
     d.innerHTML=`<div class="modal">
       <div class="modal-title">⚙️ 설정<button class="modal-close" id="mc">×</button></div>
       <div class="field">
@@ -673,38 +630,144 @@ export function mkModal(){
         <input type="text" id="apiUrlInp" value="${cur}" placeholder="https://script.google.com/macros/s/...">
         <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
       </div>
+      <div class="field">
+        <label>Anthropic API 키 (📷 매매인식용, 선택)</label>
+        <input type="password" id="anthropicKeyInp" value="${akey}" placeholder="sk-ant-...">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">console.anthropic.com에서 발급. 스크린샷 매매인식에 사용됩니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
+      </div>
       <button class="mbtn mbtn-pri" id="saveApiUrl">저장</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button>
     </div>`;
   }
 
-  if(S.modal.type==="export"){
+  if(S.modal.type==="screenshot"){
+    const hasKey=!!getAnthropicKey();
+    const n=getShotFiles().length;
     d.innerHTML=`<div class="modal">
-      <div class="modal-title">📤 시트에 반영<button class="modal-close" id="mc">×</button></div>
-      <div style="background:rgba(99,102,241,.1);border:1px solid rgba(99,102,241,.35);border-radius:12px;padding:14px;margin-bottom:12px">
-        <div style="font-size:.95em;font-weight:800;color:#a5b4fc;margin-bottom:6px">☁️ 시트에 잔고 반영</div>
-        <div style="font-size:.78em;color:#8b949e;margin-bottom:12px;line-height:1.5">
-          매수/매도/입출금한 결과를 <b style="color:#a5b4fc">메리츠증권 · ISA 시트</b>에 반영해요.<br>
-          ✅ 종목별 <b>수량 · 평단가</b> 업데이트<br>
-          ✅ 현금 잔고 업데이트<br>
-          ✅ 시트 구조 · 수식 · 현재가(GOOGLEFINANCE) 그대로 유지
-        </div>
-        <button class="mbtn mbtn-pri" id="execSheetUpload">☁️ 시트에 반영하기</button>
+      <div class="modal-title">📷 매매 스크린샷 인식<button class="modal-close" id="mc">×</button></div>
+      <div style="font-size:.78em;color:#8b949e;margin-bottom:12px;line-height:1.6">
+        증권사 앱의 <b style="color:#f472b6">체결내역 / 거래내역 / 입출금</b> 화면 스크린샷을 올리면<br>
+        Claude가 자동으로 읽어서 잔고에 반영합니다 (수수료·세금 포함).
       </div>
+      ${hasKey?'':`<div class="field">
+        <label>Anthropic API 키 (최초 1회 입력)</label>
+        <input type="password" id="shotKeyInp" placeholder="sk-ant-...">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px">console.anthropic.com에서 발급 · 이 기기에만 저장</div>
+      </div>`}
+      <div class="field">
+        <label>스크린샷 선택 (여러 장 가능)</label>
+        <input type="file" id="shotFiles" accept="image/*" multiple>
+        <div style="font-size:.75em;color:#a5b4fc;margin-top:6px" id="shotCount">${n?`✅ ${n}장 선택됨`:''}</div>
+      </div>
+      <div id="shotStatus" style="font-size:.8em;color:#fbbf24;min-height:1.2em;margin-bottom:6px"></div>
+      <button class="mbtn mbtn-pri" id="execShotAnalyze">🔍 분석하기</button>
       <button class="mbtn mbtn-sec" id="mc2">닫기</button>
     </div>`;
   }
 
-  if(S.modal.type==="aiExport"){
-    const txt=buildAISummary();
+  if(S.modal.type==="screenshotConfirm"){
+    const items=S.modal.parsed||[];
+    const typeInfo={buy:['📈 매수','#10b981'],sell:['📉 매도','#f43f5e'],deposit:['⬆️ 입금','#60a5fa'],withdraw:['⬇️ 출금','#f97316'],dividend:['💵 배당','#a78bfa']};
+    const rows=items.map((t,i)=>{
+      const [lbl,col]=typeInfo[t.type]||['❓ '+t.type,'#94a3b8'];
+      const isTrade=t.type==='buy'||t.type==='sell';
+      const desc=isTrade
+        ?`${t.qty}주 × ${fM(t.price,t.curr)}${t.fee?` · 수수료 ${fM(t.fee,t.curr)}`:''}`
+        :`${fM(t.amount,t.curr)}`;
+      let warn='';
+      if(t.invalid)warn='<span style="color:#f43f5e">⚠️ 값 인식 불가</span>';
+      else if(t.insufficient)warn='<span style="color:#f43f5e">⚠️ 보유수량 부족</span>';
+      else if(t.type==='sell'&&!t.matchedId)warn='<span style="color:#f43f5e">⚠️ 종목 미매칭</span>';
+      else if(t.isNew)warn='<span style="color:#fbbf24">🆕 신규 종목으로 추가</span>';
+      else if(t.matchedName)warn=`<span style="color:#8b949e">→ ${t.matchedName}</span>`;
+      return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid rgba(48,54,61,.6)">
+        <input type="checkbox" data-shot-idx="${i}" ${t.checked?'checked':''} ${t.invalid?'disabled':''} style="margin-top:3px;width:17px;height:17px;accent-color:#6366f1">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.88em;font-weight:700"><span style="color:${col}">${lbl}</span> ${t.name||t.acct}</div>
+          <div style="font-size:.8em;color:#e6edf3;margin-top:2px">${desc}</div>
+          <div style="font-size:.72em;margin-top:2px">${t.acct} · ${t.curr}${t.date?` · ${t.date}`:''} ${warn}</div>
+        </div>
+      </div>`;
+    }).join('');
     d.innerHTML=`<div class="modal">
-      <div class="modal-title">🤖 AI 분석용 텍스트<button class="modal-close" id="mc">×</button></div>
-      <div style="font-size:.78em;color:#8b949e;margin-bottom:8px;line-height:1.5">아래 텍스트를 복사해서 Claude.ai 또는 ChatGPT에 붙여넣으세요.</div>
-      <div class="ai-summary-box" id="aiSummaryBox">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-      <button class="ai-copy-btn" id="btnAICopy">📋 클립보드 복사</button>
-      <button class="mbtn mbtn-sec" id="mc2" style="margin-top:8px">닫기</button>
+      <div class="modal-title">📋 인식 결과 확인<button class="modal-close" id="mc">×</button></div>
+      <div style="font-size:.78em;color:#8b949e;margin-bottom:6px">반영할 거래를 확인하고 체크하세요. 숫자가 틀렸으면 체크 해제 후 수동 입력해주세요.</div>
+      <div style="max-height:48vh;overflow-y:auto;margin-bottom:8px">${rows}</div>
+      <button class="mbtn mbtn-pri" id="execShotApply">✅ 선택한 거래 반영</button>
+      <button class="mbtn mbtn-sec" id="shotBack">← 다시 선택</button>
+      <button class="mbtn mbtn-sec" id="mc2">닫기</button>
     </div>`;
   }
 
+  return d;
+}
+
+// 새 기능 통합 분석 화면: 스냅샷·입출금·태그·일지를 읽기 전용으로 요약한다.
+export function mkAnalysis(){
+  const d=document.createElement('div');
+  const stocks=Array.isArray(S.stocks)?S.stocks:[];
+  const cash=S.cash||{};
+  const cashK=Object.values(cash).reduce((a,c)=>a+(Number(c?.KRW)||0)+(Number(c?.USD)||0)*S.rate,0);
+  const stockK=stocks.reduce((a,s)=>a+evK(s),0);
+  const total=stockK+cashK;
+  const ranked=stocks.map(s=>({s,v:evK(s)})).sort((a,b)=>b.v-a.v);
+  const top=ranked[0];
+  const topPct=total>0?(top?.v||0)/total*100:0;
+  const cashPct=total>0?cashK/total*100:0;
+  const snaps=[...(S.snapshots||[])].filter(x=>Number(x.totalKRW)>0).sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  const flows={};
+  (S.cashTxns||[]).forEach(t=>{const date=t.date||String(t.tradedAt||'').slice(0,10);if(!date)return;const amount=(Number(t.amount)||0)*(t.curr==='USD'?S.rate:1);flows[date]=(flows[date]||0)+(t.mode==='out'?-amount:amount);});
+  let chain=1;
+  for(let i=1;i<snaps.length;i++){const base=Number(snaps[i-1].totalKRW)||0,end=Number(snaps[i].totalKRW)||0;if(base>0)chain*=Math.max(0,(end-(flows[snaps[i].date]||0))/base);}
+  const twr=snaps.length>1?(chain-1)*100:null;
+  let peak=0,maxDd=0;snaps.forEach(x=>{const v=Number(x.totalKRW)||0;peak=Math.max(peak,v);if(peak>0)maxDd=Math.min(maxDd,(v/peak-1)*100);});
+  const tags={};ranked.forEach(({s,v})=>{const tag=s.tag||'태그 없음';tags[tag]=(tags[tag]||0)+v;});
+  const tagCards=Object.entries(tags).sort((a,b)=>b[1]-a[1]).map(([tag,v])=>{const pct=total>0?v/total*100:0,color=S.tagColors?.[tag]||'#94a3b8';return `<div class="analysis-mini-card"><div class="analysis-mini-top"><b style="color:${color}">● ${tag}</b><b>${pct.toFixed(1)}%</b></div><div class="analysis-bar"><i style="width:${Math.min(100,pct)}%;background:${color}"></i></div><small>₩${fK(v)}</small></div>`;}).join('')||'<div class="analysis-empty">태그가 붙은 종목이 없습니다.</div>';
+  const thesis=(S.journal||[]).filter(j=>j.category==='buy_thesis'||j.category==='sell_thesis'||j.category==='earnings').slice(0,5);
+  const thesisCards=thesis.map(j=>{const c=JOURNAL_CATEGORIES[j.category]||JOURNAL_CATEGORIES.etc;return `<article class="thesis-card" style="border-left-color:${c.color}"><div><b style="color:${c.color}">${c.label}</b><span>${j.stockName||'전체'} · ${j.date||''}</span></div><p>${j.content||''}</p></article>`;}).join('')||'<div class="analysis-empty">아직 투자논지가 없습니다. 일지에서 매수논리·매도논리를 기록해보세요.</div>';
+  const latest=snaps[snaps.length-1];
+  const stress=calcStress(stocks,S.rate,total);
+  const cycle=cycleCards(stocks,S.rate).filter(x=>x.value>0);
+  const attribution=calcPerformanceAttribution(stocks,S.txns||[],S.rate);
+  const dayAttr=calcDayAttribution(S.snapshots||[]);
+  const risk=calcRiskBudget(stocks,cash,S.rate,total);
+  const events=eventCards(new Date()).filter(e=>e.days===null||e.days>=0);
+  const thesisProfiles=stocks.filter(s=>s.qty>0).map(s=>({s,p:profileFor(s)})).filter(x=>x.p).sort((a,b)=>evK(b.s)-evK(a.s)).slice(0,6);
+  const profileCards=thesisProfiles.map(({s,p})=>`<article class="thesis-card intel-thesis"><div><b>${s.ticker}</b><span>${p.role}</span></div><p>${p.thesis}</p><small><b>drivers:</b> ${p.drivers.join(' · ')}</small><small class="intel-falsifier"><b>반증:</b> ${p.falsifiers.join(' · ')}</small></article>`).join('')||'<div class="analysis-empty">등록된 투자논지 프로필이 없습니다.</div>';
+  const stressTop=stress.rows.sort((a,b)=>a.loss-b.loss).slice(0,5).map(r=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${r.ticker}</b><b class="neg">${fP(r.shock*100)}</b></div><small>${r.tag} · 스트레스 손실 ₩${fK(Math.abs(r.loss))}</small></div>`).join('');
+  const cycleCardsHtml=cycle.map(c=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${c.label}</b><b>₩${fK(c.value)}</b></div><small>${c.phase}</small><small>확인: ${c.check}</small></div>`).join('');
+  const attributionHtml=attribution.rows.slice(0,6).map(r=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${r.ticker||r.name}</b><b class="${r.contribution>=0?'pos':'neg'}">${r.contribution>=0?'+':''}₩${fK(r.contribution)}</b></div><small>미실현 ${r.unrealized>=0?'+':''}₩${fK(r.unrealized)} · 실현 ${r.realized>=0?'+':''}₩${fK(r.realized)}</small></div>`).join('')||'<div class="analysis-empty">보유종목 데이터가 없습니다.</div>';
+  const dayAttrHtml=dayAttr.rows.slice(0,5).map(r=>`<div class="analysis-mini-card"><div class="analysis-mini-top"><b>${r.name}</b><b class="${r.change>=0?'pos':'neg'}">${r.change>=0?'+':''}₩${fK(r.change)}</b></div></div>`).join('')||'<div class="analysis-empty">비교 가능한 일별 스냅샷이 부족합니다.</div>';
+  const riskHtml=risk.checks.map(r=>`<div class="risk-budget-row"><div><b>${r.label}</b><small>${r.detail} · 기준 ${r.limit}%</small></div><div class="risk-budget-value ${r.status==='주의'?'neg':'pos'}">${r.value.toFixed(1)}%<span>${r.status}</span></div></div>`).join('');
+  const calendarMonth=events.find(e=>e.date)?.date?.slice(0,7)||new Date().toISOString().slice(0,7);
+  const [calendarYear,calendarMonthNum]=calendarMonth.split('-').map(Number);
+  const firstWeekday=new Date(Date.UTC(calendarYear,calendarMonthNum-1,1)).getUTCDay();
+  const daysInMonth=new Date(Date.UTC(calendarYear,calendarMonthNum,0)).getUTCDate();
+  const eventsByDate=events.reduce((map,e)=>{(map[e.date]||(map[e.date]=[])).push(e);return map;},{});
+  const weekdayHtml=['일','월','화','수','목','금','토'].map((day,i)=>`<div class="calendar-weekday ${i===0?'sun':''} ${i===6?'sat':''}">${day}</div>`).join('');
+  const calendarCells=[];
+  for(let i=0;i<firstWeekday;i++)calendarCells.push('<div class="calendar-day is-empty"></div>');
+  for(let day=1;day<=daysInMonth;day++){
+    const key=`${calendarYear}-${String(calendarMonthNum).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayEvents=eventsByDate[key]||[];
+    const dayHtml=dayEvents.map(e=>`<div class="calendar-event impact-${e.impact==='높음'?'high':'medium'}" title="${e.title} · ${e.note}"><b>${e.title}</b><small>${e.status}</small></div>`).join('');
+    calendarCells.push(`<div class="calendar-day ${dayEvents.length?'has-event':''}"><span class="calendar-number">${day}</span>${dayHtml}</div>`);
+  }
+  while(calendarCells.length%7)calendarCells.push('<div class="calendar-day is-empty"></div>');
+  const calendarTitle=`${calendarYear}년 ${calendarMonthNum}월`;
+  const calendarHtml=`<div class="event-calendar"><div class="calendar-toolbar"><b>${calendarTitle}</b><span>예정 ${events.length}건</span></div><div class="calendar-grid calendar-head">${weekdayHtml}</div><div class="calendar-grid calendar-body">${calendarCells.join('')}</div><div class="calendar-legend"><span><i class="legend-dot high"></i>영향도 높음</span><span><i class="legend-dot medium"></i>영향도 중간</span></div></div>`;
+  const eventHtml=events.length?calendarHtml:'<div class="analysis-empty">등록된 예정 이벤트가 없습니다.</div>';
+  d.innerHTML=`<main class="analysis-wrap"><div class="analysis-hero"><div><span class="analysis-kicker">PORTFOLIO INTELLIGENCE</span><h2>🧭 한눈에 보는 분석</h2><p>실제 저장된 스냅샷·현금흐름·태그·일지만 사용합니다.</p></div><span class="analysis-fresh">${latest?`기준 ${latest.date}`:'스냅샷 없음'}</span></div>
+    <section class="analysis-section"><div class="analysis-section-title">📈 수익률</div><div class="analysis-grid three"><div class="analysis-metric"><small>시간가중수익률*</small><strong class="${(twr??0)>=0?'pos':'neg'}">${twr===null?'—':fP(twr)}</strong><span>${snaps.length}개 일별 스냅샷</span></div><div class="analysis-metric"><small>현재 총자산</small><strong>₩${fK(total)}</strong><span>주식 + 현금</span></div><div class="analysis-metric"><small>현금 비중</small><strong>${cashPct.toFixed(1)}%</strong><span>₩${fK(cashK)}</span></div></div><div class="analysis-note">* 입출금은 조정했으며, 일별 스냅샷·입출금이 장 마감 기준이라는 가정의 근사치입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">💹 손익 기여도</div><div class="analysis-grid three"><div class="analysis-metric"><small>총 기여손익</small><strong class="${attribution.totalContribution>=0?'pos':'neg'}">${attribution.totalContribution>=0?'+':''}₩${fK(attribution.totalContribution)}</strong><span>현재 평가 + 실현손익</span></div><div class="analysis-metric"><small>최근 일간 변화</small><strong class="${(dayAttr.totalChange??0)>=0?'pos':'neg'}">${dayAttr.totalChange===null?'—':(dayAttr.totalChange>=0?'+':'')+'₩'+fK(dayAttr.totalChange)}</strong><span>${dayAttr.date||'스냅샷 부족'}</span></div><div class="analysis-metric"><small>실현손익</small><strong class="${attribution.realized>=0?'pos':'neg'}">${attribution.realized>=0?'+':''}₩${fK(attribution.realized)}</strong><span>거래 원장 기준</span></div></div><div class="analysis-mini-grid">${attributionHtml}</div><div class="analysis-note">원가·현재 평가액·거래 원장의 실현손익을 합산한 참고값입니다. 입출금과 평가시점 차이로 전체 자산 변화와 일치하지 않을 수 있습니다.</div><div class="analysis-subtitle">최근 일간 기여</div><div class="analysis-mini-grid">${dayAttrHtml}</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🛡️ 리스크 예산판</div><div class="analysis-grid three"><div class="analysis-metric"><small>현금 완충</small><strong>${risk.cashPct.toFixed(1)}%</strong><span>₩${fK(risk.cashValue)}</span></div><div class="analysis-metric"><small>레버리지 노출</small><strong>${risk.nav>0?(risk.leverageValue/risk.nav*100).toFixed(1):'0.0'}%</strong><span>기준 ${RISK_BUDGETS.leverage}%</span></div><div class="analysis-metric"><small>고변동 위성</small><strong>${risk.nav>0?(risk.highVolValue/risk.nav*100).toFixed(1):'0.0'}%</strong><span>레버리지·양자·디지털</span></div></div><div class="risk-budget-list">${riskHtml}</div><div class="analysis-note">기준선은 경보용 가정입니다. 자동 매도·자동 비중조정 신호가 아닙니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">📅 이벤트 리스크 캘린더</div><div class="event-list">${eventHtml}</div><div class="analysis-note">기본 일정은 수동 갱신 대상입니다. 이벤트 전 레버리지·금리 민감도·현금 완충을 점검하는 체크리스트로 사용합니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">⚠️ 위험 신호</div><div class="analysis-grid three"><div class="analysis-metric"><small>최대낙폭</small><strong class="${maxDd<0?'neg':'pos'}">${snaps.length>1?maxDd.toFixed(1)+'%':'—'}</strong><span>스냅샷 고점 대비</span></div><div class="analysis-metric"><small>최대 보유 비중</small><strong>${topPct.toFixed(1)}%</strong><span>${top?.s.name||'—'}</span></div><div class="analysis-metric"><small>종목 수</small><strong>${stocks.length}</strong><span>현재 보유 기준</span></div></div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🏷️ 태그별 노출</div><div class="analysis-mini-grid">${tagCards}</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🧠 투자논지 <small>최근 기록</small></div><div class="thesis-list">${thesisCards}</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🎯 종목별 논지 카드</div><div class="thesis-list">${profileCards}</div><div class="analysis-note">기업 보고서의 논지·drivers·반증조건을 앱에서 확인하는 읽기 전용 요약입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🧪 스트레스 테스트 <small>가정 손실</small></div><div class="analysis-metric"><small>기본 스트레스 합계</small><strong class="neg">−₩${fK(Math.abs(stress.totalLoss))}</strong><span>${stress.totalLossPct.toFixed(1)}% · 태그별 단일충격 가정</span></div><div class="analysis-mini-grid">${stressTop}</div><div class="analysis-note">예측이나 자동매매 신호가 아닙니다. 레버리지·공통 팩터 손실을 중복 합산하지 않는 1차 민감도입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title">🔄 AI·반도체·전력·금융 사이클</div><div class="analysis-mini-grid">${cycleCardsHtml}</div><div class="analysis-note">현재 보유 태그와 등록된 기업 논지를 연결한 확인 목록입니다. 실제 사이클 판정은 공식 공시·산업 데이터 갱신 후 확정합니다.</div></section>
+    <section class="analysis-section analysis-disclaimer"><b>해석 주의</b><p>분석 수치는 기록된 데이터 범위 안에서만 계산됩니다. 태그는 사용자가 지정한 분류이며, 자동 ETF 룩스루나 투자 판단을 의미하지 않습니다.</p></section></main>`;
   return d;
 }

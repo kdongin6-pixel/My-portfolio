@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════
 // 상수
 // ═══════════════════════════════════════════
-export const TC_DEFAULT={"성장주":"#6366f1","방어주":"#10b981","중소형주":"#f59e0b","현금/채권":"#06b6d4","기타":"#94a3b8"};
-export const DEFAULT_TAGS=["성장주","방어주","중소형주","현금/채권","기타"];
-export const APP_VERSION="v0.4.0";
+export const TC_DEFAULT={"AI·빅테크":"#818cf8","소프트웨어":"#22c55e","AI·데이터센터":"#a78bfa","전력·원전":"#f59e0b","반도체":"#38bdf8","양자컴퓨팅":"#e879f9","미국지수·코어":"#60a5fa","레버리지·지수":"#f43f5e","레버리지·개별주":"#fb7185","헬스케어":"#34d399","배당·방어":"#10b981","가치·복합금융":"#fbbf24","초단기채·현금성":"#06b6d4","디지털자산·고변동":"#f97316"};
+export const DEFAULT_TAGS=["AI·빅테크","소프트웨어","AI·데이터센터","전력·원전","반도체","양자컴퓨팅","미국지수·코어","레버리지·지수","레버리지·개별주","헬스케어","배당·방어","가치·복합금융","초단기채·현금성","디지털자산·고변동"];
+export const APP_VERSION="v0.8.2-stage1";
 
 export const REFRESH_MS={pre:60000,regular:30000,post:60000,dead:300000,closed:300000};
 
@@ -19,18 +19,6 @@ export const JOURNAL_CATEGORIES={
   earnings:{label:"📊 실적",color:"#f59e0b"},
   etc:{label:"📌 기타",color:"#94a3b8"}
 };
-
-export const RISK_EVENT_TYPES={
-  macro:{label:'거시지표',color:'#f59e0b'},
-  central:{label:'중앙은행',color:'#f43f5e'},
-  earnings:{label:'실적',color:'#a78bfa'},
-  expiry:{label:'만기·수급',color:'#38bdf8'},
-  policy:{label:'정책·지정학',color:'#fb7185'}
-};
-
-// 자동 수집 전에도 달력 레이아웃과 위험도 표현을 확인할 수 있는 최소 기본 일정.
-// 실제 일정은 API 동기화 시 source/asOf가 있는 데이터로 교체한다.
-export const DEFAULT_RISK_EVENTS=[];
 
 export const MARKET_CFG=[
   {key:"IXIC",  label:"나스닥",  sec:"지수",     fmt:"num"},
