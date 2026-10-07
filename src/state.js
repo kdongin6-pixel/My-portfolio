@@ -1,12 +1,16 @@
 // ═══════════════════════════════════════════
 // 상태 (현금 분리) + localStorage 저장/로드 + 스냅샷
 // ═══════════════════════════════════════════
-import {DEFAULT_TAGS,TC_DEFAULT,DEFAULT_RISK_EVENTS} from './constants.js';
+import {DEFAULT_TAGS,TC_DEFAULT} from './constants.js';
 import {scheduleCloudSave} from './cloud.js';
 
 // API URL is stored in localStorage only — never in source code
 export function getApiUrl(){return localStorage.getItem('pf_api_url')||'';}
 export function setApiUrl(url){localStorage.setItem('pf_api_url',url.trim());}
+
+// GAS 조회(doGet/doPost) 인증용 공유 시크릿 — localStorage에만 저장
+export function getApiSecret(){return localStorage.getItem('pf_api_secret')||'';}
+export function setApiSecret(secret){localStorage.setItem('pf_api_secret',secret.trim());}
 
 export let S={
   stocks:[],
@@ -27,8 +31,7 @@ export let S={
   cloudStatus:"",
   lastCloudSync:null,
   autoSyncTimer:null,
-  marketData:null, marketLoading:false, mktEtfTab:"etf",
-  riskEvents:[...DEFAULT_RISK_EVENTS],riskMonth:null,riskSelectedDate:null
+  marketData:null, marketLoading:false, mktEtfTab:"etf"
 };
 
 export function load(){
@@ -54,7 +57,6 @@ export function load(){
       S.snapshots=(d.snapshots||[]).filter(s=>s&&!isNaN(s.totalKRW));
       S.intradaySnaps=d.intradaySnaps||[];
       S.journal=d.journal||[];
-      S.riskEvents=Array.isArray(d.riskEvents)?d.riskEvents:[];
       S.tags=d.tags||[...DEFAULT_TAGS];
       S.tagColors=d.tagColors||{...TC_DEFAULT};
       S.rate=Number(d.rate)||1510;
@@ -113,7 +115,7 @@ export function save(){
   S.updatedAt=new Date().toISOString();
   localStorage.setItem("pf_v3",JSON.stringify({
     stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
-    snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,riskEvents:S.riskEvents,
+    snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
     tags:S.tags,tagColors:S.tagColors,rate:S.rate,
     updatedAt:S.updatedAt
   }));

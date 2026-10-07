@@ -5,9 +5,10 @@ import {S,save} from './state.js';
 import {fM} from './helpers.js';
 import {render} from './render.js';
 
-export function execTrade(id,mode,qty,price){
+export function execTrade(id,mode,qty,price,fee){
   const s=S.stocks.find(x=>x.id===id);
   const q=parseFloat(qty),p=parseFloat(price);
+  const f=Math.max(0,parseFloat(fee)||0);
   if(!s||isNaN(q)||isNaN(p)||q<=0||p<=0)return alert("수량/가격 확인");
   const cost=q*p;
   const oldQty=s.qty,oldAvg=s.avg;
@@ -16,26 +17,27 @@ export function execTrade(id,mode,qty,price){
   if(!S.cash[s.acct])S.cash[s.acct]={USD:0,KRW:0};
 
   if(mode==="buy"){
-    if(S.cash[s.acct][s.curr]<cost){
+    const totalCost=cost+f;
+    if(S.cash[s.acct][s.curr]<totalCost){
       if(!confirm(`현금 부족! 현재 ${fM(S.cash[s.acct][s.curr],s.curr)}\n그래도 진행할까요?`))return;
     }
     const curQty=Number(s.qty)||0,curAvg=Number(s.avg)||0;
-    const tot=curQty*curAvg+q*p;
+    const tot=curQty*curAvg+totalCost;
     s.qty=curQty+q;
     s.avg=s.qty>0?tot/s.qty:0;
-    S.cash[s.acct][s.curr]-=cost;
-    cashChange=-cost;
+    S.cash[s.acct][s.curr]-=totalCost;
+    cashChange=-totalCost;
   }else{
     if(q>s.qty)return alert("보유수량 초과");
-    pnl=(p-s.avg)*q;
+    pnl=(p-s.avg)*q-f;
     s.qty-=q;
-    S.cash[s.acct][s.curr]+=cost;
-    cashChange=cost;
+    S.cash[s.acct][s.curr]+=cost-f;
+    cashChange=cost-f;
   }
 
   S.txns.unshift({
     id:Date.now(),stockId:id,name:s.name,acct:s.acct,curr:s.curr,
-    mode,qty:q,price:p,pnl,cashChange,
+    mode,qty:q,price:p,fee:f,pnl,cashChange,
     prevQty:oldQty,prevAvg:oldAvg,
     date:new Date().toLocaleDateString("ko-KR"),
     time:new Date().toLocaleTimeString("ko-KR")
