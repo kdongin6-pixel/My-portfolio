@@ -1,18 +1,29 @@
 // ═══════════════════════════════════════════
 // 부트스트랩
 // ═══════════════════════════════════════════
-import {S,load,getApiUrl,getApiSecret} from './state.js';
+import {S,load,getApiUrl} from './state.js';
 import {render} from './render.js';
-import {loadFromCloud,scheduleAutoRefresh,loadMarketData} from './cloud.js';
+import {loadFromCloud,scheduleAutoRefresh} from './cloud.js';
+import {createAuthSession,initializeGoogleIdentity} from './auth.js';
+
+const auth=createAuthSession();
+function startGoogleIdentity(attempt=0){
+  if(initializeGoogleIdentity({auth,onAuthenticated:()=>{
+    document.getElementById('googleLogin')?.replaceChildren();
+    S.syncMsg='✅ Google 로그인 완료';
+    render();
+    if(getApiUrl())loadFromCloud(false);
+  }}))return;
+  if(attempt<40)setTimeout(()=>startGoogleIdentity(attempt+1),250);
+}
+window.addEventListener('portfolio-auth-required',()=>startGoogleIdentity());
 
 load();
-// Auto-open settings if API URL/secret is not configured yet
-if(!getApiUrl()||!getApiSecret()){S.modal={type:"settings"};}
+// Auto-open settings if API URL is not configured yet
+if(!getApiUrl()){S.modal={type:"settings"};}
 render();
-const _configured=getApiUrl()&&getApiSecret();
-// Auto-sync on page load (only if API URL/secret configured)
-if(_configured)setTimeout(()=>loadFromCloud(false),2000);
+startGoogleIdentity();
+// Auto-sync on page load (only if API URL is configured)
+if(getApiUrl())setTimeout(()=>loadFromCloud(false),2000);
 // Start auto-refresh engine after initial load settles
-if(_configured)setTimeout(scheduleAutoRefresh,3000);
-// 종목 탭 상단 "오늘 시황" 스트립용 — 시장 탭을 안 열어도 미리 로드
-if(_configured)setTimeout(()=>loadMarketData(),2500);
+if(getApiUrl())setTimeout(scheduleAutoRefresh,3000);

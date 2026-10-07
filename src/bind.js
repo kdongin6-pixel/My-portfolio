@@ -1,12 +1,13 @@
 // ═══════════════════════════════════════════
 // 이벤트 바인딩
 // ═══════════════════════════════════════════
-import {S,save,setApiUrl,setApiSecret} from './state.js';
+import {S,save,getApiUrl,setApiUrl} from './state.js';
 import {fM} from './helpers.js';
 import {syncSheets,loadMarketData} from './cloud.js';
 import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from './trades.js';
-import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles,parseScreenshots,applyParsed} from './vision.js';
+import {buildAISummary} from './ai.js';
 import {render} from './render.js';
+import {getGoogleIdToken,requestGoogleLogin} from './auth.js';
 
 export function bind(){
   const q=s=>document.querySelector(s);
@@ -23,14 +24,10 @@ export function bind(){
     const url=q("#apiUrlInp")?.value?.trim();
     if(!url)return alert("URL을 입력해주세요");
     setApiUrl(url);
-    const secret=q("#apiSecretInp")?.value?.trim();
-    if(!secret)return alert("공유 시크릿을 입력해주세요");
-    setApiSecret(secret);
-    const akey=q("#anthropicKeyInp")?.value?.trim();
-    if(akey!==undefined)setAnthropicKey(akey);
-    S.syncMsg="✅ 설정 저장 완료 — 동기화 버튼을 눌러 연결을 확인해보세요";
+    S.syncMsg="✅ API URL 저장 완료 — 동기화 버튼을 눌러 연결을 확인해보세요";
     S.modal=null;render();
   });
+  q("#btnBulk")?.addEventListener("click",()=>{S.modal={type:"bulk"};render();});
   q("#btnAdd")?.addEventListener("click",()=>{S.modal={type:"add",defaultAcct:S.acct!=='전체'?S.acct:'메리츠증권'};render();});
   // Auto-switch currency when account changes in add/edit modal
   q("#aa")?.addEventListener("change",e=>{
@@ -38,59 +35,44 @@ export function bind(){
     if(e.target.value==='ISA')ac.value='KRW';
     else if(e.target.value==='메리츠증권')ac.value='USD';
   });
-  // 📷 매매 스크린샷 인식
-  q("#btnShot")?.addEventListener("click",()=>{clearShotFiles();S.modal={type:"screenshot"};render();});
-  q("#shotFiles")?.addEventListener("change",e=>{
-    setShotFiles(e.target.files);
-    const c=q("#shotCount");
-    if(c)c.textContent=e.target.files.length?`✅ ${e.target.files.length}장 선택됨`:'';
-  });
-  q("#execShotAnalyze")?.addEventListener("click",async()=>{
-    const keyInp=q("#shotKeyInp");
-    if(keyInp&&keyInp.value.trim())setAnthropicKey(keyInp.value.trim());
-    const st=q("#shotStatus"),btn=q("#execShotAnalyze");
-    if(!getAnthropicKey()){if(st)st.textContent="⚠️ API 키를 입력해주세요";return;}
-    if(!getShotFiles().length){if(st)st.textContent="⚠️ 스크린샷을 먼저 선택해주세요";return;}
-    btn.disabled=true;btn.textContent="⏳ Claude가 분석 중... (10~30초)";
-    try{
-      const parsed=await parseScreenshots(getShotFiles());
-      S.modal={type:"screenshotConfirm",parsed};
-      render();
-    }catch(e){
-      if(st)st.textContent="❌ "+e.message;
-      btn.disabled=false;btn.textContent="🔍 분석하기";
-    }
-  });
-  q("#execShotApply")?.addEventListener("click",()=>{
-    const items=(S.modal?.parsed||[]).filter((t,i)=>{
-      const cb=q(`[data-shot-idx="${i}"]`);
-      return cb&&cb.checked;
+  q("#btnExport")?.addEventListener("click",()=>{S.modal={type:"export"};render();});
+  q("#btnAI")?.addEventListener("click",()=>{S.modal={type:"aiExport"};render();});
+  q("#btnAICopy")?.addEventListener("click",()=>{
+    const txt=buildAISummary();
+    navigator.clipboard.writeText(txt).then(()=>{
+      const btn=q("#btnAICopy");
+      if(btn){btn.textContent="✅ 복사됨!";btn.classList.add("copied");setTimeout(()=>{btn.textContent="📋 클립보드 복사";btn.classList.remove("copied");},2000);}
+    }).catch(()=>{
+      const box=q("#aiSummaryBox");
+      if(box){const sel=window.getSelection();const r=document.createRange();r.selectNodeContents(box);sel.removeAllRanges();sel.addRange(r);}
+      alert("텍스트를 선택했습니다. Ctrl+C로 복사하세요.");
     });
-    if(!items.length)return alert("반영할 거래를 체크해주세요");
-    const n=applyParsed(items);
-    clearShotFiles();
-    S.syncMsg=`✅ 스크린샷에서 ${n}건 반영 완료 (${new Date().toLocaleTimeString()})`;
-    S.modal=null;render();
   });
-  q("#shotBack")?.addEventListener("click",()=>{S.modal={type:"screenshot"};render();});
-
   q("#btnCashToggle")?.addEventListener("click",()=>{S.showCash=!S.showCash;render();});
   q("#btnTrendToggle")?.addEventListener("click",()=>{S.showTrend=!S.showTrend;render();});
   q("#mc")?.addEventListener("click",close);
   q("#mc2")?.addEventListener("click",close);
   q("#mbg")?.addEventListener("click",e=>{if(e.target===q("#mbg"))close();});
+  q("#rateInp")?.addEventListener("change",e=>{S.rate=parseFloat(e.target.value)||1510;save();render();});
+
   qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{S.acct=el.dataset.acct;render();}));
-  qa("[data-goto-market]").forEach(el=>el.addEventListener("click",()=>{S.tab="market";render();loadMarketData();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
     S.tab=el.dataset.tab;render();
     if(el.dataset.tab==="market")loadMarketData();
   }));
+  q("#riskPrev")?.addEventListener("click",()=>{const [y,m]=S.riskMonth.split('-').map(Number);const d=new Date(y,m-2,1);S.riskMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;render();});
+  q("#riskNext")?.addEventListener("click",()=>{const [y,m]=S.riskMonth.split('-').map(Number);const d=new Date(y,m,1);S.riskMonth=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;render();});
+  qa("[data-risk-date]").forEach(el=>el.addEventListener("click",()=>{S.riskSelectedDate=el.dataset.riskDate;render();}));
+  q("#btnRiskSync")?.addEventListener("click",()=>{S.syncMsg="ℹ️ 공식 일정 자동 수집 경로를 준비 중입니다";render();});
   q("#btnMktRefresh")?.addEventListener("click",()=>loadMarketData(true));
   if(S.tab==="market"&&!S.marketData&&!S.marketLoading)setTimeout(loadMarketData,50);
   qa(".flt[data-wmode]").forEach(el=>el.addEventListener("click",()=>{S.wMode=el.dataset.wmode;render();}));
   qa("[data-cview]").forEach(el=>el.addEventListener("click",()=>{S.chartView=el.dataset.cview;render();}));
-  q("#sortSelect")?.addEventListener("change",e=>{S.sortBy=e.target.value;render();});
-  q("#sortDirBtn")?.addEventListener("click",()=>{S.sortDir=S.sortDir==="desc"?"asc":"desc";render();});
+  qa("[data-sort]").forEach(el=>el.addEventListener("click",()=>{
+    if(S.sortBy===el.dataset.sort)S.sortDir=S.sortDir==="desc"?"asc":"desc";
+    else{S.sortBy=el.dataset.sort;S.sortDir="desc";}
+    render();
+  }));
   q("#btnView")?.addEventListener("click",()=>{S.viewMode=S.viewMode==="table"?"card":"table";render();});
   qa("[data-action]").forEach(b=>b.addEventListener("click",e=>{
     e.stopPropagation();
@@ -175,36 +157,31 @@ export function bind(){
   // 거래 미리보기
   const upPrev=()=>{
     const q2=parseFloat(q("#tq")?.value||0),p=parseFloat(q("#tp")?.value||0);
-    const f=Math.max(0,parseFloat(q("#tf")?.value||0));
     const s=S.stocks.find(x=>x.id===S.modal?.stockId),prev=q("#tprev");
     if(!prev||!s||!q2||!p)return;
     const c=S.cash[s.acct]?.[s.curr]||0;
-    const feeRow=f>0?`<div><span>수수료</span><span>${fM(f,s.curr)}</span></div>`:'';
     if(S.modal.mode==="buy"){
-      const totalCost=q2*p+f;
-      const na=(s.qty*s.avg+totalCost)/(s.qty+q2);
+      const na=(s.qty*s.avg+q2*p)/(s.qty+q2);
+      const cost=q2*p;
       prev.innerHTML=`<div><span>새 평균단가</span><span>${fM(na,s.curr)}</span></div>
         <div><span>새 수량</span><span>${s.qty+q2}</span></div>
-        <div><span>매수금액</span><span>${fM(q2*p,s.curr)}</span></div>
-        ${feeRow}
-        <div><span>거래 후 현금</span><span class="${c-totalCost<0?'neg':''}">${fM(c-totalCost,s.curr)}</span></div>`;
+        <div><span>매수금액</span><span>${fM(cost,s.curr)}</span></div>
+        <div><span>거래 후 현금</span><span class="${c-cost<0?'neg':''}">${fM(c-cost,s.curr)}</span></div>`;
     }else{
-      const pnl=(p-s.avg)*q2-f;
-      const cost=q2*p-f;
+      const pnl=(p-s.avg)*q2;
+      const cost=q2*p;
       prev.innerHTML=`<div><span>실현손익</span><span class="${pnl>=0?'pos':'neg'}">${fM(pnl,s.curr)}</span></div>
         <div><span>남은수량</span><span>${s.qty-q2}</span></div>
-        ${feeRow}
         <div><span>거래 후 현금</span><span>${fM(c+cost,s.curr)}</span></div>`;
     }
   };
   q("#tq")?.addEventListener("input",upPrev);
   q("#tp")?.addEventListener("input",upPrev);
-  q("#tf")?.addEventListener("input",upPrev);
 
   // 모달 안의 실행 버튼들 (💡 여기에 티커 전송 로직이 완벽하게 포함됨!)
   q("#exec")?.addEventListener("click",()=>{
     const mt=S.modal?.type; // exec 도중 S.modal이 null로 바뀌어도 안전하게
-    if(mt==="trade")execTrade(S.modal.stockId,S.modal.mode,q("#tq").value,q("#tp").value,q("#tf")?.value);
+    if(mt==="trade")execTrade(S.modal.stockId,S.modal.mode,q("#tq").value,q("#tp").value);
 
     if(mt==="add"||mt==="edit"){
       const name=q("#an").value.trim();
@@ -231,6 +208,12 @@ export function bind(){
       save();S.modal=null;render();
     }
 
+    if(mt==="bulk"){
+      const r=parseFloat(q("#br").value);if(r>0)S.rate=r;
+      qa(".bulk-inp").forEach(inp=>{const s=S.stocks.find(x=>x.id===+inp.dataset.id);const v=parseFloat(inp.value);if(s&&v>0)s.cur=v;});
+      save();S.modal=null;render();
+    }
+
     if(mt==="cashIn"||mt==="cashOut"){
       const [acct,curr]=S.modal.target.split("|");
       execCash(acct,curr,mt==="cashIn"?"in":"out",q("#cashAmt").value,q("#cashMemo").value);
@@ -238,6 +221,43 @@ export function bind(){
 
     if(mt==="addJournal"){
       execJournal(q("#jstock").value,q("#jcat").value,q("#jcontent").value);
+    }
+  });
+
+  // ☁️ 시트 업로드
+  q("#execSheetUpload")?.addEventListener("click",async()=>{
+    const btn=q("#execSheetUpload");
+    btn.textContent="⏳ 업로드 중...";btn.disabled=true;
+    try{
+      const _u=getApiUrl();
+      if(!_u)throw new Error("API URL 미설정 — ⚙️ 설정에서 입력해주세요");
+      const idToken=getGoogleIdToken();
+      if(!idToken){requestGoogleLogin();throw new Error("Google 로그인이 필요합니다");}
+      const payload={
+        _action:'export',
+        stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
+        snapshots:S.snapshots,journal:S.journal,riskEvents:S.riskEvents,
+                tags:S.tags,tagColors:S.tagColors,rate:S.rate,idToken,
+        updatedAt:new Date().toISOString()
+      };
+      const res=await fetch(_u,{
+        method:"POST",
+        headers:{"Content-Type":"text/plain;charset=utf-8"},
+        body:JSON.stringify(payload)
+      });
+      if(!res.ok)throw new Error("업로드 실패");
+      const result=await res.json();
+      if(!result.success){
+        if(['unauthorized','forbidden','expired'].includes(result.error))requestGoogleLogin();
+        throw new Error(result.error||"업로드 실패");
+      }
+      btn.textContent="✅ 반영 완료!";
+      S.syncMsg=`✅ 시트에 잔고 반영 완료 (${new Date().toLocaleTimeString()})`;
+      setTimeout(()=>{S.modal=null;render();},1500);
+    }catch(e){
+      btn.textContent="☁️ 시트로 업로드";
+      btn.disabled=false;
+      alert("❌ 업로드 실패: "+e.message);
     }
   });
 }
