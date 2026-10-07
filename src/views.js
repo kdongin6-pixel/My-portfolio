@@ -623,12 +623,18 @@ export function mkModal(){
   if(S.modal.type==="settings"){
     const cur=getApiUrl();
     const akey=getAnthropicKey();
+    const secret=localStorage.getItem('pf_api_secret')||'';
     d.innerHTML=`<div class="modal">
       <div class="modal-title">⚙️ 설정<button class="modal-close" id="mc">×</button></div>
       <div class="field">
         <label>Google Apps Script 배포 URL</label>
         <input type="text" id="apiUrlInp" value="${cur}" placeholder="https://script.google.com/macros/s/...">
         <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
+      </div>
+      <div class="field">
+        <label>공유 시크릿</label>
+        <input type="password" id="apiSecretInp" value="${secret}" placeholder="SHARED_SECRET 입력" autocomplete="off">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">GAS Script Properties의 SHARED_SECRET과 동일한 값을 입력하세요. 이 기기의 localStorage에만 저장됩니다.</div>
       </div>
       <div class="field">
         <label>Anthropic API 키 (📷 매매인식용, 선택)</label>
