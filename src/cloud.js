@@ -44,7 +44,11 @@ export async function loadFromCloud(showAlert){
   if(!_secret){S.cloudStatus="error";S.syncMsg="❌ 공유 시크릿 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
   S.cloudStatus="saving";renderCloudBadge();
   try{
-    const res=await fetch(_url+"?secret="+encodeURIComponent(_secret));
+    const res=await fetch(_url,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({secret:_secret,mode:"portfolio"})
+    });
     if(!res.ok)throw new Error("로드 실패");
     const data=await res.json();
     if(data.error==="unauthorized")throw new Error("인증 실패 — 공유 시크릿을 확인해주세요");
@@ -246,7 +250,11 @@ export async function loadMarketData(force=false){
   S.marketLoading=true;
   if(shouldRerenderForMarket())render();
   try{
-    const res=await fetch(_url+"?mode=market&secret="+encodeURIComponent(_secret));
+    const res=await fetch(_url,{
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=utf-8"},
+      body:JSON.stringify({secret:_secret,mode:"market"})
+    });
     if(!res.ok)throw new Error("시장 데이터 로드 실패");
     const data=await res.json();
     if(data.error==="unauthorized")throw new Error("인증 실패 — 공유 시크릿을 확인해주세요");
