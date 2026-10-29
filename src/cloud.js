@@ -47,7 +47,7 @@ export async function loadFromCloud(showAlert){
     const res=await fetch(_url,{
       method:"POST",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({secret:_secret,mode:"portfolio"})
+      body:JSON.stringify({secret:_secret,mode:"portfolio",freshQuotes:!!showAlert})
     });
     if(!res.ok)throw new Error("로드 실패");
     const data=await res.json();
