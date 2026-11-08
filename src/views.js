@@ -12,6 +12,11 @@ import {mkTodayStrip} from './market-ui.js';
 import {profileFor,analysisTag,calcStress,cycleCards,calcPerformanceAttribution,calcDayAttribution,calcRiskBudget,eventCards,RISK_BUDGETS} from './intelligence.js';
 
 export function mkHdr(){
+  if(S.tab==='broker'){
+    const d=document.createElement('div');d.className='hdr';
+    d.innerHTML='<div class="hdr-row1"><div class="hdr-title">🏦 실계좌 · 조회 전용</div><button class="hdr-btn" id="btnSettings" aria-label="연결 설정">⚙️</button></div><p class="broker-meta">사용자 원장과 분리된 증권사 REST 조회</p>';
+    return d;
+  }
   const fl=filt(),coverage=portfolioStatus({...S,stocks:fl},!!getApiUrl()&&!!getApiSecret());
   const ready=S.readStatus==="success"||fl.length>0;
   const complete=coverage.confirmed===coverage.total&&coverage.covered===coverage.total;
@@ -45,6 +50,7 @@ export function mkTabs(){
   const d=document.createElement("div");
   d.innerHTML=`<div class="tabs">
     <div class="tab ${S.tab==='list'?'on':''}" data-tab="list">📋 종목</div>
+    <button type="button" class="tab ${S.tab==='broker'?'on':''}" data-tab="broker" aria-label="실계좌 조회" ${S.tab==='broker'?'aria-current="page"':''}>🏦 실계좌</button>
     <div class="tab ${S.tab==='chart'?'on':''}" data-tab="chart">📊 비중</div>
     <div class="tab ${S.tab==='trend'?'on':''}" data-tab="trend">📈 추이</div>
     <div class="tab ${S.tab==='analysis'?'on':''}" data-tab="analysis">🧭 분석</div>
