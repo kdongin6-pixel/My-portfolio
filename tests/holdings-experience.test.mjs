@@ -7,7 +7,7 @@ test('holdings expose quantity cost quote currency and provenance without order 
  for(const word of ['수량','평단','조회가격','KRW','원가 대비','비중','거래시각 미제공','출처 미확인','data-detail'])assert.ok(h.includes(word),word);
  assert.doesNotMatch(h,/<Synthetic>|data-mode="buy"|data-mode="sell"|LIVE/);
  assert.match(h,/가격 미확인/);assert.match(dataNotice({...state,readStatus:'error'},true),/이전/);
- const d=holdingDetail(state,s);assert.match(d,/role="dialog"/);assert.match(d,/aria-modal="true"/);assert.match(d,/aria-label="닫기"/);assert.match(d,/원장 기록/);assert.match(d,/계좌조회 별도 승인/);
+ const d=holdingDetail(state,s);assert.match(d,/role="dialog"/);assert.match(d,/aria-modal="true"/);assert.match(d,/aria-label="닫기"/);assert.match(d,/원장 기록/);assert.match(d,/실계좌 탭/);assert.doesNotMatch(d,/계좌조회 별도 승인|계좌조회 없음/);
 });
 test('stock history uses sourced price points only and no fabricated sparkline',()=>{
  assert.match(priceHistoryPanel(state,s),/가격 이력 없음/);assert.doesNotMatch(priceHistoryPanel({...state,snapshots:[{date:'2026-01-01',totalKRW:100}]},s),/<svg/);
