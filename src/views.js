@@ -4,28 +4,34 @@
 import {S,getApiUrl} from './state.js';
 import {APP_VERSION,JOURNAL_CATEGORIES} from './constants.js';
 import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
-import {getMarketPhase} from './cloud.js';
+import {getApiSecret} from './state.js';
+import {valuation,portfolioStatus} from './portfolio-read.js';
+import {dataNotice,holdingCards,holdingDetail,esc} from './holdings-ui.js';
 import {getAnthropicKey,getShotFiles} from './vision.js';
 import {mkTodayStrip} from './market-ui.js';
 import {profileFor,analysisTag,calcStress,cycleCards,calcPerformanceAttribution,calcDayAttribution,calcRiskBudget,eventCards,RISK_BUDGETS} from './intelligence.js';
 
 export function mkHdr(){
-  const fl=filt(),tot=totK(fl)+filtCashKRW();
+  const fl=filt(),coverage=portfolioStatus({...S,stocks:fl},!!getApiUrl()&&!!getApiSecret());
+  const ready=S.readStatus==="success"||fl.length>0;
+  const complete=coverage.confirmed===coverage.total&&coverage.covered===coverage.total;
+  const tot=coverage.valueKRW+filtCashKRW();
   const inv=fl.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
-  const pnl=totK(fl)-inv;
+  const pnl=coverage.valueKRW-inv;
   const pct=inv>0?pnl/inv*100:0;
   const d=document.createElement("div");d.className="hdr";
   d.innerHTML=`
     <div class="hdr-row1">
       <div class="hdr-title">📊 포트폴리오 <span id="cloudBadge" style="font-size:.6em;color:#8b949e;margin-left:8px;font-weight:600">☁️</span><span style="font-size:.5em;color:#4b5563;margin-left:6px;font-weight:500;letter-spacing:.3px">${APP_VERSION}</span></div>
       <button id="btnTrend" style="background:${S.tab==='trend'?'rgba(99,102,241,.25)':'rgba(99,102,241,.1)'};border:1px solid ${S.tab==='trend'?'#6366f1':'rgba(99,102,241,.3)'};color:${S.tab==='trend'?'#818cf8':'#6366f1'};border-radius:8px;padding:3px 9px;font-size:.72em;font-weight:700;cursor:pointer;white-space:nowrap">📈 추이</button>
-      <button class="${getMarketPhase()==='regular'?'sync-btn live-btn':'sync-btn'}" id="btnSync">${getMarketPhase()==='regular'?'⚡ LIVE':'🔄 동기화'}</button>
+      <button class="sync-btn" id="btnSync">🔄 조회</button>
     </div>
     ${S.syncMsg?`<div class="msg-sync" style="background:${S.syncMsg.startsWith('✅')?'rgba(16,185,129,.15)':S.syncMsg.startsWith('❌')?'rgba(244,63,94,.15)':'rgba(245,158,11,.15)'};color:${S.syncMsg.startsWith('✅')?'#10b981':S.syncMsg.startsWith('❌')?'#f43f5e':'#fbbf24'}">${S.syncMsg}</div>`:''}
+    ${dataNotice(S,!!getApiUrl()&&!!getApiSecret())}
     <div class="asset-cards">
-      <div class="asset-card"><div class="ac-lbl">총 자산</div><div class="ac-val" style="font-size:.9em">₩${fK(tot)}</div></div>
-      <div class="asset-card"><div class="ac-lbl">매매 손익</div><div class="ac-val ${pnl>=0?'pos':'neg'}">₩${fK(pnl)}</div></div>
-      <div class="asset-card"><div class="ac-lbl">수익률</div><div class="ac-val ${pct>=0?'pos':'neg'}">${fP(pct)}</div></div>
+      <div class="asset-card"><div class="ac-lbl">${complete?"총 자산":"확인 가능 자산 · 부분합계"}</div><div class="ac-val" style="font-size:.9em">${ready?"₩"+fK(tot):"—"}</div></div>
+      <div class="asset-card"><div class="ac-lbl">원가 대비 평가손익</div><div class="ac-val">${ready&&complete?"₩"+fK(pnl):"—"}</div></div>
+      <div class="asset-card"><div class="ac-lbl">원가 대비 수익률</div><div class="ac-val">${ready&&complete?fP(pct):"—"}</div></div>
     </div>
     <div class="btn-row">
       <button class="hdr-btn btn-add" id="btnAdd">+ 종목</button>
@@ -50,7 +56,8 @@ export function mkTabs(){
 }
 
 export function mkList(){
-  const fl=filt(),stockTot=totK(fl);
+  const fl=filt(),v=valuation(fl,S.rate),stockTot=v.valueKRW;
+  const available=S.readStatus==="success"||fl.length>0;
   const d=document.createElement("div");
 
   // 정렬
@@ -170,123 +177,25 @@ export function mkList(){
 
   const todayStripHtml=mkTodayStrip();
 
-  const filtersHtml=`
+  const filtersHtml=`<div class="export-actions"><button id="btnAnalysisCopy" class="hdr-btn">분석용 잔고 복사</button><button id="btnAnalysisCsv" class="hdr-btn">CSV 다운로드</button><span id="exportStatus" role="status"></span></div>
     <div class="filters">
       <button class="flt ${S.acct==='전체'?'on':''}" data-acct="전체">전체</button>
       <button class="flt ${S.acct==='메리츠증권'?'on':''}" data-acct="메리츠증권">메리츠</button>
       <button class="flt ${S.acct==='ISA'?'on':''}" data-acct="ISA">ISA</button>
       <select class="sort-select" id="sortSelect">${sortOptions}</select>
       <button class="sort-dir-btn" id="sortDirBtn" title="정렬 방향">${S.sortDir==="desc"?"↓":"↑"}</button>
-      <button class="view-tog" id="btnView">${S.viewMode==="table"?"📋":"📊"}</button>
     </div>
     <div style="padding:6px 12px 0">
       <div class="sum-card">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <div class="cg-item"><div class="cg-lbl">종목 평가</div><div class="cg-val">₩${fK(stockTot)}</div></div>
-          <div class="cg-item"><div class="cg-lbl">현금</div><div class="cg-val">₩${fK(filtCashKRW())}</div></div>
+          <div class="cg-item"><div class="cg-lbl">${v.confirmed<v.total?"종목 평가 · 부분합계":"종목 평가"}</div><div class="cg-val">${available?"₩"+fK(stockTot):"—"}</div></div>
+          <div class="cg-item"><div class="cg-lbl">원장 현금</div><div class="cg-val">${available?"₩"+fK(filtCashKRW()):"—"}</div></div>
         </div>
         ${cashSection}
       </div>
     </div>`;
 
-  if(S.viewMode==="table"){
-    const totalInvK=sorted.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
-    const totalPnl=stockTot-totalInvK;
-    const totalPct=totalInvK>0?totalPnl/totalInvK*100:0;
-
-    const rows=sorted.map(s=>{
-      const evk=s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur;
-      const sinvK=s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg;
-      const spnl=evk-sinvK,spct=sinvK>0?spnl/sinvK*100:0;
-      const wt=stockTot>0?evk/stockTot*100:0;
-      const tc=S.tagColors[s.tag]||"#94a3b8";
-      const curDisp=s.curr==="USD"?`$${s.cur.toFixed(2)}`:`₩${fK(s.cur)}`;
-      const avgDisp=s.curr==="USD"?`$${s.avg.toFixed(2)}`:`₩${fK(s.avg)}`;
-      const tblExtBadge=s.extPrice&&s.extType?`<div style="font-size:.65em;color:#fbbf24;margin-top:1px">${s.extType==='pre'?'🌅':'🌙'} $${s.extPrice.toFixed(2)}</div>`:'';
-      return `<tr class="gs-r1">
-        <td class="gs-td">
-          <span class="gs-name">${s.name}</span>
-          <span class="gs-sub">${s.qty.toLocaleString()}주 · ${avgDisp}</span>
-        </td>
-        <td class="gs-td">${curDisp}${tblExtBadge}</td>
-        <td class="gs-td">${fKShort(evk)}</td>
-        <td class="gs-td"><button class="gs-more" data-action="${s.id}">⋮</button></td>
-      </tr>
-      <tr class="gs-r2">
-        <td class="gs-td"><span style="font-size:.68em;display:flex;gap:4px;align-items:center"><span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}" style="font-size:.9em;padding:1px 5px">${s.acct==='ISA'?'ISA':'메리츠'}</span><span class="chip" style="padding:1px 5px;background:${tc}22;color:${tc}">${s.tag||'-'}</span></span></td>
-        <td class="gs-td ${spct>=0?'pos':'neg'}">${fP(spct)}</td>
-        <td class="gs-td">
-          <div style="font-size:.78em;color:#8b949e">${wt.toFixed(1)}%</div>
-          <div class="${spnl>=0?'pos':'neg'}" style="font-size:.78em">${spnl>=0?'+':''}${fKShort(spnl)}</div>
-        </td>
-        <td class="gs-td"></td>
-      </tr>`;
-    }).join('');
-
-    const sumRow=`<tr class="gs-sum">
-      <td class="gs-td">합계</td>
-      <td class="gs-td"></td>
-      <td class="gs-td">
-        <div>${fKShort(stockTot)}</div>
-        <div class="${totalPnl>=0?'pos':'neg'}" style="font-size:.85em">${totalPnl>=0?'+':''}${fKShort(totalPnl)}</div>
-      </td>
-      <td class="gs-td"></td>
-    </tr>`;
-
-    d.innerHTML=`${todayStripHtml}${filtersHtml}<div class="gs-wrap"><table class="gs-tbl">
-      <thead><tr>
-        <th class="gs-th">종목명 / 태그</th>
-        <th class="gs-th">현재가</th>
-        <th class="gs-th">평가금액</th>
-        <th class="gs-th"></th>
-      </tr></thead>
-      <tbody>${rows||'<tr><td class="gs-td" colspan="4" style="text-align:center;padding:20px;color:#8b949e">종목이 없어요</td></tr>'}${sumRow}</tbody>
-    </table></div>${trendSection}`;
-    return d;
-  }
-
-  // 카드뷰
-  const cards=sorted.map(s=>{
-    const ev=s.qty*s.cur,evk=s.curr==="USD"?ev*S.rate:ev;
-    const sinv=s.qty*s.avg,spnl=ev-sinv,spct=sinv>0?spnl/sinv*100:0;
-    const wt=stockTot>0?evk/stockTot*100:0;
-    const tc=S.tagColors[s.tag]||"#94a3b8";
-    const extBadge=s.extPrice&&s.extType?`<span style="display:inline-flex;align-items:center;gap:3px;font-size:.62em;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,.15);color:#fbbf24;font-weight:700">${s.extType==='pre'?'🌅':'🌙'} $${s.extPrice.toFixed(2)} <span style="opacity:.8">${s.extPct>=0?'+':''}${(s.extPct||0).toFixed(2)}%</span></span>`:'';
-    return `<div class="card">
-      <div class="card-top">
-        <div style="flex:1;min-width:0">
-          <div class="card-name">${s.name}</div>
-          <div class="card-chips">
-            <span class="chip ${s.acct==='ISA'?'chip-i':'chip-m'}">${s.acct==='ISA'?'ISA':'메리츠'}</span>
-            <span class="chip chip-tag" style="background:${tc}22;color:${tc}" data-edit-tag="${s.id}">${s.tag||'태그없음'} ✏️</span>
-            ${extBadge}
-          </div>
-        </div>
-        <div class="card-pct ${spct>=0?'pos':'neg'}">${fP(spct)}</div>
-      </div>
-      <div class="card-grid">
-        <div class="cg-item"><div class="cg-lbl">수량</div><div class="cg-val">${s.qty.toLocaleString()}</div></div>
-        <div class="cg-item"><div class="cg-lbl">평단가</div><div class="cg-val">${fM(s.avg,s.curr)}</div></div>
-        <div class="cg-item"><div class="cg-lbl">평가금액</div><div class="cg-val">${fM(ev,s.curr)}</div></div>
-        <div class="cg-item"><div class="cg-lbl">손익</div><div class="cg-val ${spnl>=0?'pos':'neg'}">${fM(spnl,s.curr)}</div></div>
-        <div class="cg-item"><div class="cg-lbl">비중</div><div class="cg-val">${wt.toFixed(1)}%</div></div>
-      </div>
-      <div class="card-bottom">
-        <div class="cur-wrap">
-          <span class="cur-lbl">현재가</span>
-          <input class="cur-inp" data-id="${s.id}" type="number" value="${s.cur}" step="0.01">
-        </div>
-        <div class="card-btns">
-          <button class="cbtn cbtn-buy" data-id="${s.id}" data-mode="buy">매수</button>
-          <button class="cbtn cbtn-sell" data-id="${s.id}" data-mode="sell">매도</button>
-          <button class="cbtn cbtn-edit" data-edit="${s.id}">✏️</button>
-          <button class="cbtn cbtn-del" data-del="${s.id}">🗑</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-
-  d.innerHTML=`${todayStripHtml}${filtersHtml}<div class="cards">${cards||'<div class="empty">종목이 없어요</div>'}</div>${trendSection}`;
+  d.innerHTML=`${todayStripHtml}${filtersHtml}${holdingCards(S,sorted)}${trendSection}`;
   return d;
 }
 
@@ -331,7 +240,10 @@ export function mkCash(){
   return d;
 }
 
+function valuationUnavailable(){const v=valuation(S.stocks,S.rate);return (!S.stocks.length&&S.readStatus!=="success")||v.covered<v.total||v.confirmed<v.total;}
+function unavailableValuation(){const d=document.createElement('div');d.className='analysis-wrap';d.innerHTML='<div class="data-notice">평가 자료 부족 — 미확인·이전 시세를 포함한 완전한 비중/손익 분석은 표시하지 않습니다. 종목 탭에서 개별 가격과 출처를 확인하세요.</div>';return d;}
 export function mkChart(){
+  if(valuationUnavailable())return unavailableValuation();
   const d=document.createElement("div");
   const isTree=S.chartView==="treemap";
   d.innerHTML=`
@@ -503,18 +415,20 @@ export function mkTxn(){
 // ═══════════════════════════════════════════
 export function mkModal(){
   const d=document.createElement("div");d.className="modal-bg";d.id="mbg";
+  if(S.modal.type==="stockDetail"||S.modal.type==="stockAction"){const s=S.stocks.find(x=>x.id===S.modal.stockId);if(s)d.innerHTML=holdingDetail(S,s);return d;}
 
+  if(S.modal.type==="exportText"){d.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-label="분석용 잔고 복사" tabindex="-1"><button id="mc" class="modal-close" aria-label="닫기">×</button><p>클립보드 접근이 차단되었습니다. 아래 텍스트를 직접 선택해 복사하세요.</p><textarea readonly aria-label="분석용 잔고" rows="14">${esc(S.modal.text)}</textarea><button id="mc2" class="mbtn mbtn-sec">닫기</button></div>`;return d;}
   if(S.modal.type==="trade"){
     const s=S.stocks.find(x=>x.id===S.modal.stockId);
     const c=S.cash[s?.acct]?.[s?.curr]||0;
     d.innerHTML=`<div class="modal">
-      <div class="modal-title">${S.modal.mode==='buy'?'📈 매수':'📉 매도'} - ${s?.name}<button class="modal-close" id="mc">×</button></div>
+      <div class="modal-title">${S.modal.mode==='buy'?'📈 매수 원장 기록':'📉 매도 원장 기록'} - ${s?.name}<button class="modal-close" id="mc">×</button></div>
       <div style="font-size:.82em;color:#8b949e;margin-bottom:10px">💰 보유 현금: ${fM(c,s?.curr)}</div>
       <div class="field"><label>수량</label><input type="number" id="tq" placeholder="0" min="0"></div>
       <div class="field"><label>가격 (${s?.curr})</label><input type="number" id="tp" value="${s?.cur}" step="0.01"></div>
       <div class="field"><label>수수료 (${s?.curr}, 선택)</label><input type="number" id="tf" placeholder="0" min="0" step="0.01"></div>
       <div class="preview" id="tprev"></div>
-      <button class="mbtn mbtn-pri" id="exec">${S.modal.mode==='buy'?'매수 확인':'매도 확인'}</button>
+      <button class="mbtn mbtn-pri" id="exec">${S.modal.mode==='buy'?'매수 원장 기록 확인':'매도 원장 기록 확인'}</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button></div>`;
   }
 
@@ -571,38 +485,6 @@ export function mkModal(){
       <div style="margin:18px 0 6px;font-size:.85em;color:#a5b4fc;font-weight:700">태그 관리</div>
       <div>${S.tags.map(t=>`<div class="tag-row"><span class="tag-row-name" style="color:${S.tagColors[t]||'#94a3b8'}">● ${t}</span><button class="tag-row-del" data-del-tag="${t}">삭제</button></div>`).join('')}</div>
       <button class="mbtn mbtn-sec" id="mc2" style="margin-top:14px">닫기</button>
-    </div>`;
-  }
-
-  if(S.modal.type==="stockAction"){
-    const s=S.stocks.find(x=>x.id===S.modal.stockId);
-    const ev=s?s.qty*s.cur:0;
-    const evk=s?.curr==="USD"?ev*S.rate:ev;
-    const sinvK=s?.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg;
-    const spnl=evk-sinvK,spct=sinvK>0?spnl/sinvK*100:0;
-    d.innerHTML=`<div class="modal">
-      <div class="modal-title" style="flex-direction:column;align-items:flex-start;gap:4px">
-        <div style="display:flex;justify-content:space-between;width:100%;align-items:center">
-          <span>${s?.name}</span><button class="modal-close" id="mc">×</button>
-        </div>
-        <div style="font-size:.78em;font-weight:600">
-          <span class="${spct>=0?'pos':'neg'}">${fP(spct)}</span>
-          <span style="color:#8b949e;margin:0 6px">·</span>
-          <span style="color:#8b949e">₩${fK(evk)}</span>
-          <span style="color:#8b949e;margin:0 6px">·</span>
-          <span class="${spnl>=0?'pos':'neg'}">${spnl>=0?'+':''}₩${fK(spnl)}</span>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <button class="mbtn mbtn-pri" id="actBuy" style="margin:0">📈 매수</button>
-        <button class="mbtn" id="actSell" style="margin:0;background:rgba(244,63,94,.2);color:#f43f5e;border:1px solid rgba(244,63,94,.4)">📉 매도</button>
-      </div>
-      <div class="field"><label>현재가 수정 (${s?.curr})</label>
-        <input type="number" id="actPrice" value="${s?.cur}" step="0.01">
-      </div>
-      <button class="mbtn mbtn-sec" id="actEdit">✏️ 종목 정보 수정</button>
-      <button class="mbtn mbtn-danger" id="actDel">🗑 삭제</button>
-      <button class="mbtn mbtn-sec" id="mc2">닫기</button>
     </div>`;
   }
 
@@ -710,6 +592,7 @@ export function mkModal(){
 
 // 새 기능 통합 분석 화면: 스냅샷·입출금·태그·일지를 읽기 전용으로 요약한다.
 export function mkAnalysis(){
+  if(valuationUnavailable())return unavailableValuation();
   const d=document.createElement('div');
   const stocks=Array.isArray(S.stocks)?S.stocks:[];
   const cash=S.cash||{};

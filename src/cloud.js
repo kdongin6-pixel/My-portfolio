@@ -5,6 +5,7 @@ import {S,getApiUrl,getApiSecret,save,updateTodaySnapshot,updateIntradaySnap} fr
 import {REFRESH_MS} from './constants.js';
 import {render} from './render.js';
 import {mergeCloudState} from './cloud-merge.js';
+import {applyQuoteResponse,quoteInfo} from './portfolio-read.js';
 
 export function scheduleCloudSave(){
   if(S.autoSyncTimer)clearTimeout(S.autoSyncTimer);
@@ -42,7 +43,7 @@ export async function loadFromCloud(showAlert){
   if(!_url){S.cloudStatus="error";S.syncMsg="❌ API URL 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
   const _secret=getApiSecret();
   if(!_secret){S.cloudStatus="error";S.syncMsg="❌ 공유 시크릿 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
-  S.cloudStatus="saving";renderCloudBadge();
+  S.readStatus="loading";S.cloudStatus="saving";render();
   try{
     const res=await fetch(_url,{
       method:"POST",
@@ -51,29 +52,19 @@ export async function loadFromCloud(showAlert){
     });
     if(!res.ok)throw new Error("로드 실패");
     const data=await res.json();
-    if(data.error==="unauthorized")throw new Error("인증 실패 — 공유 시크릿을 확인해주세요");
-
-    let priceCount=0;
+    if(data.success===false)throw new Error("원장 조회 실패");
+    if(data.error)throw new Error(data.error==="unauthorized"?"인증 실패 — 공유 시크릿을 확인해주세요":"원장 조회 응답 오류");
+        if(!data.appData&&!Array.isArray(data.meritz)&&!Array.isArray(data.isa))throw new Error("원장 응답 형식 미확인");
+        S.rateAsOf=data.rateAsOf||null;
+        let priceCount=0;
     if(data.rate&&data.rate>0)S.rate=data.rate;
-    // appData 없을 때만 여기서 가격 적용 (있으면 아래 appData 블록에서 처리)
-    if(!data.appData){
-      (data.meritz||[]).forEach(item=>{
-        const s=S.stocks.find(x=>x.name===item.name&&x.acct==='메리츠증권');
-        if(s){if(item.cur>0){s.cur=item.cur;priceCount++;}if(item.ticker)s.ticker=item.ticker;}
-      });
-      (data.isa||[]).forEach(item=>{
-        const s=S.stocks.find(x=>x.name===item.name&&x.acct==='ISA');
-        if(s){if(item.cur>0){s.cur=item.cur;priceCount++;}if(item.ticker)s.ticker=item.ticker;}
-      });
-    }
-
     if(data.appData){
       const a=data.appData;
       const merged=mergeCloudState(S,a);
       if(merged.applied)Object.assign(S,merged.state);
       // 캐시를 지운 새 기기는 updatedAt 비교와 무관하게 종목을 복구한다.
       if(a.stocks&&a.stocks.length&&!S.stocks.length){
-        S.stocks=a.stocks.filter(s=>s&&s.name).map(s=>({...s,cur:s.cur||s.avg||0}));
+        S.stocks=a.stocks.filter(s=>s&&s.name).map(s=>({...s,cur:s.cur??null}));
       }
       // 기존 동작 유지: 일지와 태그는 클라우드 값을 적용한다.
       if(a.journal)S.journal=a.journal;
@@ -83,62 +74,24 @@ export async function loadFromCloud(showAlert){
       // 서버가 실시간으로 가져온 data.rate로 설정했고(52행), appData.rate는
       // 마지막 저장 시점의 낡은 값일 뿐이라 이걸로 덮어쓰면 환율이 항상
       // 구식으로 고정되는 버그가 생긴다.
-      // 현재가·티커 업데이트 (수량·평단가 건드리지 않음)
-      (data.meritz||[]).forEach(item=>{
-        const s=S.stocks.find(x=>x.name===item.name&&x.acct==='메리츠증권');
-        if(s){if(item.cur>0){s.cur=item.cur;priceCount++;}if(item.ticker)s.ticker=item.ticker;}
-      });
-      (data.isa||[]).forEach(item=>{
-        const s=S.stocks.find(x=>x.name===item.name&&x.acct==='ISA');
-        if(s){if(item.cur>0){s.cur=item.cur;priceCount++;}if(item.ticker)s.ticker=item.ticker;}
-      });
-      // 클라우드 가격 반영 후 오늘 스냅샷 갱신
-      updateTodaySnapshot();
-      updateIntradaySnap();
-      localStorage.setItem("pf_v3",JSON.stringify({
-        stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
-        snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
-        tags:S.tags,tagColors:S.tagColors,rate:S.rate,updatedAt:S.updatedAt
-      }));
     }
-
-    // Apply Yahoo Finance realtime prices (pre/post market override)
-    if(data.yahooData){
-      S.stocks.forEach(s=>{
-        if(!s.ticker||/^\d/.test(s.ticker))return; // Skip KRX codes
-        const yd=data.yahooData[s.ticker];
-        if(!yd)return;
-        if(yd.price>0){s.cur=yd.price;priceCount++;}
-        s.extPrice=yd.extPrice||null;
-        s.extPct=yd.extPct||null;
-        s.extType=yd.extType||null;
-        s.marketState=yd.marketState||null;
-      });
-    }
-
-    // Sync cash from sheet (sheet is source of truth — overrides _appdata cash)
-    if(data.sheetCash){
-      let cashSynced=false;
-      for(const acct in data.sheetCash){
-        if(!S.cash[acct])S.cash[acct]={USD:0,KRW:0};
-        for(const curr of['USD','KRW']){
-          const v=data.sheetCash[acct][curr];
-          if(v>0&&S.cash[acct][curr]!==v){S.cash[acct][curr]=v;cashSynced=true;}
-        }
-      }
-      if(cashSynced)save();
-    }
-
+    // Quote-only refresh preserves ledger cash, quantities and costs.
+    applyQuoteResponse(S,data,new Date().toISOString());
+    S.readStatus="success";
+    S.rateQuality=data.rateQuality||null;S.quoteProvider=data.quoteProvider||null;
+    const holdings=S.stocks.filter(s=>Number(s.qty)>0);
+    priceCount=holdings.filter(s=>quoteInfo(s).confirmed).length;
+    updateTodaySnapshot();updateIntradaySnap();
+    localStorage.setItem("pf_v3",JSON.stringify({stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,tags:S.tags,tagColors:S.tagColors,rate:S.rate,updatedAt:S.updatedAt}));
     S.cloudStatus="saved";
     S.lastCloudSync=new Date();
-    S.syncMsg=`✅ ${priceCount}개 가격·현금 동기화 완료 (${new Date().toLocaleTimeString()})`;
-    if(showAlert)render();
-    else renderCloudBadge();
+    S.syncMsg=`${priceCount<holdings.length?"⚠️ 부분성공":"✅"} 시세 ${priceCount}/${holdings.length} 확인`;
+    render();
   }catch(e){
-    S.cloudStatus="error";
-    S.syncMsg=`❌ ${e.message}`;
-    if(showAlert)render();
-    else renderCloudBadge();
+    applyQuoteResponse(S,{},new Date().toISOString());
+    S.readStatus="error";S.cloudStatus="error";
+    S.syncMsg="❌ 원장 조회 실패 — 연결/인증을 확인하세요. 이전 자료 유지";
+    render();
   }
 }
 

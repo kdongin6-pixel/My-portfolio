@@ -2,6 +2,7 @@
 // 🌐 시장 탭 UI (스파크라인 / 게이지 / 카드)
 // ═══════════════════════════════════════════
 import {S} from './state.js';
+import {marketImpact,esc} from './holdings-ui.js';
 import {fmtMktPrice} from './helpers.js';
 import {getMarketStatus,getMktFetchTime} from './cloud.js';
 
@@ -12,7 +13,7 @@ function mkSparkSvg(weekly,daily,key,w,h,history){
   const gid='sg'+Math.abs((key||'X').split('').reduce((a,c)=>(a*31+c.charCodeAt(0))|0,0)%9999);
 
   let pts;
-  if(history&&history.length>=2){
+  if(history&&history.length>=2&&history.every(v=>Number.isFinite(v)&&v>0)){
     // 실제 7일 종가 기반 — GAS의 Yahoo chart API에서 온 진짜 데이터
     const lo=Math.min(...history),hi=Math.max(...history);
     const range=hi-lo||1;
@@ -22,55 +23,12 @@ function mkSparkSvg(weekly,daily,key,w,h,history){
       Math.max(2,Math.min(h-2,Math.round(h-2-((v-lo)/range)*(h-4))))
     ]);
   }else{
-    // 실데이터 없을 때만 방향·강도 기반 근사 곡선으로 폴백
-    const mag=Math.min(Math.abs(weekly||0),5)/5;
-    let seed=0;
-    for(let i=0;i<(key||'X').length;i++)seed=(seed*31+(key.charCodeAt(i)||0))&0xffff;
-    pts=[];
-    for(let i=0;i<9;i++){
-      seed=(seed*1664525+1013904223)&0xffff;
-      const noise=((seed%100)/100-.5)*h*.42*(1-mag*.35);
-      const baseY=h/2+(up?-1:1)*(i-4)*mag*h*.1;
-      pts.push([Math.round(i*(w/8)),Math.max(2,Math.min(h-2,Math.round(baseY+noise)))]);
-    }
+    return '<span class="quote-provenance">이력 없음</span>';
   }
 
   const line=pts.map((p,i)=>(i?'L':'M')+p[0]+','+p[1]).join('');
   const fill='M'+pts[0][0]+','+h+' '+pts.map(p=>'L'+p[0]+','+p[1]).join(' ')+' L'+pts[pts.length-1][0]+','+h+'Z';
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".22"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${fill}" fill="url(#${gid})"/><path d="${line}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-function vixToFG(vix){
-  if(!vix||vix<=0)return{score:50,label:'중립',color:'#eab308'};
-  const score=Math.max(0,Math.min(100,Math.round(110-vix*3)));
-  const col=score>=75?'#10b981':score>=55?'#84cc16':score>=45?'#eab308':score>=25?'#f97316':'#ef4444';
-  const label=score>=75?'극단적 탐욕':score>=55?'탐욕':score>=45?'중립':score>=25?'공포':'극단적 공포';
-  return{score,label,color:col};
-}
-
-function mkGaugeSvg(score,label,color){
-  const cx=60,cy=52,ro=38,ri=24;
-  const a=s=>((s/100*180)-180)*Math.PI/180;
-  const seg=(f,t,c)=>{
-    const a1=a(f),a2=a(t);
-    const x1o=cx+ro*Math.cos(a1),y1o=cy+ro*Math.sin(a1);
-    const x2o=cx+ro*Math.cos(a2),y2o=cy+ro*Math.sin(a2);
-    const x1i=cx+ri*Math.cos(a1),y1i=cy+ri*Math.sin(a1);
-    const x2i=cx+ri*Math.cos(a2),y2i=cy+ri*Math.sin(a2);
-    const lg=t-f>50?1:0;
-    return `<path d="M${x1o.toFixed(1)},${y1o.toFixed(1)} A${ro},${ro} 0 ${lg},1 ${x2o.toFixed(1)},${y2o.toFixed(1)} L${x2i.toFixed(1)},${y2i.toFixed(1)} A${ri},${ri} 0 ${lg},0 ${x1i.toFixed(1)},${y1i.toFixed(1)}Z" fill="${c}" opacity=".9"/>`;
-  };
-  const na=a(score);const nlen=ri-5;
-  const nx=cx+nlen*Math.cos(na),ny=cy+nlen*Math.sin(na);
-  return `<div style="text-align:center">
-    <svg width="120" height="62" viewBox="0 0 120 62">
-      ${seg(0,25,'#ef4444')}${seg(25,45,'#f97316')}${seg(45,55,'#eab308')}${seg(55,75,'#84cc16')}${seg(75,100,'#10b981')}
-      <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-      <circle cx="${cx}" cy="${cy}" r="5" fill="#161b22"/><circle cx="${cx}" cy="${cy}" r="2.5" fill="white"/>
-    </svg>
-    <div style="font-size:1.05em;font-weight:800;color:${color};margin-top:-6px">${score}</div>
-    <div style="font-size:.68em;color:${color};font-weight:700">${label}</div>
-  </div>`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block" role="img" aria-label="실제 가격 관측순서, 기간 미확인"><title>가격 관측순서 · 기간 미확인</title><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".22"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${fill}" fill="url(#${gid})"/><path d="${line}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function mktChgBadge(val,vixInv,extraCls){
@@ -119,7 +77,7 @@ export function mkMarket(){
     d.innerHTML=`<div class="mkt-wrap">
       <div class="mkt-header">
         <span style="font-size:.95em;font-weight:800;color:#e6edf3">🌐 시장 현황</span>
-        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">${st.label}</span>
+        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
       </div>
       <div class="empty">⏳ 시장 데이터 로드 중...</div>
     </div>`;
@@ -138,7 +96,7 @@ export function mkMarket(){
       <div class="mkt2-hdr">
         <span style="font-size:.95em;font-weight:800;color:#e6edf3">🌐 시장 현황</span>
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="mkt-badge" style="color:${st.color};background:${st.bg}">${st.label}</span>
+          <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
           <button class="mkt-refresh-btn" id="btnMktRefresh">🔄</button>
         </div>
       </div>
@@ -158,7 +116,7 @@ export function mkMarket(){
   const idxCards=idxKeys.map(c=>{
     const m=gv(c.key);
     const price=m?m.price:0;
-    const d_=m?m.daily:0, w_=m?m.weekly:0;
+    const d_=m?m.daily:null, w_=m?m.weekly:null;
     const priceStr=price?fmtMktPrice(price,c.fmt):'—';
     const spark=mkSparkSvg(w_,d_,c.key,68,28,m?.history);
     return `<div class="mkt2-idx-card">
@@ -179,7 +137,7 @@ export function mkMarket(){
   // ── 시장 심리 (VIX + Fear/Greed) ──
   const vixM=gv('VIX');
   const vixPrice=vixM?vixM.price:0;
-  const fg=vixToFG(vixPrice);
+
   const vixSpark=mkSparkSvg(vixM?vixM.weekly:0,vixM?vixM.daily:0,'VIX',60,24,vixM?.history);
   const sentHtml=`
     <div class="mkt2-vix-card">
@@ -188,14 +146,14 @@ export function mkMarket(){
         <div>
           <div class="mkt2-vix-price">${vixPrice?vixPrice.toFixed(2):'—'}</div>
           <div style="display:flex;gap:4px;flex-wrap:wrap">
-            ${mktChgBadge(vixM?vixM.daily:0,true)}
-            ${mktChgBadge(vixM?vixM.weekly:0,true,'mkt2-w')}
+            ${mktChgBadge(vixM?vixM.daily:null,true)}
+            ${mktChgBadge(vixM?vixM.weekly:null,true,'mkt2-w')}
           </div>
         </div>
         <div>${vixSpark}</div>
       </div>
     </div>
-    <div class="mkt2-fg-card">${mkGaugeSvg(fg.score,fg.label,fg.color)}</div>`;
+    <div class="mkt2-fg-card"><p class="quote-provenance">VIX는 변동성 참고 지표입니다. 공식 공포·탐욕 점수를 제공받지 않아 임의 점수를 표시하지 않습니다.</p></div>`;
 
   // ── 금리 & 환율 ──
   const rateKeys=[
@@ -209,7 +167,7 @@ export function mkMarket(){
   const rateRows=rateKeys.map(c=>{
     const m=gv(c.key);
     const price=m?m.price:0;
-    const d_=m?m.daily:0, w_=m?m.weekly:0;
+    const d_=m?m.daily:null, w_=m?m.weekly:null;
     // fmtMktPrice가 pct 포맷엔 이미 %를 붙이므로 여기서 또 붙이면 "4.27%%"가 됨
     const priceStr=price?fmtMktPrice(price,c.fmt)+(c.fmt==='krw'?'원':''):(c.fmt==='pct'?'—%':'—');
     const spark=mkSparkSvg(w_,d_,c.key,54,22,m?.history);
@@ -237,7 +195,7 @@ export function mkMarket(){
   const commCards=commKeys.map(c=>{
     const m=gv(c.key);
     const price=m?m.price:0;
-    const d_=m?m.daily:0;
+    const d_=m?m.daily:null;
     const priceStr=price?fmtMktPrice(price,c.fmt):'—';
     const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,52,22,m?.history);
     return `<div class="mkt2-comm-card">
@@ -282,7 +240,7 @@ export function mkMarket(){
   const etfCards=activeEtfList.map(c=>{
     const m=gv(c.key);
     const price=m?m.price:0;
-    const d_=m?m.daily:0;
+    const d_=m?m.daily:null;
     const spark=mkSparkSvg(m?m.weekly:0,d_,c.key,52,22,m?.history);
     return `<div class="mkt2-etf-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
@@ -310,7 +268,7 @@ export function mkMarket(){
   const issueCards=issueKeys.map(k=>{
     const m=gv(k);
     const price=m?m.price:0;
-    const d_=m?m.daily:0;
+    const d_=m?m.daily:null;
     const spark=mkSparkSvg(m?m.weekly:0,d_,k,48,20,m?.history);
     return `<div class="mkt2-top-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px">
@@ -328,11 +286,12 @@ export function mkMarket(){
     <div class="mkt2-hdr">
       <span style="font-size:.95em;font-weight:800;color:#e6edf3">🌐 시장 현황</span>
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">${st.label}</span>
-        <button class="mkt-refresh-btn" id="btnMktRefresh" style="font-size:.78em;color:#8b949e">오후 ${lastUpd} 🔄</button>
+        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
+        <button class="mkt-refresh-btn" id="btnMktRefresh" style="font-size:.78em;color:#8b949e">조회 ${lastUpd} 🔄</button>
       </div>
     </div>
 
+    ${marketImpact(S,mdata)}
     <div class="mkt2-section">
       <div class="mkt2-stitle">📊 주요 지수</div>
       <div class="mkt2-idx-grid">${idxCards}</div>
