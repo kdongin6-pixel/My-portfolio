@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════
 import {DEFAULT_TAGS,TC_DEFAULT} from './constants.js';
 import {scheduleCloudSave} from './cloud.js';
+import {quoteInfo,positive} from './portfolio-read.js';
 
 // API URL is stored in localStorage only — never in source code
 export function getApiUrl(){return localStorage.getItem('pf_api_url')||'';}
@@ -28,6 +29,7 @@ export let S={
   trendPeriod:"1M",
   jFilter:"전체",
   sortBy:"eval",sortDir:"desc",viewMode:"table",chartView:"donut",
+  readStatus:"pending",quoteQuality:null,rateAsOf:null,
   cloudStatus:"",
   lastCloudSync:null,
   autoSyncTimer:null,
@@ -87,21 +89,26 @@ function migrateFromV2(){
       return;
     }
   }catch(e){}
-  // Fresh install — start empty, data will load from cloud
+  // Fresh install is not a ledger edit. Do not timestamp/save an empty state
+  // ahead of the authoritative server or enqueue a cloud write on page load.
   S.cash={메리츠증권:{USD:0,KRW:0},ISA:{USD:0,KRW:0}};
-  save();
+  S.updatedAt=null;
 }
 
+function canSnapshot(){return S.stocks.filter(s=>positive(s.qty)).every(s=>quoteInfo(s).confirmed&&(s.curr!=="USD"||positive(S.rate)));}
+
 export function updateIntradaySnap(){
-  if(!S.stocks||!S.stocks.length)return;
+  if(!canSnapshot())return;
+  const holdings=(S.stocks||[]).filter(s=>positive(s.qty));
+  if(!holdings.length)return;
   const now=new Date();
   if(S.intradaySnaps.length>0){
     const last=new Date(S.intradaySnaps[S.intradaySnaps.length-1].dt);
     if(now-last<30*60*1000)return;
   }
-  const stockKRW=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0);
+  const stockKRW=holdings.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0);
   const cashKRW=Object.values(S.cash).reduce((a,c)=>a+(c.USD||0)*S.rate+(c.KRW||0),0);
-  const inv=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
+  const inv=holdings.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
   const pnl=stockKRW-inv;
   const pct=inv>0?pnl/inv*100:0;
   S.intradaySnaps.push({dt:now.toISOString(),totalKRW:Math.round(stockKRW+cashKRW),pct:Number(pct.toFixed(2))});
@@ -131,15 +138,17 @@ export function todayKey(){
 }
 
 export function updateTodaySnapshot(){
-  if(!S.stocks||!S.stocks.length)return;
+  if(!canSnapshot())return;
+  const holdings=(S.stocks||[]).filter(s=>positive(s.qty));
+  if(!holdings.length)return;
   const today=todayKey();
-  const stockKRW=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0);
-  const inv=S.stocks.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
+  const stockKRW=holdings.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0);
+  const inv=holdings.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
   const cashKRW=Object.values(S.cash).reduce((a,c)=>a+(c.USD||0)*S.rate+(c.KRW||0),0);
   const pnl=stockKRW-inv;
   const pct=inv>0?pnl/inv*100:0;
   const byStock={};
-  S.stocks.forEach(s=>{byStock[s.name]=Math.round(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur);});
+  holdings.forEach(s=>{byStock[s.name]=Math.round(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur);});
 
   const snap={date:today,totalKRW:Math.round(stockKRW+cashKRW),stockKRW:Math.round(stockKRW),
     cashKRW:Math.round(cashKRW),pnl:Math.round(pnl),pct:Number(pct.toFixed(2)),rate:S.rate,byStock};

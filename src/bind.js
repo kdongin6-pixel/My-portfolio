@@ -7,11 +7,27 @@ import {syncSheets,loadMarketData} from './cloud.js';
 import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from './trades.js';
 import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles,parseScreenshots,applyParsed} from './vision.js';
 import {render} from './render.js';
+import {analysisExport} from './portfolio-export.js';
+let detailFocusId=null;
 
 export function bind(){
   const q=s=>document.querySelector(s);
   const qa=s=>document.querySelectorAll(s);
-  const close=()=>{S.modal=null;render();};
+  const close=()=>{S.modal=null;render();if(detailFocusId!==null){document.querySelector(`[data-detail="${CSS.escape(String(detailFocusId))}"]`)?.focus();detailFocusId=null;}};
+  qa('[data-detail]').forEach(b=>b.addEventListener('click',()=>{detailFocusId=b.dataset.detail;S.modal={type:"stockDetail",stockId:Number(b.dataset.detail)};render();}));
+  q('#btnAnalysisCopy')?.addEventListener('click',async()=>{
+    const data=analysisExport(S,S.acct),status=q('#exportStatus');
+    try{await navigator.clipboard.writeText(data.text);if(status)status.textContent='분석용 잔고 복사 완료';}
+    catch{S.modal={type:'exportText',text:data.text};render();}
+  });
+  q('#btnAnalysisCsv')?.addEventListener('click',()=>{
+    const data=analysisExport(S,S.acct),blob=new Blob([data.csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='portfolio-analysis.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);q('#exportStatus').textContent='CSV 생성 완료 — 개인 잔고가 포함되므로 보관에 주의하세요';
+  });
+  const dialog=q('[role="dialog"]');
+  if(dialog){dialog.focus();dialog.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){e.preventDefault();close();return;}
+    if(e.key==='Tab'){const controls=[...dialog.querySelectorAll('button,input,textarea,select,a[href]')].filter(el=>!el.disabled);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){e.preventDefault();last?.focus();}else if(!e.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){e.preventDefault();first?.focus();}}
+  });}
 
   q("#btnTrend")?.addEventListener("click",()=>{S.tab="trend";render();});
   q("#btnMktEtf")?.addEventListener("click",()=>{S.mktEtfTab="etf";render();});
