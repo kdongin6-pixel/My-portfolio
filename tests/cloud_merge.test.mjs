@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {mergeCloudState,mergeJournalTags} from '../src/cloud-merge.js';
+import {mergeCloudState,mergeJournalTags,adoptServerProtectedKis} from '../src/cloud-merge.js';
 
 function base(){return{
   updatedAt:'2026-09-21T07:00:00.000Z',
@@ -97,6 +97,38 @@ test('태그는 합집합이고 충돌 색상은 서버 우선',()=>{
 });
 test('빈 서버 일지는 로컬 일지를 지우지 않는다',()=>{
   assert.equal(mergeJournalTags({journal:[{id:7}]},{journal:[]}).journal.length,1);
+});
+
+test('서버에 없는 ISA 정산과 로컬 증권사 체결을 제거하고 백업 대상으로 반환한다',()=>{
+  const settlement={amount:100};
+  const txn={id:'broker-1',brokerImported:true,amount:50};
+  const result=adoptServerProtectedKis({kisIsaSettlement:settlement,txns:[txn]}, {txns:[]});
+  assert.equal(result.state.kisIsaSettlement,null);
+  assert.deepEqual(result.state.txns,[]);
+  assert.deepEqual(result.dropped,{kisIsaSettlement:settlement,txns:[txn]});
+});
+
+test('동일 kisFillId의 서버 체결 사본을 채택하고 서버 전용 보호 체결도 추가한다',()=>{
+  const localFill={id:'old',kisFillId:'fill-1',qty:1};
+  const serverFill={id:'new',kisFillId:'fill-1',qty:2};
+  const serverOnly={id:'fill-2',kisFillId:'fill-2',qty:3};
+  const result=adoptServerProtectedKis({txns:[localFill]}, {txns:[serverFill,serverOnly]});
+  assert.deepEqual(result.state.txns,[serverFill,serverOnly]);
+  assert.deepEqual(result.dropped.txns,[localFill]);
+});
+
+test('일반 거래와 일지형 메모 거래는 유지하며 동일 보호 상태는 멱등이다',()=>{
+  const normal={id:1,memo:'manual'};
+  const journalLike={id:2,memo:'note',source:'manual'};
+  const protectedTxn={id:3,kisFillId:'same',qty:2};
+  const local={kisIsaSettlement:{x:1},txns:[normal,journalLike,protectedTxn]};
+  const remote={kisIsaSettlement:{x:1},txns:[{...protectedTxn}]};
+  const first=adoptServerProtectedKis(local,remote);
+  assert.deepEqual(first.state.txns,[normal,journalLike,protectedTxn]);
+  assert.deepEqual(first.dropped,{});
+  const second=adoptServerProtectedKis(first.state,remote);
+  assert.deepEqual(second.state,first.state);
+  assert.deepEqual(second.dropped,{});
 });
 test('삭제 tombstone은 반대편에 남은 일지를 재등장시키지 않는다',()=>{
   const merged=mergeJournalTags({journal:[],journalDeletedIds:['gone']},{journal:[{id:'gone',content:'deleted'}]});

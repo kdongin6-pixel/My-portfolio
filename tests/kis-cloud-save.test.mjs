@@ -15,7 +15,9 @@ test('KIS settlement is omitted when undefined or null, and real settlement is s
  const c=vm.createContext({S:presentState,getApiUrl:()=>'/api',getIdToken:()=> 'synthetic-id-token',render(){},document:{getElementById:()=>null},setInterval(){},setTimeout(){},clearTimeout(){},console:{error(){}},Date,Intl,fetch:async(_u,o)=>{sent=JSON.parse(o.body);return{ok:true,json:async()=>({success:true,savedAt:'r2'})}}});
  vm.runInContext(source,c);await c.saveToCloud();
  assert.deepEqual(sent.state.kisIsaSettlement,{amount:12});
-});
+ const serverNone=await run({ok:true,json:async()=>({success:true,savedAt:'r2'})},'synthetic-id-token',undefined,{stocks:[],cash:{},txns:[],cloudRevision:'r1',kisIsaSettlement:null});
+ assert.equal(Object.hasOwn(JSON.parse(serverNone.opts.body).state,'kisIsaSettlement'),false);
+ });
 test('null KIS settlement regression: fetch JSON body omits the key',async()=>{
  const state={stocks:[],cash:{},txns:[],cloudRevision:'r1',kisIsaSettlement:null};
  const {opts}=await run({ok:true,json:async()=>({success:true,savedAt:'r2'})},'synthetic-id-token',undefined,state);

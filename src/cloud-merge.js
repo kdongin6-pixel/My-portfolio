@@ -94,6 +94,27 @@ export function serverOwnedSignature(state){
   return stable({stocks,cash:state?.cash||{},kis:state?.kisIsaSettlement??null});
 }
 
+function isProtectedKisTxn(item){return !!(item?.kisFillId||item?.brokerImported);}
+
+export function adoptServerProtectedKis(local={},remote={}){
+  const localSettlement=local?.kisIsaSettlement??null;
+  const remoteSettlement=remote?.kisIsaSettlement??null;
+  const localTxns=Array.isArray(local?.txns)?local.txns:[];
+  const remoteTxns=Array.isArray(remote?.txns)?remote.txns:[];
+  const localProtected=localTxns.filter(isProtectedKisTxn);
+  const remoteProtected=remoteTxns.filter(isProtectedKisTxn);
+  const protectedKeys=item=>[...(item?.id!==undefined&&item?.id!==null?[`id:${item.id}`]:[]),...(item?.kisFillId?[`fill:${item.kisFillId}`]:[])];
+  const remoteByKey=new Map(remoteProtected.flatMap(item=>protectedKeys(item).map(key=>[key,item])));
+  const droppedTxns=localProtected.filter(item=>{
+    const server=protectedKeys(item).map(key=>remoteByKey.get(key)).find(Boolean);
+    return !server||stable(server)!==stable(item);
+  });
+  const dropped={};
+  if(stable(localSettlement)!==stable(remoteSettlement)&&localSettlement!==null)dropped.kisIsaSettlement=localSettlement;
+  if(droppedTxns.length)dropped.txns=droppedTxns;
+  return{state:{...local,kisIsaSettlement:remoteSettlement,txns:[...localTxns.filter(item=>!isProtectedKisTxn(item)),...remoteProtected.map(item=>({...item}))]},dropped};
+}
+
 // `baseRevision` is the server revision this device last loaded or saved; `remoteRevision` is the one just read.
 // Without them the clock-based rule below applies unchanged.
 export function mergeCloudState(local,remote,{baseRevision,remoteRevision}={}){

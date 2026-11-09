@@ -7,5 +7,6 @@ test('release worker cache name differs from saved live name',async()=>{
   const cache=sw.match(/const CACHE='([^']+)'/)?.[1];
   assert.ok(cache);
   assert.notEqual(cache,'pf-cache-v5-20261109-account-labels');
-  assert.equal(cache,'pf-cache-v6-20261110-release1-saving');
+  assert.notEqual(cache,'pf-cache-v6-20261110-release1-saving');
+  assert.equal(cache,'pf-cache-v7-20261110-kis-adopt');
 });

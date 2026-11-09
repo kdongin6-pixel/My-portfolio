@@ -5,7 +5,7 @@ import {S,getApiUrl,getApiSecret,save,updateTodaySnapshot,updateIntradaySnap} fr
 import {getIdToken,clearIdToken} from './auth.js';
 import {REFRESH_MS} from './constants.js';
 import {render} from './render.js';
-import {mergeCloudState,mergeJournalTags,serverOwnedSignature} from './cloud-merge.js';
+import {mergeCloudState,mergeJournalTags,serverOwnedSignature,adoptServerProtectedKis} from './cloud-merge.js';
 import {applyQuoteResponse,quoteInfo} from './portfolio-read.js';
 
 export function scheduleCloudSave(){
@@ -81,6 +81,7 @@ export async function loadFromCloud(showAlert){
   if(!_secret){S.cloudStatus="error";S.syncMsg="❌ 공유 시크릿 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
   S.readStatus="loading";S.cloudStatus="saving";render();
   let staleOverwritten=false;
+  let droppedKisCount=0;
   try{
     const res=await fetch(_url,{
       method:"POST",
@@ -106,6 +107,15 @@ export async function loadFromCloud(showAlert){
         localStorage.setItem('pf_conflict_backup',JSON.stringify(backup));
       }
       if(merged.applied)Object.assign(S,merged.state);
+      const kisAdoption=adoptServerProtectedKis(S,a);
+      Object.assign(S,kisAdoption.state);
+      droppedKisCount=(kisAdoption.dropped.txns?.length||0)+(kisAdoption.dropped.kisIsaSettlement?1:0);
+      if(droppedKisCount){
+        let backups=[];
+        try{const saved=localStorage.getItem('pf_kis_local_backup');const parsed=saved?JSON.parse(saved):[];if(Array.isArray(parsed))backups=parsed;}catch{}
+        backups.push({at:new Date().toISOString(),dropped:kisAdoption.dropped});
+        localStorage.setItem('pf_kis_local_backup',JSON.stringify(backups));
+      }
       // The server's savedAt is the compare-and-swap revision. Keep it even when
       // local edits are newer so they can be safely submitted against that revision.
       if(typeof data.savedAt==='string'&&data.savedAt) S.cloudRevision=data.savedAt;
@@ -136,6 +146,7 @@ export async function loadFromCloud(showAlert){
     S.lastCloudSync=new Date();
     S.syncMsg=`${priceCount<holdings.length?"⚠️ 부분성공":"✅"} 시세 ${priceCount}/${holdings.length} 확인`;
     if(staleOverwritten)S.syncMsg+=" · ⚠️ 서버에서 바뀐 보유수량·현금을 서버 기준으로 적용했습니다 (이전 로컬 값은 이 브라우저에 백업됨)";
+    if(droppedKisCount)S.syncMsg+=` · ⚠️ 이 기기의 로컬 ISA 정산·증권사 체결 정보 ${droppedKisCount}건은 서버 기준으로 정리됨 (백업됨)`;
     render();
   }catch(e){
     applyQuoteResponse(S,{},new Date().toISOString());
