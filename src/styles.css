@@ -327,7 +327,7 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 
 /* ── 실계좌: 원장과 분리된 조회 전용 모바일 카드 ── */
 .broker-account{max-width:760px;margin:0 auto;padding:14px 12px 28px;overflow-wrap:anywhere}
-.broker-intro,.broker-section,.broker-summary{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:16px;margin-bottom:12px}
+.broker-intro,.broker-section,.broker-summary{background:#161b22;border:1px solid #30363d;border-radius:16px;padding:16px;margin-bottom:12px}.broker-total{font-size:1.45em;font-weight:850;margin:8px 0;color:#f8fafc;font-variant-numeric:tabular-nums}.broker-holding-title,.broker-holding-line{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}.broker-holding-title h3{min-width:0;overflow-wrap:anywhere}.broker-holding-title span,.broker-holding small{font-size:.74em;color:#a5b4c7}.broker-holding-line{font-size:.78em;margin:6px 0;font-variant-numeric:tabular-nums}.broker-fill-date{padding:9px 0;border-top:1px solid #30363d}.broker-fill-date h3{color:#a5b4fc}.broker-fill-date p{font-size:.8em;line-height:1.6;padding:5px 0;overflow-wrap:anywhere}
 .broker-intro{background:linear-gradient(135deg,#132b32,#172238);border-color:#245263}
 .broker-eyebrow{font-size:.68em;letter-spacing:1.5px;color:#7dd3fc;font-weight:800}
 .broker-account h1{font-size:1.5em;margin:8px 0}.broker-account h2{font-size:1em;margin:0 0 10px}.broker-account h3{font-size:.95em;margin:0 0 6px}

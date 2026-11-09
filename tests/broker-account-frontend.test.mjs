@@ -10,22 +10,22 @@ function runtime(){
  const S={tab:'broker',stocks:[{name:'Synthetic ledger',qty:2,avg:20,cur:0,acct:'ISA',curr:'KRW'}],cash:{ISA:{KRW:35}},txns:[],cashTxns:[],updatedAt:'synthetic-ledger-time',modal:null,marketData:null,syncMsg:''};
  let calls=[],writes=[],brokerButton={listeners:{},addEventListener(type,fn){this.listeners[type]=fn;}},tab={dataset:{tab:'broker'},addEventListener(type,fn){this.click=fn;}};
  const app={innerHTML:'',children:[],appendChild(el){this.children.push(el);}};
- const document={getElementById:()=>app,createElement:()=>({innerHTML:'',className:''}),querySelector:s=>s==='#btnBrokerRead'?brokerButton:null,querySelectorAll:s=>s==='.tab[data-tab]'?[tab]:[]};
- const context=vm.createContext({...broker,S,document,getApiUrl:()=>'/api',getApiSecret:()=> 'synthetic',fetch:async(...args)=>{calls.push(args);return response(account());},localStorage:{setItem(...args){writes.push(args);}},destroyCharts(){},mkHdr:()=>({}),mkTabs:()=>({}),Date,Intl,console,setTimeout(){throw Error('no automatic timer allowed');},clearTimeout(){}});
+ const document={visibilityState:'visible',getElementById:()=>app,createElement:()=>({innerHTML:'',className:''}),querySelector:s=>s==='#btnBrokerRead'?brokerButton:null,querySelectorAll:s=>s==='.tab[data-tab]'?[tab]:[]};
+ const context=vm.createContext({...broker,S,document,getApiUrl:()=>'/api',getApiSecret:()=> 'synthetic',fetch:async(...args)=>{calls.push(args);return response(account());},localStorage:{setItem(...args){writes.push(args);}},destroyCharts(){},mkHdr:()=>({}),mkTabs:()=>({}),Date,Intl,console,setTimeout(){throw Error('unexpected timeout');},setInterval:()=>1,clearInterval(){}});
  const uiPath=new URL('../src/broker-account-ui.js',import.meta.url);
  new vm.Script(source('broker-account.js')).runInContext(context);
  if(existsSync(uiPath))new vm.Script(source('broker-account-ui.js')).runInContext(context);
  new vm.Script(source('render.js')).runInContext(context);new vm.Script(source('bind.js')).runInContext(context);
  return {context,S,calls,writes,app,tab,brokerButton};
 }
-test('dedicated mobile tab renders and navigates without read; only its explicit click reads without touching ledger or saves',async()=>{
+test('dedicated mobile tab auto-reads when opened, then manual refresh reads without touching ledger or saves',async()=>{
  assert.ok(existsSync(new URL('../src/broker-account-ui.js',import.meta.url)),'runtime account tab required');
  const r=runtime(),before=JSON.stringify(r.S),exportBefore=analysisExport(r.S);
- vm.runInContext('render()',r.context);assert.equal(r.calls.length,0);assert.ok(r.app.children.some(el=>el.innerHTML?.includes('실계좌 조회')));
- r.S.tab='list';r.tab.click();assert.equal(r.S.tab,'broker');assert.equal(r.calls.length,0);
- await r.brokerButton.listeners.click();assert.equal(r.calls.length,1);assert.equal(JSON.stringify(r.S),before);assert.deepEqual(r.writes,[]);assert.deepEqual(analysisExport(r.S),exportBefore);
+ vm.runInContext('render()',r.context);assert.equal(r.calls.length,0);assert.ok(r.app.children.some(el=>el.innerHTML?.includes('새로고침')));
+ r.S.tab='list';r.tab.click();assert.equal(r.S.tab,'broker');await new Promise(resolve=>setImmediate(resolve));assert.equal(r.calls.length,1);
+ await r.brokerButton.listeners.click();assert.equal(r.calls.length,2);assert.equal(JSON.stringify(r.S),before);assert.deepEqual(r.writes,[]);assert.deepEqual(analysisExport(r.S),exportBefore);
  const views=source('views.js');assert.match(views,/data-tab="broker"/);assert.match(views,/S.tab===['"]broker['"]/);
- const style=readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');assert.match(style,/\.broker-account/);assert.match(style,/\.broker-card/);
+ const style=readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');assert.match(style,/\.broker-account/);assert.match(style,/\.broker-card/);assert.match(style,/\.broker-holding/);
 });
 test('real-account header never presents ledger totals or ledger-changing controls',()=>{
  const r=runtime();Object.assign(r.context,{filt:()=>[],portfolioStatus:()=>({confirmed:0,total:0,covered:0,valueKRW:0}),filtCashKRW:()=>0,APP_VERSION:'synthetic',dataNotice:()=>'',fK:()=>'',fP:()=>''});
@@ -40,7 +40,7 @@ const response=a=>({ok:true,json:async()=>({success:true,brokerAccount:a})});
 test('Korean read-only account cards distinguish pending, partial, error, empty and unknown provenance safely',()=>{
  assert.equal(typeof broker.brokerAccountHTML,'function','account view required');
  const idle=broker.brokerAccountHTML({snapshot:null,loading:false,stale:false,error:null});
- assert.match(idle,/실계좌 조회/);assert.match(idle,/아직 조회하지 않았/);assert.doesNotMatch(idle,/<input|data-mode|data-action|가져오기|반영 버튼/);
+ assert.match(idle,/새로고침/);assert.match(idle,/아직 조회하지 않았/);assert.doesNotMatch(idle,/<input|data-mode|data-action|가져오기|반영 버튼/);
  const a=account({status:'partial'});
  a.sections.domesticHoldings=section([{name:'<img src=x onerror=alert(1)>',ticker:'<T>',providerSymbol:'T.O',currency:null,quantity:2,averagePrice:null,currentPrice:0,marketValue:NaN,pnl:null}]);
  a.sections.deposit=section([],{status:'error',errorCode:'<BAD>'});

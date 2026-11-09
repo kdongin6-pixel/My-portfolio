@@ -9,7 +9,7 @@ import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from '.
 import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles,parseScreenshots,applyParsed} from './vision.js';
 import {render} from './render.js';
 import {analysisExport} from './portfolio-export.js';
-import {refreshBrokerAccount} from './broker-account-ui.js';
+import {refreshBrokerAccount,setBrokerAccountActive} from './broker-account-ui.js';
 let detailFocusId=null;
 
 export function bind(){
@@ -118,6 +118,7 @@ export function bind(){
   qa("[data-goto-market]").forEach(el=>el.addEventListener("click",()=>{S.tab="market";render();loadMarketData();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
     S.tab=el.dataset.tab;render();
+    setBrokerAccountActive(S.tab==='broker');
     if(el.dataset.tab==="market")loadMarketData();
   }));
   q("#btnMktRefresh")?.addEventListener("click",()=>loadMarketData(true));
