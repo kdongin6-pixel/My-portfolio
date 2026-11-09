@@ -33,6 +33,8 @@ function mergeSnapshots(localItems,remoteItems,key){
   return [...byKey.values()].sort((a,b)=>String(a[key]).localeCompare(String(b[key])));
 }
 
+const JOURNAL_TOMBSTONE_LIMIT=500;
+
 function stable(value){
   if(Array.isArray(value))return `[${value.map(stable).join(',')}]`;
   if(value&&typeof value==='object')return `{${Object.keys(value).sort().map(k=>`${JSON.stringify(k)}:${stable(value[k])}`).join(',')}}`;
@@ -48,7 +50,21 @@ export function mergeJournalTags(local={},remote={}){
   for(const entry of [...localJournal,...remoteJournal]){
     if(entry?.id===undefined||entry?.id===null)continue;
     const key=String(entry.id),prior=byId.get(key);
-    if(!prior||timestamp(entry.updatedAt||entry.timestamp||entry.createdAt||entry.date)>=timestamp(prior.updatedAt||prior.timestamp||prior.createdAt||prior.date))byId.set(key,entry);
+    if(!prior){byId.set(key,entry);continue;}
+    const localEntry=localJournal.find(item=>String(item?.id)===key);
+    const remoteEntry=remoteJournal.find(item=>String(item?.id)===key);
+    const lt=timestamp(localEntry?.updatedAt||localEntry?.timestamp||localEntry?.createdAt||localEntry?.date);
+    const rt=timestamp(remoteEntry?.updatedAt||remoteEntry?.timestamp||remoteEntry?.createdAt||remoteEntry?.date);
+    // Newer timestamp wins; ties/missing timestamps deterministically prefer local.
+    const winner=rt>lt?remoteEntry:localEntry;
+    const loser=rt>lt?localEntry:remoteEntry;
+    if(!winner){byId.set(key,entry);continue;}
+    if(loser&&stable(winner)!==stable(loser)){
+      const priorConflicts=Array.isArray(winner.conflictVersions)?winner.conflictVersions:[];
+      const versions=[...priorConflicts,loser,...(Array.isArray(loser.conflictVersions)?loser.conflictVersions:[])];
+      const unique=[...new Map(versions.map(version=>[stable(version),version])).values()].filter(version=>stable(version)!==stable(winner));
+      byId.set(key,unique.length?{...winner,conflictVersions:unique}:winner);
+    }else byId.set(key,winner);
   }
   for(const id of new Set([...localTombstones,...remoteTombstones])){
     const l=localJournal.find(e=>String(e?.id)===id),r=remoteJournal.find(e=>String(e?.id)===id);
@@ -64,7 +80,8 @@ export function mergeJournalTags(local={},remote={}){
   const remoteColors=remote.tagColors&&typeof remote.tagColors==='object'?remote.tagColors:{};
   const mergedColors={...localColors};
   for(const tag of Object.keys(remoteColors))if(remoteTags.includes(tag)||(!localTags.includes(tag)&&!Object.prototype.hasOwnProperty.call(mergedColors,tag)))mergedColors[tag]=remoteColors[tag];
-  const journalDeletedIds=[...new Set([...localTombstones,...remoteTombstones])].filter(id=>!byId.has(id));
+  // IDs have no per-tombstone timestamp; preserve append order and bound growth to the newest 500.
+  const journalDeletedIds=[...new Set([...localTombstones,...remoteTombstones])].filter(id=>!byId.has(id)).slice(-JOURNAL_TOMBSTONE_LIMIT);
   return{journal:[...byId.values()],journalDeletedIds,tags,tagColors:mergedColors};
 }
 

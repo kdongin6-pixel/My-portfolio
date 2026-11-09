@@ -75,6 +75,21 @@ test('같은 일지 ID는 최신 시각 항목이 결정적으로 선택된다',
   assert.equal(mergeJournalTags(local,remote).journal[0].content,'local');
   assert.equal(mergeJournalTags({}, {journal:local.journal}).journal[0].content,'local');
 });
+test('timestamp 없는 동일 ID 충돌은 로컬 우선이며 원격 내용도 보존한다',()=>{
+  const local={journal:[{id:'same',content:'local'}]},remote={journal:[{id:'same',content:'remote'}]};
+  const merged=mergeJournalTags(local,remote);
+  assert.equal(merged.journal[0].content,'local');
+  assert.deepEqual(merged.journal[0].conflictVersions,[{id:'same',content:'remote'}]);
+  assert.deepEqual(mergeJournalTags(merged,merged),merged);
+});
+test('tombstone 병합은 최대 500개를 유지하고 재병합해도 동일하다',()=>{
+  const local={journalDeletedIds:Array.from({length:400},(_,i)=>`l${i}`)};
+  const remote={journalDeletedIds:Array.from({length:400},(_,i)=>`r${i}`)};
+  const merged=mergeJournalTags(local,remote);
+  assert.equal(merged.journalDeletedIds.length,500);
+  assert.equal(merged.journalDeletedIds[0],'l300');
+  assert.deepEqual(mergeJournalTags(merged,merged),merged);
+});
 test('태그는 합집합이고 충돌 색상은 서버 우선',()=>{
   const merged=mergeJournalTags({tags:['local','both'],tagColors:{both:'#111',local:'#222'}},{tags:['remote','both'],tagColors:{both:'#fff',remote:'#333'}});
   assert.deepEqual(new Set(merged.tags),new Set(['local','both','remote']));
