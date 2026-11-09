@@ -22,7 +22,7 @@ export async function saveToCloud(){
       stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
       snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,journalDeletedIds:S.journalDeletedIds,
       tags:S.tags,tagColors:S.tagColors,rate:S.rate,
-      ...(Object.prototype.hasOwnProperty.call(S,'kisIsaSettlement')?{kisIsaSettlement:S.kisIsaSettlement}:{}),
+      ...(S.kisIsaSettlement!=null?{kisIsaSettlement:S.kisIsaSettlement}:{}),
       updatedAt:new Date().toISOString()
     };
     const idToken=getIdToken();
