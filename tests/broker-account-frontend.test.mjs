@@ -47,7 +47,8 @@ test('Korean read-only account cards distinguish pending, partial, error, empty 
  a.sections.currencies=section([],{status:'partial',paginationComplete:false});
  a.sections.fills=section([],{status:'partial',failedDates:['2026-11-05'],paginationComplete:false});
  const h=broker.brokerAccountHTML({snapshot:a,loading:false,stale:true,error:'조회 실패'});
- for(const s of ['국내 보유잔고','해외 보유잔고','예수금','통화별 잔고','체결수량 있는 주문','누적 체결수량','개별 체결','meritz-openapi','REST 조회시각','기준시각 미확인','ISA 연결 미확인','이전 조회 결과','부분 조회','조회 실패','조회 결과 없음','조회 범위 미완료','2026-11-05','통화 미확인'])assert.ok(h.includes(s),s);
+ for(const s of ['국내 보유잔고','해외 보유잔고','예수금','통화별 잔고','체결수량 있는 주문','누적 체결수량','개별 체결','meritz-openapi','REST 조회시각','기준시각 미확인','이전 조회 결과','부분 조회','조회 실패','조회 결과 없음','조회 범위 미완료','2026-11-05','통화 미확인'])assert.ok(h.includes(s),s);
+ assert.doesNotMatch(h,/ISA 연결 미확인/);assert.doesNotMatch(idle,/ISA 연결 미확인/);
  assert.doesNotMatch(h,/<img|<T>|<BAD>|NaN|LIVE|실시간/);assert.match(h,/&lt;img/);assert.match(h,/&lt;BAD&gt;/);
  assert.doesNotMatch(h,/<button[^>]*>(매수|매도|주문|반영|가져오기)/);
  const loading=broker.brokerAccountHTML({snapshot:a,loading:true,stale:false,error:null});assert.match(loading,/id="btnBrokerRead"[^>]*disabled/);

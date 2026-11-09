@@ -6,7 +6,7 @@ import {analysisExport} from '../src/portfolio-export.js';
 import {brokerSummary,brokerAccountHTML,createBrokerAccountReader,createBrokerAccountAutoRead} from '../src/broker-account.js';
 const source=file=>readFileSync(new URL('../src/'+file,import.meta.url),'utf8').replace(/^import .*$/mg,'').replace(/^export /mg,'');
 const section=rows=>({status:'success',paginationComplete:true,queriedAt:'2026-11-09T00:00:00Z',rows});
-const account=()=>({provider:'kis-openapi',readOnly:true,accountLabel:'DO NOT USE',queriedAt:'2026-11-09T00:00:00Z',status:'success',period:{from:'2026-10-10',to:'2026-11-09'},sections:{domesticHoldings:section([{ticker:'BIG',name:'ISA-ONLY-SENTINEL',currency:'KRW',quantity:2,averagePrice:40,currentPrice:100,marketValue:200,pnl:120},{ticker:'SMALL',name:'small',currency:'KRW',quantity:1,averagePrice:40,currentPrice:50,marketValue:50,pnl:10}]),deposit:section([{currency:'KRW',balance:30,d2Balance:900,orderable:20}]),fills:section([{date:'2026-11-08',ticker:'SMALL',currency:'KRW',side:'buy',quantity:1,price:50,amount:50},{date:'2026-11-09',ticker:'BIG',currency:'KRW',side:'sell',quantity:1,price:100,amount:100}])}});
+const account=()=>({provider:'kis-openapi',readOnly:true,accountLabel:'DO NOT USE',queriedAt:'2026-11-09T00:00:00Z',status:'success',period:{from:'2026-10-10',to:'2026-11-09'},sections:{domesticHoldings:section([{ticker:'BIG',name:'ISA-ONLY-SENTINEL',currency:'KRW',quantity:2,averagePrice:40,currentPrice:100,marketValue:200,pnl:120},{ticker:'SMALL',name:'small',currency:'KRW',quantity:1,averagePrice:40,currentPrice:50,marketValue:50,pnl:10}]),deposit:section([{currency:'KRW',balance:30,d1Balance:50,d2Balance:900}]),fills:section([{date:'2026-11-08',ticker:'SMALL',currency:'KRW',side:'buy',quantity:1,price:50,amount:50},{date:'2026-11-09',ticker:'BIG',currency:'KRW',side:'sell',quantity:1,price:100,amount:100}])}});
 const ok=a=>({ok:true,json:async()=>({success:true,brokerAccount:a})});
 const fail=error=>({ok:true,json:async()=>({success:false,error})});
 test('selection defaults, persists only the account key and tolerates unavailable storage',()=>{
@@ -24,6 +24,13 @@ test('ISA totals exclude D+2; holdings sorted, fills grouped and no FX or overse
  const a=account(),s=brokerSummary(a),h=brokerAccountHTML({provider:'kis',snapshot:a});
  assert.equal(s.totalKRW,280);assert.equal(s.pnlKRW,130);assert.match(h,/D\+2 예수금/);assert.match(h,/>900</);assert.match(h,/한국투자 ISA · API 연결 계좌/);assert.doesNotMatch(h,/DO NOT USE|적용환율|해외 보유잔고|통화별 잔고|USD/);assert.ok(h.indexOf('ISA-ONLY-SENTINEL')<h.indexOf('small'));assert.ok(h.indexOf('2026-11-09</h3>')<h.indexOf('2026-11-08</h3>'));
  a.sections.deposit.paginationComplete=false;assert.equal(brokerSummary(a).totalKRW,null);
+});
+test('ISA summary shows balance and D+2 separately, not added to total',()=>{
+ const a=account(),summary=brokerAccountHTML({provider:'kis',snapshot:a}).split('<div class="broker-summary">')[1].split('</div>')[0];
+ assert.match(summary,/총 자산 · 추정<\/strong><p class="broker-total">280 KRW/);
+ assert.match(summary,/예수금 30 KRW<br>D\+2 예수금 900 KRW/);assert.doesNotMatch(summary,/예수금 주문가능/);
+ a.sections.deposit.rows[0].d2Balance=0;assert.match(brokerAccountHTML({provider:'kis',snapshot:a}),/D\+2 예수금 0 KRW/);
+ delete a.sections.deposit.rows[0].d2Balance;assert.match(brokerAccountHTML({provider:'kis',snapshot:a}),/D\+2 예수금 미확인/);
 });
 for(const error of ['invalid_action','configuration'])test(`${error} stops automatic reads until manual retry and preserves old snapshot`,async()=>{
  let mode='ok',calls=0;const a=account(),r=createBrokerAccountReader({provider:'kis',getUrl:()=>'/gas',getSecret:()=> 'shared',fetcher:async()=>{calls++;return mode==='ok'?ok(a):fail(error)}});
