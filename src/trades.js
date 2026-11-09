@@ -123,5 +123,6 @@ export function delJournal(id){
   const j=S.journal.find(x=>x.id===id);
   if(!j||!confirm("이 일지를 삭제할까요?"))return;
   S.journal=S.journal.filter(x=>x.id!==id);
+  S.journalDeletedIds=[...new Set([...(S.journalDeletedIds||[]),String(id)])];
   save();render();
 }

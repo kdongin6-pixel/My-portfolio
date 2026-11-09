@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {mergeCloudState} from '../src/cloud-merge.js';
+import {mergeCloudState,mergeJournalTags} from '../src/cloud-merge.js';
 
 function base(){return{
   updatedAt:'2026-09-21T07:00:00.000Z',
@@ -60,4 +60,38 @@ test('같은 날짜의 스냅샷은 기존 동작대로 로컬 값을 우선한�
   const remote={...base(),updatedAt:'2026-09-21T07:00:00.000Z',snapshots:[{date:'2026-09-20',totalKRW:100}]};
   const result=mergeCloudState(local,remote);
   assert.equal(result.state.snapshots[0].totalKRW,200);
+});
+
+test('서버에 없는 로컬 일지는 merge 후에도 남는다',()=>{
+  const merged=mergeJournalTags({journal:[{id:'local',createdAt:'2026-09-21T07:00:00Z',content:'memo'}]}, {journal:[]});
+  assert.equal(merged.journal[0].content,'memo');
+});
+test('서버 전용 일지는 합쳐진다',()=>{
+  assert.equal(mergeJournalTags({}, {journal:[{id:'remote'}]}).journal[0].id,'remote');
+});
+test('같은 일지 ID는 최신 시각 항목이 결정적으로 선택된다',()=>{
+  const local={journal:[{id:1,updatedAt:'2026-09-21T08:00:00Z',content:'local'}]};
+  const remote={journal:[{id:'1',updatedAt:'2026-09-21T07:00:00Z',content:'server-old'}]};
+  assert.equal(mergeJournalTags(local,remote).journal[0].content,'local');
+  assert.equal(mergeJournalTags({}, {journal:local.journal}).journal[0].content,'local');
+});
+test('태그는 합집합이고 충돌 색상은 서버 우선',()=>{
+  const merged=mergeJournalTags({tags:['local','both'],tagColors:{both:'#111',local:'#222'}},{tags:['remote','both'],tagColors:{both:'#fff',remote:'#333'}});
+  assert.deepEqual(new Set(merged.tags),new Set(['local','both','remote']));
+  assert.equal(merged.tagColors.both,'#fff');
+});
+test('빈 서버 일지는 로컬 일지를 지우지 않는다',()=>{
+  assert.equal(mergeJournalTags({journal:[{id:7}]},{journal:[]}).journal.length,1);
+});
+test('삭제 tombstone은 반대편에 남은 일지를 재등장시키지 않는다',()=>{
+  const merged=mergeJournalTags({journal:[],journalDeletedIds:['gone']},{journal:[{id:'gone',content:'deleted'}]});
+  assert.deepEqual(merged.journal,[]);assert.deepEqual(merged.journalDeletedIds,['gone']);
+});
+test('tombstone 없는 상대편 snapshot은 기존 삭제와 구별하지 않고 로컬 일지를 보존한다',()=>{
+  const merged=mergeJournalTags({journal:[{id:8}]},{journal:[]});
+  assert.equal(merged.journal[0].id,8);
+});
+test('일지와 태그 merge는 멱등이다',()=>{
+  const first=mergeJournalTags({journal:[{id:1,createdAt:'2026-09-21T07:00:00Z'}],tags:['a'],tagColors:{a:'#111'}},{journal:[{id:2}],tags:['b'],tagColors:{b:'#222'}});
+  assert.deepEqual(mergeJournalTags(first,first),first);
 });

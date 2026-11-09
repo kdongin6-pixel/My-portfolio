@@ -23,6 +23,7 @@ export let S={
   snapshots:[],
   intradaySnaps:[],
   journal:[],
+  journalDeletedIds:[],
   tags:[...DEFAULT_TAGS],
   tagColors:{...TC_DEFAULT},
   rate:1510,
@@ -61,6 +62,7 @@ export function load(){
       S.snapshots=(d.snapshots||[]).filter(s=>s&&!isNaN(s.totalKRW));
       S.intradaySnaps=d.intradaySnaps||[];
       S.journal=d.journal||[];
+      S.journalDeletedIds=d.journalDeletedIds||[];
       S.tags=d.tags||[...DEFAULT_TAGS];
       S.tagColors=d.tagColors||{...TC_DEFAULT};
       S.rate=Number(d.rate)||1510;
@@ -124,7 +126,7 @@ export function save(){
   S.updatedAt=new Date().toISOString();
   localStorage.setItem("pf_v3",JSON.stringify({
     stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
-    snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
+    snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,journalDeletedIds:S.journalDeletedIds,
     tags:S.tags,tagColors:S.tagColors,rate:S.rate,kisIsaSettlement:S.kisIsaSettlement,
     updatedAt:S.updatedAt
   }));

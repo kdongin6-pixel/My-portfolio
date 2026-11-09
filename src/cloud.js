@@ -5,7 +5,7 @@ import {S,getApiUrl,getApiSecret,save,updateTodaySnapshot,updateIntradaySnap} fr
 import {getIdToken,clearIdToken} from './auth.js';
 import {REFRESH_MS} from './constants.js';
 import {render} from './render.js';
-import {mergeCloudState,serverOwnedSignature} from './cloud-merge.js';
+import {mergeCloudState,mergeJournalTags,serverOwnedSignature} from './cloud-merge.js';
 import {applyQuoteResponse,quoteInfo} from './portfolio-read.js';
 
 export function scheduleCloudSave(){
@@ -21,7 +21,8 @@ export async function saveToCloud(){
     const payload={
       stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
       snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
-      tags:S.tags,tagColors:S.tagColors,rate:S.rate,kisIsaSettlement:S.kisIsaSettlement,
+      tags:S.tags,tagColors:S.tagColors,rate:S.rate,
+      ...(Object.prototype.hasOwnProperty.call(S,'kisIsaSettlement')?{kisIsaSettlement:S.kisIsaSettlement}:{}),
       updatedAt:new Date().toISOString()
     };
     const idToken=getIdToken();
@@ -33,11 +34,19 @@ export async function saveToCloud(){
       body:JSON.stringify({_action:'browser_save',idToken,expectedRevision:S.cloudRevision,ownedSyncRevision:S.ownedSyncRevision,state:payload})
     });
     if(!response.ok || response.type==='opaque')throw new Error('unverified_save');
-    const result=await response.json();
+    let result;
+    try{result=await response.json();}catch{throw new Error('non_json');}
     if(result.success!==true || typeof result.savedAt!=='string'){
       if(['unauthorized','forbidden','expired'].includes(result.error)){clearIdToken();S.syncMsg="🔐 Google 로그인이 만료되었거나 허용되지 않았습니다 — 다시 로그인해주세요";throw new Error('google_reauth_required');}
-      if(result.error==='owned_stale'){S.syncMsg="⚠️ 보유수량·현금이 서버와 달라 저장하지 않았습니다 — 먼저 다시 불러와주세요";delete S.cloudRevision;delete S.ownedSyncRevision;throw new Error('owned_stale');}
-      if(result.error==='revision_conflict'||result.error==='stale_state'){S.syncMsg="⚠️ 다른 기기에서 원장이 변경됐습니다 — 먼저 다시 불러와주세요";delete S.cloudRevision;throw new Error('revision_conflict');}
+      if(result.error==='owned_stale'||result.error==='revision_conflict'||result.error==='stale_state'){
+        const detail=describeSaveError(result.error);S.syncMsg=detail.message;
+        if(detail.dropRevision)delete S.cloudRevision;
+        if(result.error==='owned_stale')delete S.ownedSyncRevision;
+        throw new Error(result.error);
+      }
+      const detail=describeSaveError(result.error);
+      if(detail.dropRevision)delete S.cloudRevision;
+      S.syncMsg=detail.message;
       throw new Error(result.error||'save_rejected');
     }
     S.cloudRevision=result.savedAt;
@@ -47,10 +56,22 @@ export async function saveToCloud(){
     S.syncMsg="✅ 포트폴리오 원장 저장 완료";
   }catch(e){
     S.cloudStatus="error";
+    if(!S.syncMsg||S.syncMsg.startsWith("✅"))S.syncMsg=describeSaveError(e?.message==='non_json'?'non_json':e?.message==='unverified_save'?'unverified_save':e?.message==='google_login_required'?'google_login_required':e?.message==='cloud_load_required'?'cloud_load_required':'network').message;
     console.error("Cloud save error:",e);
   }
   renderCloudBadge();
   if(S.syncMsg)render();
+}
+
+export function describeSaveError(code){
+  const errors={
+    unauthorized:["🔐 Google 인증에 실패했습니다 — 다시 로그인해주세요",false],forbidden:["⛔ 저장 권한이 없습니다 — 계정 권한을 확인해주세요",false],expired:["🔐 Google 로그인이 만료되었습니다 — 다시 로그인해주세요",false],
+    revision_required:["⚠️ 안전한 저장을 위해 원장을 다시 불러와주세요",true],stale_state:["⚠️ 다른 기기에서 원장이 변경됐습니다 — 다시 불러와주세요",true],revision_conflict:["⚠️ 저장 기준이 충돌했습니다 — 원장을 다시 불러와주세요",true],owned_stale:["⚠️ 보유수량·현금이 서버와 달라 저장하지 않았습니다 — 다시 불러와주세요",true],
+    invalid_request:["❌ 저장 요청 형식이 올바르지 않습니다 — 변경 내용을 확인해주세요",false],invalid_action:["❌ 지원하지 않는 저장 요청입니다",false],agent_state_conflict:["⚠️ 서버 원장과 충돌했습니다 — 다시 불러와 확인해주세요",true],timestamp_conflict:["⚠️ 저장 시각 충돌이 발생했습니다 — 다시 불러와주세요",true],reconciliation_pending:["⚠️ 서버 원장 정합성 확인이 필요합니다 — 다시 불러와주세요",true],reserved_state_field:["❌ 저장할 수 없는 보호 필드가 포함됐습니다",false],kis_state_conflict:["⚠️ 서버 보호 상태와 충돌했습니다 — 다시 불러와주세요",true],
+    network:["❌ 네트워크 오류로 저장을 확인하지 못했습니다 — 연결 후 다시 시도해주세요",false],non_json:["❌ 서버 응답을 확인할 수 없어 저장되지 않았을 수 있습니다 — 다시 불러와 확인해주세요",true],unverified_save:["❌ 서버 저장 응답을 확인할 수 없습니다 — 다시 불러와 확인해주세요",true],google_login_required:["🔐 Google 로그인 필요 — 설정에서 Google 로그인을 완료해주세요",false],cloud_load_required:["⚠️ 먼저 클라우드 원장을 불러와야 안전하게 저장할 수 있습니다",true]
+  };
+  const [message,dropRevision]=errors[code]||["❌ 저장 실패 — 원장과 연결 상태를 확인한 뒤 다시 시도해주세요",false];
+  return{message,dropRevision};
 }
 
 export async function loadFromCloud(showAlert){
@@ -93,10 +114,8 @@ export async function loadFromCloud(showAlert){
       if(a.stocks&&a.stocks.length&&!S.stocks.length){
         S.stocks=a.stocks.filter(s=>s&&s.name).map(s=>({...s,cur:s.cur??null}));
       }
-      // 기존 동작 유지: 일지와 태그는 클라우드 값을 적용한다.
-      if(a.journal)S.journal=a.journal;
-      if(a.tags)S.tags=a.tags;
-      if(a.tagColors)S.tagColors=a.tagColors;
+      const notes=mergeJournalTags(S,a);
+      S.journal=notes.journal;S.journalDeletedIds=notes.journalDeletedIds;S.tags=notes.tags;S.tagColors=notes.tagColors;
       // Proof for the server: holdings and cash are in sync with this revision only when they equal the server's.
       // Pending local edits on an unchanged server keep the proof from the last sync; stale values never get one.
       if(S.cloudRevision&&serverOwnedSignature(S)===serverOwnedSignature(a))S.ownedSyncRevision=S.cloudRevision;
@@ -112,7 +131,7 @@ export async function loadFromCloud(showAlert){
     const holdings=S.stocks.filter(s=>Number(s.qty)>0);
     priceCount=holdings.filter(s=>quoteInfo(s).confirmed).length;
     updateTodaySnapshot();updateIntradaySnap();
-    localStorage.setItem("pf_v3",JSON.stringify({stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,tags:S.tags,tagColors:S.tagColors,rate:S.rate,kisIsaSettlement:S.kisIsaSettlement,updatedAt:S.updatedAt}));
+    localStorage.setItem("pf_v3",JSON.stringify({stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,journalDeletedIds:S.journalDeletedIds,tags:S.tags,tagColors:S.tagColors,rate:S.rate,kisIsaSettlement:S.kisIsaSettlement,updatedAt:S.updatedAt}));
     S.cloudStatus="saved";
     S.lastCloudSync=new Date();
     S.syncMsg=`${priceCount<holdings.length?"⚠️ 부분성공":"✅"} 시세 ${priceCount}/${holdings.length} 확인`;
