@@ -19,7 +19,7 @@ Evidence: E:/hermes/collab/shared/live-snapshot-20261109/ and Claude's read-only
 
 ## Files identical in saved live comparison
 
-manifest.webmanifest; src/broker-account-ui.js; src/broker-account.js; src/charts.js; src/constants.js; src/holdings-ui.js; src/intelligence.js; src/main.js; src/market-ui.js; src/portfolio-read.js; src/render.js; src/styles.css; src/vision.js.
+manifest.webmanifest; icons/apple-touch-icon.png; icons/icon-192.png; src/broker-account-ui.js; src/broker-account.js; src/charts.js; src/constants.js; src/holdings-ui.js; src/intelligence.js; src/main.js; src/market-ui.js; src/portfolio-read.js; src/render.js; src/styles.css; src/vision.js.
 
 ## Recommended ship set and KIS entanglement
 
