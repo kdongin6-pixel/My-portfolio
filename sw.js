@@ -1,6 +1,6 @@
 // 서비스 워커 — 네트워크 우선, 오프라인 시 캐시 폴백
 // 캐시 대상: 같은 출처(앱 파일) + chart.js CDN. GAS API 요청은 캐시하지 않음.
-const CACHE='pf-cache-v7-20261110-kis-adopt';
+const CACHE='pf-cache-v8-20261110-live-quotes';
 
 self.addEventListener('install',e=>{
   self.skipWaiting();

@@ -1,26 +1,29 @@
 // Read-only presentation contracts. No DOM, storage, network or ledger writes.
 const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
 export const positive=v=>finite(v)&&Number(v)>0;
-export function quoteInfo(s){
+export const QUOTE_CONFIRM_WINDOW_MS=10*60*1000;
+export function quoteInfo(s,now=Date.now()){
  const m=s._quoteMetadata||s;
  const observedAt=m.quoteObservedAt??m.observedAt??null;
  const requestedAt=m.quoteRequestedAt??m.quoteQueriedAt??m.queriedAt??m.requestedAt??null;
  const mode=m.quoteMode||m.mode||'unknown';
  const cached=!!m.cached||/cache|fallback/.test(m.quoteSource||m.source||'');
  const source=m.quoteSource||m.source||'미확인';
- return {valid:positive(s.cur),cached,confirmed:positive(s.cur)&&!['미확인','unknown','sheet'].includes(source)&&!m.failed&&!cached&&mode!=='cache'&&mode!=='stale',source,observedAt,requestedAt,session:m.quoteSession||m.session||'unknown',mode,reason:m.reason||m.error||null};
+ const requestedMs=requestedAt?Date.parse(requestedAt):NaN,ageMs=Number.isFinite(requestedMs)?now-requestedMs:null;
+ const meritz=source.startsWith('meritz-openapi');
+ return {valid:positive(s.cur),cached,ageMs,confirmed:positive(s.cur)&&!m.failed&&meritz&&ageMs!==null&&ageMs>=0&&ageMs<=QUOTE_CONFIRM_WINDOW_MS,source,observedAt,requestedAt,session:m.quoteSession||m.session||'unknown',mode,reason:m.reason||m.error||null};
 }
-export function valuation(stocks,rate){
+export function valuation(stocks,rate,now){
  const rows=stocks.filter(s=>positive(s.qty)).map(s=>{
-  const quote=quoteInfo(s),fx=s.curr==='KRW'?1:s.curr==='USD'&&positive(rate)?Number(rate):null;
+  const quote=quoteInfo(s,now),fx=s.curr==='KRW'?1:s.curr==='USD'&&positive(rate)?Number(rate):null;
   const valueKRW=quote.valid&&fx!==null&&finite(s.qty)?Number(s.qty)*Number(s.cur)*fx:null;
   const costKRW=fx!==null&&finite(s.qty)&&finite(s.avg)?Number(s.qty)*Number(s.avg)*fx:null;
   return {s,quote,valueKRW,costKRW,pnlKRW:valueKRW!==null&&costKRW!==null?valueKRW-costKRW:null};
  });
  return {rows,valueKRW:rows.reduce((a,r)=>a+(r.valueKRW??0),0),covered:rows.filter(r=>r.valueKRW!==null).length,confirmed:rows.filter(r=>r.valueKRW!==null&&r.quote.confirmed).length,total:rows.length};
 }
-export function portfolioStatus(s,configured){
- const v=valuation(s.stocks||[],s.rate);
+export function portfolioStatus(s,configured,now){
+ const v=valuation(s.stocks||[],s.rate,now);
  const state=s.readStatus==='loading'?'loading':s.readStatus==='error'?'error':!configured?'unconnected':s.readStatus!=='success'?'pending':v.total===0?'empty':v.confirmed<v.total?'partial':'success';
  return {...v,state};
 }
@@ -40,11 +43,10 @@ export function applyQuoteResponse(state,data,queriedAt){
   const price=positive(item?.cur)?item.cur:positive(yd?.price)?yd.price:null;
   if(price!==null){
    s.cur=Number(price);
-   s._quoteMetadata={quoteSource:incoming.quoteSource||incoming.source||(positive(yd?.price)?'yahoo':'미확인'),quoteObservedAt:incoming.quoteObservedAt??incoming.observedAt??null,quoteRequestedAt:incoming.quoteRequestedAt??incoming.quoteQueriedAt??incoming.queriedAt??queriedAt,quoteSession:incoming.quoteSession||'unknown',quoteMode:incoming.quoteMode||'unknown',cached:!!quality?.cached||/cache|fallback/.test(incoming.quoteSource||'')};
+   s._quoteMetadata={quoteSource:incoming.quoteSource||incoming.source||(positive(yd?.price)?'yahoo':'미확인'),quoteObservedAt:incoming.quoteObservedAt??incoming.observedAt??null,quoteRequestedAt:incoming.quoteRequestedAt??incoming.quoteQueriedAt??incoming.queriedAt??null,quoteSession:incoming.quoteSession||'unknown',quoteMode:incoming.quoteMode||'unknown',cached:!!quality?.cached||/cache|fallback/.test(incoming.quoteSource||'')};
    if(item?.ticker)s.ticker=item.ticker;
   }else{
-   const previous=quoteInfo(s);
-   s._quoteMetadata={quoteSource:previous.source,quoteObservedAt:previous.observedAt,quoteRequestedAt:queriedAt,quoteSession:previous.session,quoteMode:previous.valid?'cache':'unknown',failed:true,reason:'조회가격 미확인 — 이전 값 유지'};
+   // Missing quotes do not mutate prior evidence; time-window expiry alone downgrades it.
   }
  }
 }

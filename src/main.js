@@ -16,3 +16,16 @@ if(_configured)setTimeout(()=>loadFromCloud(false),2000);
 if(_configured)setTimeout(scheduleAutoRefresh,3000);
 // 종목 탭 상단 "오늘 시황" 스트립용 — 시장 탭을 안 열어도 미리 로드
 if(_configured)setTimeout(()=>loadMarketData(),2500);
+let quoteRefreshInFlight=false;
+const refreshVisibleQuotes=async()=>{
+  const localEditPending=S.updatedAt&&(!S.lastCloudSync||Date.parse(S.updatedAt)>new Date(S.lastCloudSync).getTime());
+  if(document.visibilityState!=='visible'||quoteRefreshInFlight||S.cloudStatus==='saving'||localEditPending)return;
+  quoteRefreshInFlight=true;
+  try{await loadFromCloud(false,{fresh:true});}finally{quoteRefreshInFlight=false;}
+};
+if(_configured){
+  setInterval(refreshVisibleQuotes,60000);
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'&&(!S.lastCloudSync||Date.now()-new Date(S.lastCloudSync).getTime()>60000))refreshVisibleQuotes();
+  });
+}

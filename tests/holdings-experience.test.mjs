@@ -9,6 +9,12 @@ test('holdings expose quantity cost quote currency and provenance without order 
  assert.match(h,/가격 미확인/);assert.match(dataNotice({...state,readStatus:'error'},true),/이전/);
  const d=holdingDetail(state,s);assert.match(d,/role="dialog"/);assert.match(d,/aria-modal="true"/);assert.match(d,/aria-label="닫기"/);assert.match(d,/원장 기록/);assert.match(d,/실계좌 탭/);assert.doesNotMatch(d,/계좌조회 별도 승인|계좌조회 없음/);
 });
+test('cached Meritz quote labels distinguish confirmed recent and older prices',()=>{
+ const recent={...s,_quoteMetadata:{quoteSource:'meritz-openapi-cache',quoteRequestedAt:new Date().toISOString(),cached:true}};
+ const old={...recent,_quoteMetadata:{...recent._quoteMetadata,quoteRequestedAt:new Date(Date.now()-11*60*1000).toISOString()}};
+ assert.match(holdingCards({...state,stocks:[recent]},[recent]),/0분 전 확인 시세/);
+ assert.match(holdingCards({...state,stocks:[old]},[old]),/이전 시세 · 11분 전/);
+});
 test('stock history uses sourced price points only and no fabricated sparkline',()=>{
  assert.match(priceHistoryPanel(state,s),/가격 이력 없음/);assert.doesNotMatch(priceHistoryPanel({...state,snapshots:[{date:'2026-01-01',totalKRW:100}]},s),/<svg/);
  const history=[{date:'2026-01-01',price:90},{date:'2026-01-02',price:100}];

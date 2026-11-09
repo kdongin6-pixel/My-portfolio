@@ -74,7 +74,11 @@ export function describeSaveError(code){
   return{message,dropRevision};
 }
 
-export async function loadFromCloud(showAlert){
+let _loadPromise=null;
+export async function loadFromCloud(showAlert,options={}){
+  if(_loadPromise)return _loadPromise;
+  _loadPromise=(async()=>{
+  const fresh=options.fresh??!!showAlert;
   const _url=getApiUrl();
   if(!_url){S.cloudStatus="error";S.syncMsg="❌ API URL 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
   const _secret=getApiSecret();
@@ -86,7 +90,7 @@ export async function loadFromCloud(showAlert){
     const res=await fetch(_url,{
       method:"POST",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({secret:_secret,mode:"portfolio",freshQuotes:!!showAlert})
+      body:JSON.stringify({secret:_secret,mode:"portfolio",freshQuotes:fresh})
     });
     if(!res.ok)throw new Error("로드 실패");
     const data=await res.json();
@@ -144,16 +148,24 @@ export async function loadFromCloud(showAlert){
     localStorage.setItem("pf_v3",JSON.stringify({stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,journalDeletedIds:S.journalDeletedIds,tags:S.tags,tagColors:S.tagColors,rate:S.rate,kisIsaSettlement:S.kisIsaSettlement,updatedAt:S.updatedAt}));
     S.cloudStatus="saved";
     S.lastCloudSync=new Date();
-    S.syncMsg=`${priceCount<holdings.length?"⚠️ 부분성공":"✅"} 시세 ${priceCount}/${holdings.length} 확인`;
+    const confirmed=holdings.filter(s=>quoteInfo(s).confirmed);
+    if(confirmed.length===holdings.length){
+      const times=confirmed.map(s=>Date.parse(quoteInfo(s).requestedAt)).filter(Number.isFinite);
+      const clock=times.length?new Date(Math.min(...times)).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'시각 미확인';
+      S.syncMsg=`✅ 시세 ${priceCount}/${holdings.length} 확인 · ${clock} 기준`;
+    }else S.syncMsg=`⚠️ 부분성공 시세 ${priceCount}/${holdings.length} 확인`;
     if(staleOverwritten)S.syncMsg+=" · ⚠️ 서버에서 바뀐 보유수량·현금을 서버 기준으로 적용했습니다 (이전 로컬 값은 이 브라우저에 백업됨)";
     if(droppedKisCount)S.syncMsg+=` · ⚠️ 이 기기의 로컬 ISA 정산·증권사 체결 정보 ${droppedKisCount}건은 서버 기준으로 정리됨 (백업됨)`;
     render();
+    if(!fresh&&confirmed.length<holdings.length)setTimeout(()=>loadFromCloud(false,{fresh:true}),0);
   }catch(e){
     applyQuoteResponse(S,{},new Date().toISOString());
     S.readStatus="error";S.cloudStatus="error";
     S.syncMsg="❌ 원장 조회 실패 — 연결/인증을 확인하세요. 이전 자료 유지";
     render();
   }
+  })();
+  try{return await _loadPromise;}finally{_loadPromise=null;}
 }
 
 export function renderCloudBadge(){
