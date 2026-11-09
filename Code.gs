@@ -917,6 +917,11 @@ function doPost(e) {
       return handlePortfolioRequest_(data.mode || 'portfolio', ss);
     }
 
+    // No legacy or unknown action may fall through to a whole-state write.
+    if (!['agent_apply','agent_add_journal','browser_save'].includes(data._action)) {
+      return ContentService.createTextOutput(JSON.stringify({success:false,error:'unsupported_action'})).setMimeType(ContentService.MimeType.JSON);
+    }
+    if (data._action === 'browser_save' && !checkSecret_(data.auth)) return unauthorizedResponse_();
     let sheet = ss.getSheetByName('_appdata');
     if (!sheet) {
       sheet = ss.insertSheet('_appdata');
@@ -978,27 +983,32 @@ function doPost(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
 
-      // 앱의 일반 저장 — 앱 상태에는 agentImports(에이전트 중복 방지 장부)가 없으므로,
-      // 서버에 쌓인 기록을 저장분에 합쳐서 보존한다. 거부하면 no-cors인 앱이
-      // 실패를 인지하지 못한 채 클라우드 저장이 영구히 끊기므로 병합이 안전하다.
+      // Browser saves are authenticated compare-and-swap operations under the same lock.
       const rawState = readAppData_(sheet);
-      if (rawState) {
-        try {
-          const serverState = JSON.parse(rawState);
-          mergeServerAgentTransactionHistory(data, serverState);
-        } catch (mergeErr) {}
+      const serverState = rawState ? JSON.parse(rawState) : null;
+      if (!data.state || typeof data.state !== 'object' || Array.isArray(data.state) ||
+          !Object.prototype.hasOwnProperty.call(data, 'expectedRevision') ||
+          data.expectedRevision !== (serverState ? serverState.updatedAt : null)) {
+        return ContentService.createTextOutput(JSON.stringify({success:false,error:'stale_revision'})).setMimeType(ContentService.MimeType.JSON);
       }
+      const browserState = data.state;
+      if (serverState) {
+        mergeServerAgentTransactionHistory(browserState, serverState);
+        const serverFills=(Array.isArray(serverState.txns)?serverState.txns:[]).filter(t=>t && t.brokerImported && t.kisFillId);
+        const protectedIds=new Set(serverFills.map(t=>t.kisFillId));
+        browserState.txns=(Array.isArray(browserState.txns)?browserState.txns:[]).filter(t=>!t || !t.kisFillId || !protectedIds.has(t.kisFillId)).concat(serverFills);
+        if (Object.prototype.hasOwnProperty.call(serverState, 'kisIsaSettlement')) browserState.kisIsaSettlement = serverState.kisIsaSettlement;
+        else delete browserState.kisIsaSettlement;
+        if (Object.prototype.hasOwnProperty.call(serverState, 'kisReconciliations')) browserState.kisReconciliations = serverState.kisReconciliations;
+        else delete browserState.kisReconciliations;
+      }
+      browserState.updatedAt = new Date().toISOString();
+      writeAppData_(sheet,browserState,browserState.updatedAt);
 
-      writeAppData_(sheet,data,new Date().toISOString());
-
-      // 예전엔 "출력" 버튼을 눌러야만(_action:'export') 보이는 시트(메리츠증권/ISA)에
-      // 반영됐는데, 그 버튼이 제거되면서 수동 종목추가/수정이 시트에 전혀 반영되지
-      // 않는 문제가 생김(예: 티커를 새로 넣어도 시트 수식이 안 만들어져 KRX 시세
-      // 갱신 대상에서 계속 빠짐). 매 저장마다 자동으로 반영되도록 변경.
-      updateVisibleSheets(ss, data);
+      // Do not rewrite visible account sheets as a side effect of state persistence.
 
       return ContentService
-        .createTextOutput(JSON.stringify({ success: true, savedAt: new Date().toISOString() }))
+        .createTextOutput(JSON.stringify({ success: true, savedAt: browserState.updatedAt }))
         .setMimeType(ContentService.MimeType.JSON);
     } finally {
       lock.releaseLock();

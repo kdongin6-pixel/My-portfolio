@@ -2,9 +2,10 @@
 // 클라우드 동기화 (Google Sheets) + 자동 갱신 엔진 + 시장 데이터
 // ═══════════════════════════════════════════
 import {S,getApiUrl,getApiSecret,save,updateTodaySnapshot,updateIntradaySnap} from './state.js';
+import {getIdToken,clearIdToken} from './auth.js';
 import {REFRESH_MS} from './constants.js';
 import {render} from './render.js';
-import {mergeCloudState} from './cloud-merge.js';
+import {mergeCloudState,serverOwnedSignature} from './cloud-merge.js';
 import {applyQuoteResponse,quoteInfo} from './portfolio-read.js';
 
 export function scheduleCloudSave(){
@@ -20,22 +21,36 @@ export async function saveToCloud(){
     const payload={
       stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
       snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
-      tags:S.tags,tagColors:S.tagColors,rate:S.rate,
+      tags:S.tags,tagColors:S.tagColors,rate:S.rate,kisIsaSettlement:S.kisIsaSettlement,
       updatedAt:new Date().toISOString()
     };
-    await fetch(_url,{
+    const idToken=getIdToken();
+    if(!idToken){S.syncMsg="🔐 Google 로그인 필요 — 설정에서 Google 로그인을 완료해주세요";throw new Error('google_login_required');}
+    if(!Object.prototype.hasOwnProperty.call(S,'cloudRevision')){S.syncMsg="⚠️ 먼저 클라우드 원장을 불러와야 안전하게 저장할 수 있습니다";throw new Error('cloud_load_required');}
+    const response=await fetch(_url,{
       method:"POST",
-      mode:"no-cors",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify(payload)
+      body:JSON.stringify({_action:'browser_save',idToken,expectedRevision:S.cloudRevision,ownedSyncRevision:S.ownedSyncRevision,state:payload})
     });
+    if(!response.ok || response.type==='opaque')throw new Error('unverified_save');
+    const result=await response.json();
+    if(result.success!==true || typeof result.savedAt!=='string'){
+      if(['unauthorized','forbidden','expired'].includes(result.error)){clearIdToken();S.syncMsg="🔐 Google 로그인이 만료되었거나 허용되지 않았습니다 — 다시 로그인해주세요";throw new Error('google_reauth_required');}
+      if(result.error==='owned_stale'){S.syncMsg="⚠️ 보유수량·현금이 서버와 달라 저장하지 않았습니다 — 먼저 다시 불러와주세요";delete S.cloudRevision;delete S.ownedSyncRevision;throw new Error('owned_stale');}
+      if(result.error==='revision_conflict'||result.error==='stale_state'){S.syncMsg="⚠️ 다른 기기에서 원장이 변경됐습니다 — 먼저 다시 불러와주세요";delete S.cloudRevision;throw new Error('revision_conflict');}
+      throw new Error(result.error||'save_rejected');
+    }
+    S.cloudRevision=result.savedAt;
+    S.ownedSyncRevision=result.savedAt; // what was just saved equals what the server now holds
     S.cloudStatus="saved";
     S.lastCloudSync=new Date();
+    S.syncMsg="✅ 포트폴리오 원장 저장 완료";
   }catch(e){
     S.cloudStatus="error";
     console.error("Cloud save error:",e);
   }
   renderCloudBadge();
+  if(S.syncMsg)render();
 }
 
 export async function loadFromCloud(showAlert){
@@ -44,6 +59,7 @@ export async function loadFromCloud(showAlert){
   const _secret=getApiSecret();
   if(!_secret){S.cloudStatus="error";S.syncMsg="❌ 공유 시크릿 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
   S.readStatus="loading";S.cloudStatus="saving";render();
+  let staleOverwritten=false;
   try{
     const res=await fetch(_url,{
       method:"POST",
@@ -60,8 +76,19 @@ export async function loadFromCloud(showAlert){
     if(data.rate&&data.rate>0)S.rate=data.rate;
     if(data.appData){
       const a=data.appData;
-      const merged=mergeCloudState(S,a);
+      const merged=mergeCloudState(S,a,{baseRevision:S.cloudRevision,remoteRevision:data.savedAt});
+      if(merged.overwroteLocal){
+        // Stale local holdings/cash are replaced by the server's. Keep the old values so nothing is lost for good.
+        staleOverwritten=true;
+        const previous=localStorage.getItem('pf_conflict_backup');
+        const backup={at:new Date().toISOString(),stocks:S.stocks,cash:S.cash,kisIsaSettlement:S.kisIsaSettlement,droppedTxns:merged.droppedLocal?.txns||[],droppedCashTxns:merged.droppedLocal?.cashTxns||[],previous:previous?JSON.parse(previous):null};
+        localStorage.setItem('pf_conflict_backup',JSON.stringify(backup));
+      }
       if(merged.applied)Object.assign(S,merged.state);
+      // The server's savedAt is the compare-and-swap revision. Keep it even when
+      // local edits are newer so they can be safely submitted against that revision.
+      if(typeof data.savedAt==='string'&&data.savedAt) S.cloudRevision=data.savedAt;
+      else delete S.cloudRevision;
       // 캐시를 지운 새 기기는 updatedAt 비교와 무관하게 종목을 복구한다.
       if(a.stocks&&a.stocks.length&&!S.stocks.length){
         S.stocks=a.stocks.filter(s=>s&&s.name).map(s=>({...s,cur:s.cur??null}));
@@ -70,6 +97,9 @@ export async function loadFromCloud(showAlert){
       if(a.journal)S.journal=a.journal;
       if(a.tags)S.tags=a.tags;
       if(a.tagColors)S.tagColors=a.tagColors;
+      // Proof for the server: holdings and cash are in sync with this revision only when they equal the server's.
+      // Pending local edits on an unchanged server keep the proof from the last sync; stale values never get one.
+      if(S.cloudRevision&&serverOwnedSignature(S)===serverOwnedSignature(a))S.ownedSyncRevision=S.cloudRevision;
       // rate는 여기서 appData의 옛 스냅샷 값으로 덮어쓰지 않는다 — 위에서 이미
       // 서버가 실시간으로 가져온 data.rate로 설정했고(52행), appData.rate는
       // 마지막 저장 시점의 낡은 값일 뿐이라 이걸로 덮어쓰면 환율이 항상
@@ -82,10 +112,11 @@ export async function loadFromCloud(showAlert){
     const holdings=S.stocks.filter(s=>Number(s.qty)>0);
     priceCount=holdings.filter(s=>quoteInfo(s).confirmed).length;
     updateTodaySnapshot();updateIntradaySnap();
-    localStorage.setItem("pf_v3",JSON.stringify({stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,tags:S.tags,tagColors:S.tagColors,rate:S.rate,updatedAt:S.updatedAt}));
+    localStorage.setItem("pf_v3",JSON.stringify({stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,tags:S.tags,tagColors:S.tagColors,rate:S.rate,kisIsaSettlement:S.kisIsaSettlement,updatedAt:S.updatedAt}));
     S.cloudStatus="saved";
     S.lastCloudSync=new Date();
     S.syncMsg=`${priceCount<holdings.length?"⚠️ 부분성공":"✅"} 시세 ${priceCount}/${holdings.length} 확인`;
+    if(staleOverwritten)S.syncMsg+=" · ⚠️ 서버에서 바뀐 보유수량·현금을 서버 기준으로 적용했습니다 (이전 로컬 값은 이 브라우저에 백업됨)";
     render();
   }catch(e){
     applyQuoteResponse(S,{},new Date().toISOString());

@@ -2,6 +2,7 @@
 // 이벤트 바인딩
 // ═══════════════════════════════════════════
 import {S,save,setApiUrl,setApiSecret} from './state.js';
+import {getIdToken,setGoogleClientId,renderGoogleButton,clearIdToken} from './auth.js';
 import {fM} from './helpers.js';
 import {syncSheets,loadMarketData} from './cloud.js';
 import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from './trades.js';
@@ -14,6 +15,17 @@ let detailFocusId=null;
 export function bind(){
   const q=s=>document.querySelector(s);
   const qa=s=>document.querySelectorAll(s);
+  const googleButton=q('#googleSignInButton');
+  const drawGoogleButton=()=>{
+    const button=q('#googleSignInButton');if(!button)return;
+    const result=renderGoogleButton(button,{
+      onSuccess:()=>{S.syncMsg='✅ Google 로그인 완료 — 원장 저장이 가능합니다';render();},
+      onError:error=>{const status=q('#googleAuthStatus');if(status)status.textContent=`Google 로그인 오류: ${error}`;}
+    });
+    if(!result.ok){const status=q('#googleAuthStatus');if(status)status.textContent=result.error==='google_client_id_missing'?'Client ID를 입력하고 저장한 뒤 다시 열어주세요.':result.error==='google_identity_unavailable'?'Google 로그인 모듈을 불러오는 중입니다. 잠시 기다려주세요.':'Google 로그인 버튼을 표시하지 못했습니다.';}
+  };
+  if(googleButton){drawGoogleButton();if(!window.google?.accounts?.id)window.addEventListener('google-identity-ready',drawGoogleButton,{once:true});}
+  q('#googleSignOut')?.addEventListener('click',()=>{clearIdToken();S.modal={type:'settings'};render();});
   const close=()=>{S.modal=null;render();if(detailFocusId!==null){document.querySelector(`[data-detail="${CSS.escape(String(detailFocusId))}"]`)?.focus();detailFocusId=null;}};
   qa('[data-detail]').forEach(b=>b.addEventListener('click',()=>{detailFocusId=b.dataset.detail;S.modal={type:"stockDetail",stockId:Number(b.dataset.detail)};render();}));
   q('#btnBrokerRead')?.addEventListener('click',refreshBrokerAccount);
@@ -42,11 +54,16 @@ export function bind(){
     if(!url)return alert("URL을 입력해주세요");
     setApiUrl(url);
     const secret=q("#apiSecretInp")?.value?.trim();
-    if(!secret)return alert("공유 시크릿을 입력해주세요");
+    if(!secret)return alert("읽기용 공유 시크릿을 입력해주세요");
     setApiSecret(secret);
+    const clientId=q('#googleClientIdInp')?.value?.trim();
+    if(clientId!==undefined)setGoogleClientId(clientId);
     const akey=q("#anthropicKeyInp")?.value?.trim();
     if(akey!==undefined)setAnthropicKey(akey);
-    S.syncMsg="✅ 설정 저장 완료 — 동기화 버튼을 눌러 연결을 확인해보세요";
+    S.syncMsg="✅ 설정 저장 완료 — 원장 저장에는 Google 로그인이 필요합니다";
+    if(clientId&&!getIdToken()){
+      S.modal={type:"settings"};render();return;
+    }
     S.modal=null;render();
   });
   q("#btnAdd")?.addEventListener("click",()=>{S.modal={type:"add",defaultAcct:S.acct!=='전체'?S.acct:'메리츠증권'};render();});

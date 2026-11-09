@@ -4,6 +4,7 @@
 import {DEFAULT_TAGS,TC_DEFAULT} from './constants.js';
 import {scheduleCloudSave} from './cloud.js';
 import {quoteInfo,positive} from './portfolio-read.js';
+import {valuationCashKRW} from './settlement-value.js';
 
 // API URL is stored in localStorage only — never in source code
 export function getApiUrl(){return localStorage.getItem('pf_api_url')||'';}
@@ -55,6 +56,7 @@ export function load(){
       S.cashTxns=d.cashTxns||[];
       S.txns=d.txns||[];
       S.agentImports=d.agentImports||[];
+      S.kisIsaSettlement=d.kisIsaSettlement||null;
       S.updatedAt=d.updatedAt||null;
       S.snapshots=(d.snapshots||[]).filter(s=>s&&!isNaN(s.totalKRW));
       S.intradaySnaps=d.intradaySnaps||[];
@@ -107,7 +109,7 @@ export function updateIntradaySnap(){
     if(now-last<30*60*1000)return;
   }
   const stockKRW=holdings.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0);
-  const cashKRW=Object.values(S.cash).reduce((a,c)=>a+(c.USD||0)*S.rate+(c.KRW||0),0);
+  const cashKRW=valuationCashKRW(S,'전체');
   const inv=holdings.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
   const pnl=stockKRW-inv;
   const pct=inv>0?pnl/inv*100:0;
@@ -123,7 +125,7 @@ export function save(){
   localStorage.setItem("pf_v3",JSON.stringify({
     stocks:S.stocks,cash:S.cash,cashTxns:S.cashTxns,txns:S.txns,agentImports:S.agentImports,
     snapshots:S.snapshots,intradaySnaps:S.intradaySnaps,journal:S.journal,
-    tags:S.tags,tagColors:S.tagColors,rate:S.rate,
+    tags:S.tags,tagColors:S.tagColors,rate:S.rate,kisIsaSettlement:S.kisIsaSettlement,
     updatedAt:S.updatedAt
   }));
   scheduleCloudSave();
@@ -144,7 +146,7 @@ export function updateTodaySnapshot(){
   const today=todayKey();
   const stockKRW=holdings.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.cur*S.rate:s.qty*s.cur),0);
   const inv=holdings.reduce((a,s)=>a+(s.curr==="USD"?s.qty*s.avg*S.rate:s.qty*s.avg),0);
-  const cashKRW=Object.values(S.cash).reduce((a,c)=>a+(c.USD||0)*S.rate+(c.KRW||0),0);
+  const cashKRW=valuationCashKRW(S,'전체');
   const pnl=stockKRW-inv;
   const pct=inv>0?pnl/inv*100:0;
   const byStock={};

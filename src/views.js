@@ -5,6 +5,7 @@ import {S,getApiUrl} from './state.js';
 import {APP_VERSION,JOURNAL_CATEGORIES} from './constants.js';
 import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
 import {getApiSecret} from './state.js';
+import {getGoogleClientId,getIdToken} from './auth.js';
 import {valuation,portfolioStatus} from './portfolio-read.js';
 import {dataNotice,holdingCards,holdingDetail,esc} from './holdings-ui.js';
 import {getAnthropicKey,getShotFiles} from './vision.js';
@@ -91,8 +92,9 @@ export function mkList(){
     const c=S.cash[acct]||{USD:0,KRW:0};
     ["USD","KRW"].forEach(curr=>{
       cashCardsHtml+=`<div class="cash-card-sm">
-        <div class="cash-curr">${acct} · ${curr}</div>
+        <div class="cash-curr">${acct} · ${curr}${acct==='ISA'&&curr==='KRW'&&S.kisIsaSettlement?' · 결제 예수금':''}</div>
         <div class="cash-amt">${fM(c[curr]||0,curr)}</div>
+        ${acct==='ISA'&&curr==='KRW'&&S.kisIsaSettlement?`<div class="cash-curr">D+2 추정 예수금 · 총자산 반영 ${fM(S.kisIsaSettlement.amount,'KRW')}</div>`:''}
         <div class="cash-btns">
           <button class="cash-btn cash-btn-in" data-cash-in="${acct}|${curr}">+ 입금</button>
           <button class="cash-btn cash-btn-out" data-cash-out="${acct}|${curr}">− 출금</button>
@@ -213,8 +215,9 @@ export function mkCash(){
     const c=S.cash[acct]||{USD:0,KRW:0};
     ["USD","KRW"].forEach(curr=>{
       html+=`<div class="cash-card">
-        <div class="cash-curr">${acct} · ${curr}</div>
+        <div class="cash-curr">${acct} · ${curr}${acct==='ISA'&&curr==='KRW'&&S.kisIsaSettlement?' · 결제 예수금':''}</div>
         <div class="cash-amt">${fM(c[curr]||0,curr)}</div>
+        ${acct==='ISA'&&curr==='KRW'&&S.kisIsaSettlement?`<div class="cash-curr">D+2 추정 예수금 · 총자산 반영 ${fM(S.kisIsaSettlement.amount,'KRW')}</div>`:''}
         <div class="cash-btns">
           <button class="cash-btn cash-btn-in" data-cash-in="${acct}|${curr}">+ 입금</button>
           <button class="cash-btn cash-btn-out" data-cash-out="${acct}|${curr}">− 출금</button>
@@ -512,22 +515,30 @@ export function mkModal(){
     const cur=getApiUrl();
     const akey=getAnthropicKey();
     const secret=localStorage.getItem('pf_api_secret')||'';
+    const googleClientId=getGoogleClientId();
+    const googleSignedIn=!!getIdToken();
     d.innerHTML=`<div class="modal">
       <div class="modal-title">⚙️ 설정<button class="modal-close" id="mc">×</button></div>
       <div class="field">
         <label>Google Apps Script 배포 URL</label>
-        <input type="text" id="apiUrlInp" value="${cur}" placeholder="https://script.google.com/macros/s/...">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
+        <input type="text" id="apiUrlInp" value="${esc(cur)}" placeholder="https://script.google.com/macros/s/...">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다. 이 기기에만 저장됩니다.</div>
       </div>
       <div class="field">
-        <label>공유 시크릿</label>
-        <input type="password" id="apiSecretInp" value="${secret}" placeholder="SHARED_SECRET 입력" autocomplete="off">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">GAS Script Properties의 SHARED_SECRET과 동일한 값을 입력하세요. 이 기기의 localStorage에만 저장됩니다.</div>
+        <label>공유 시크릿 · 읽기 전용 조회</label>
+        <input type="password" id="apiSecretInp" value="${esc(secret)}" placeholder="SHARED_SECRET 입력" autocomplete="off">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">원장·시세 조회에만 사용합니다. 거래 원장 저장 인증에는 사용하지 않습니다.</div>
+      </div>
+      <div class="field">
+        <label>Google 로그인 · 원장 저장 권한</label>
+        <input type="text" id="googleClientIdInp" value="${esc(googleClientId)}" placeholder="...apps.googleusercontent.com" autocomplete="off">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">공개 OAuth Client ID이며 Apps Script의 GOOGLE_OAUTH_CLIENT_ID와 같아야 합니다. 이 ID는 기기에 저장하고 로그인 토큰은 현재 브라우저 세션에만 보관합니다.</div>
+        ${googleSignedIn?'<div style="color:#10b981;font-size:.8em;margin:8px 0">✅ Google 로그인 완료 · 이 세션에서 원장 저장 가능</div><button class="mbtn mbtn-sec" id="googleSignOut">로그아웃</button>':'<div id="googleAuthStatus" style="font-size:.78em;color:#fbbf24;margin:8px 0">Client ID를 저장한 뒤 Google 로그인을 완료하세요.</div><div id="googleSignInButton"></div>'}
       </div>
       <div class="field">
         <label>Anthropic API 키 (📷 매매인식용, 선택)</label>
-        <input type="password" id="anthropicKeyInp" value="${akey}" placeholder="sk-ant-...">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">console.anthropic.com에서 발급. 스크린샷 매매인식에 사용됩니다.<br>이 기기의 localStorage에만 저장되며 소스코드에 포함되지 않습니다.</div>
+        <input type="password" id="anthropicKeyInp" value="${esc(akey)}" placeholder="sk-ant-...">
+        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">스크린샷 매매인식에 사용됩니다. 이 기기에만 저장됩니다.</div>
       </div>
       <button class="mbtn mbtn-pri" id="saveApiUrl">저장</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button>

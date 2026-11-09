@@ -66,16 +66,16 @@ test('broker reader stays idle until explicit refresh and posts only the existin
 test('subsequent real local save, cloud save and export cannot include the broker snapshot',async()=>{
  const stored=new Map([['pf_api_url','/synthetic'],['pf_api_secret','synthetic']]),requests=[];
  const a=account();a.sections.domesticHoldings=section([{name:'BROKER-EPHEMERAL-SENTINEL',ticker:'READONLY',quantity:987654321,currency:'KRW'}]);
- const context=vm.createContext({DEFAULT_TAGS:[],TC_DEFAULT:{},REFRESH_MS:{},Date,Intl,console,render(){},document:{getElementById:()=>null},setTimeout:()=>1,setInterval:()=>1,clearTimeout(){},positive:v=>Number(v)>0,localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},fetch:async(url,options)=>{requests.push(JSON.parse(options.body));return response(a);}});
+ const context=vm.createContext({DEFAULT_TAGS:[],TC_DEFAULT:{},REFRESH_MS:{},Date,Intl,console,render(){},getIdToken:()=> 'synthetic-id-token',clearIdToken(){},document:{getElementById:()=>null},setTimeout:()=>1,setInterval:()=>1,clearTimeout(){},positive:v=>Number(v)>0,localStorage:{getItem:k=>stored.get(k)||null,setItem:(k,v)=>stored.set(k,v)},fetch:async(url,options)=>{requests.push(JSON.parse(options.body));return response(a);}});
  for(const file of ['state.js','cloud.js','broker-account.js','broker-account-ui.js'])new vm.Script(source(file)).runInContext(context);
- vm.runInContext('S.tab="broker";S.updatedAt="ledger-before-read"',context);
+ vm.runInContext('S.tab="broker";S.updatedAt="ledger-before-read";S.cloudRevision="ledger-before-read"',context);
  const before=vm.runInContext('JSON.stringify(S)',context);
  await vm.runInContext('refreshBrokerAccount()',context);
  assert.equal(vm.runInContext('JSON.stringify(S)',context),before);assert.equal(stored.has('pf_v3'),false);assert.equal(requests.length,1);
  vm.runInContext('save()',context);await vm.runInContext('saveToCloud()',context);
  const local=stored.get('pf_v3'),cloud=JSON.stringify(requests[1]),exported=JSON.stringify(analysisExport(vm.runInContext('S',context)));
  for(const payload of [local,cloud,exported])assert.doesNotMatch(payload,/BROKER-EPHEMERAL-SENTINEL|987654321|brokerAccount|domesticHoldings/);
- assert.equal(requests.length,2);assert.equal(requests[0]._action,'broker_read');assert.equal(requests[1]._action,undefined);
+ assert.equal(requests.length,2);assert.equal(requests[0]._action,'broker_read');assert.equal(requests[1]._action,'browser_save');
 });
 test('malformed successful broker responses are not shown as confirmed account snapshots',async()=>{
  const r=broker.createBrokerAccountReader({getUrl:()=>'/api',getSecret:()=> 'synthetic',fetcher:async()=>response(account({sections:{}}))});

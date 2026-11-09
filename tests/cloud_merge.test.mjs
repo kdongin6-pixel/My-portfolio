@@ -38,13 +38,14 @@ test('동일 sourceId를 반복 동기화해도 원장이 중복되지 않는다
   assert.equal(result.state,local);
 });
 
-test('원격이 더 최신이면 기존처럼 원격 잔고를 적용하되 로컬 원장을 유실하지 않는다',()=>{
+test('원격이 더 최신이면 원격 잔고와 원장을 적용하고 로컬 거래는 백업 대상으로 남긴다',()=>{
   const local={...base(),updatedAt:'2026-09-21T06:00:00.000Z',txns:[{id:1,source:'manual',name:'local'}]};
   const remote={...base(),updatedAt:'2026-09-21T07:00:00.000Z',stocks:[{id:1,ticker:'PEP',qty:50}],txns:[{id:2,source:'agent',sourceId:'pep-buy'}]};
   const result=mergeCloudState(local,remote);
   assert.equal(result.applied,true);
   assert.equal(result.state.stocks[0].qty,50);
-  assert.deepEqual(result.state.txns.map(x=>x.sourceId||x.id),['pep-buy',1]);
+  assert.deepEqual(result.state.txns.map(x=>x.sourceId||x.id),['pep-buy']);
+  assert.deepEqual(result.droppedLocal.txns.map(x=>x.id),[1]);
 });
 
 test('sourceId 없는 일반 원격 원장은 로컬이 최신일 때 끌어오지 않는다',()=>{
