@@ -5,14 +5,9 @@ import {S,save} from './state.js';
 import {fM} from './helpers.js';
 import {render} from './render.js';
 
-function blockBrokerIsa(acct){
-  if(acct==='ISA' && S.kisIsaSettlement!=null){alert('ISA는 증권사 동기화 기준으로 관리됩니다. 수동 거래·현금 변경은 사용할 수 없습니다.');return true;}
-  return false;
-}
 
 export function execTrade(id,mode,qty,price,fee){
   const s=S.stocks.find(x=>x.id===id);
-  if(s && blockBrokerIsa(s.acct))return;
   const q=parseFloat(qty),p=parseFloat(price);
   const f=Math.max(0,parseFloat(fee)||0);
   if(!s||isNaN(q)||isNaN(p)||q<=0||p<=0)return alert("수량/가격 확인");
@@ -54,7 +49,6 @@ export function execTrade(id,mode,qty,price,fee){
 export function undoTrade(txnId){
   const t=S.txns.find(x=>x.id===txnId);
   if(!t)return;
-  if(blockBrokerIsa(t.acct))return;
   if(t.brokerImported){alert("증권사 체결 기록은 앱에서 되돌릴 수 없습니다.");return;}
   if(!confirm(`'${t.name}' ${t.mode==='buy'?'매수':'매도'} ${t.qty}주를 취소할까요?\n거래 기록이 완전히 삭제됩니다.`))return;
 
@@ -77,7 +71,6 @@ export function undoTrade(txnId){
 }
 
 export function execCash(acct,curr,mode,amount,memo){
-  if(blockBrokerIsa(acct))return;
   const a=parseFloat(amount);
   if(isNaN(a)||a<=0)return alert("금액 확인");
   if(!S.cash[acct])S.cash[acct]={USD:0,KRW:0};
@@ -96,7 +89,6 @@ export function execCash(acct,curr,mode,amount,memo){
 
 export function undoCashTxn(txnId){
   const t=S.cashTxns.find(x=>x.id===txnId);
-  if(t && blockBrokerIsa(t.acct))return;
   if(!t||!confirm(`${t.mode==='in'?'입금':'출금'} ${fM(t.amount,t.curr)} 취소할까요?`))return;
   if(!S.cash[t.acct])S.cash[t.acct]={USD:0,KRW:0};
   S.cash[t.acct][t.curr]+=t.mode==="in"?-t.amount:t.amount;
