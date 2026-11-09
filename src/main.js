@@ -4,6 +4,7 @@
 import {S,load,getApiUrl,getApiSecret} from './state.js';
 import {render} from './render.js';
 import {loadFromCloud,scheduleAutoRefresh,loadMarketData} from './cloud.js';
+import {shouldSkipBackgroundRefresh} from './background-refresh.js';
 
 load();
 // Auto-open settings if API URL/secret is not configured yet
@@ -19,7 +20,10 @@ if(_configured)setTimeout(()=>loadMarketData(),2500);
 let quoteRefreshInFlight=false;
 const refreshVisibleQuotes=async()=>{
   const localEditPending=S.updatedAt&&(!S.lastCloudSync||Date.parse(S.updatedAt)>new Date(S.lastCloudSync).getTime());
-  if(document.visibilityState!=='visible'||quoteRefreshInFlight||S.cloudStatus==='saving'||localEditPending)return;
+  const tag=document.activeElement?.tagName?.toUpperCase();
+  const typing=tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT';
+  const modalOpen=!!S.modal||!!document.querySelector('.modal-bg');
+  if(shouldSkipBackgroundRefresh({visible:document.visibilityState==='visible',inFlight:quoteRefreshInFlight,saving:S.cloudStatus==='saving',localEditPending:!!localEditPending,typing,modalOpen}))return;
   quoteRefreshInFlight=true;
   try{await loadFromCloud(false,{fresh:true});}finally{quoteRefreshInFlight=false;}
 };

@@ -98,7 +98,7 @@ export function createBrokerAccountReader({getUrl,getSecret,fetcher=(...args)=>f
 }
 export function createBrokerAccountAutoRead({reader,now=()=>Date.now(),setIntervalFn=(fn,ms)=>setInterval(fn,ms),clearIntervalFn=id=>clearInterval(id),intervalMs=60000}){
  let timer=null,active=false,visible=false;
- const tick=async()=>{if(!active||!visible)return;const current=reader.getState(),at=Date.parse(current.snapshot?.queriedAt||'');if(current.loading)return;if(!current.snapshot||!Number.isFinite(at)||now()-at>intervalMs)await reader.refresh();};
+ const tick=async()=>{if(!active||!visible)return;const current=reader.getState(),at=Date.parse(current.snapshot?.queriedAt||'');if(current.loading)return;if(!current.snapshot||!Number.isFinite(at)||now()-at>intervalMs-15000)await reader.refresh();};
  const update=(isActive,isVisible)=>{active=!!isActive;visible=!!isVisible;if(active&&visible){if(timer===null)timer=setIntervalFn(tick,intervalMs);void tick();}else if(timer!==null){clearIntervalFn(timer);timer=null;}};
  return{update,stop:()=>update(false,false),tick};
 }

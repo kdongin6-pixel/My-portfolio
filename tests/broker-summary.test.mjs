@@ -11,7 +11,7 @@ const snapshot=()=>({provider:'meritz-openapi',readOnly:true,status:'success',qu
  currencies:section([{currency:'USD',balance:100,estimatedBalance:100,fxRate:1400}]),
  fills:section([{date:'2026-11-08',side:'sell',ticker:'U',name:'USD name',currency:'USD',quantity:1,price:12,amount:12,providerTime:'10:00'},{date:'2026-11-09',side:'buy',ticker:'K',name:'KRW name',currency:'KRW',quantity:1,price:1000,amount:1000,providerTime:'11:00'}])
 }});
-test('account-view release version is pinned',()=>assert.equal(APP_VERSION,'v0.11.3-live-account'));
+test('account-view release version is pinned',()=>assert.equal(APP_VERSION,'v0.11.4-live-account'));
 
 test('brokerSummary computes per-currency holdings, profit rates and estimated converted total',()=>{
  const r=brokerSummary(snapshot());assert.equal(r.currencies.KRW.marketValue,2400);assert.equal(r.currencies.KRW.cost,2000);assert.equal(r.currencies.KRW.pnl,400);assert.equal(r.currencies.KRW.pnlPct,20);assert.equal(r.currencies.USD.marketValue,36);assert.equal(r.currencies.USD.cost,30);assert.equal(r.currencies.USD.pnl,6);assert.equal(r.currencies.USD.pnlPct,20);assert.equal(r.totalKRW,197800);assert.equal(r.pnlKRW,8800);assert.equal(r.pnlPct,20);assert.equal(r.depositOrderable,3500);assert.equal(r.usdBalance,100);assert.equal(r.estimated,true);
@@ -39,4 +39,9 @@ test('auto-read starts only for active visible tab, refreshes stale snapshots an
 });
 test('auto-read does not overlap an existing reader request',async()=>{
  let calls=0;const reader={getState:()=>({snapshot:null,loading:true}),async refresh(){calls++;}};const auto=createBrokerAccountAutoRead({reader,setIntervalFn:()=>1,clearIntervalFn(){}});auto.update(true,true);await auto.tick();assert.equal(calls,0);auto.stop();
+});
+test('auto-read refreshes at interval minus 15 seconds, including the immediate tick',async()=>{
+ let now=Date.parse('2026-11-10T00:00:00Z'),calls=0,timer;const reader={getState:()=>({snapshot:{queriedAt:new Date(now-46000).toISOString()},loading:false}),async refresh(){calls++;}};
+ const auto=createBrokerAccountAutoRead({reader,now:()=>now,setIntervalFn:fn=>{timer=fn;return 1;},clearIntervalFn(){},intervalMs:60000});
+ auto.update(true,true);await Promise.resolve();assert.equal(calls,1);await timer();assert.equal(calls,2);auto.stop();
 });

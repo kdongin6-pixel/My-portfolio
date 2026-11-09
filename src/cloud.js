@@ -83,7 +83,8 @@ export async function loadFromCloud(showAlert,options={}){
   if(!_url){S.cloudStatus="error";S.syncMsg="❌ API URL 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
   const _secret=getApiSecret();
   if(!_secret){S.cloudStatus="error";S.syncMsg="❌ 공유 시크릿 미설정 — ⚙️ 설정에서 입력해주세요";if(showAlert)render();else renderCloudBadge();return;}
-  S.readStatus="loading";S.cloudStatus="saving";render();
+  if(showAlert){S.readStatus="loading";S.cloudStatus="saving";render();}
+  else{S.cloudStatus="saving";renderCloudBadge();}
   let staleOverwritten=false;
   let droppedKisCount=0;
   try{
@@ -159,10 +160,10 @@ export async function loadFromCloud(showAlert,options={}){
     render();
     if(!fresh&&confirmed.length<holdings.length)setTimeout(()=>loadFromCloud(false,{fresh:true}),0);
   }catch(e){
-    applyQuoteResponse(S,{},new Date().toISOString());
-    S.readStatus="error";S.cloudStatus="error";
+    S.cloudStatus="error";
     S.syncMsg="❌ 원장 조회 실패 — 연결/인증을 확인하세요. 이전 자료 유지";
-    render();
+    if(showAlert){applyQuoteResponse(S,{},new Date().toISOString());S.readStatus="error";render();}
+    else renderCloudBadge();
   }
   })();
   try{return await _loadPromise;}finally{_loadPromise=null;}
