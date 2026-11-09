@@ -9,7 +9,7 @@ import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from '.
 import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles,parseScreenshots,applyParsed} from './vision.js';
 import {render} from './render.js';
 import {analysisExport} from './portfolio-export.js';
-import {refreshBrokerAccount,setBrokerAccountActive} from './broker-account-ui.js';
+import {refreshBrokerAccount,setBrokerAccountActive,selectBrokerAccount} from './broker-account-ui.js';
 let detailFocusId=null;
 
 export function bind(){
@@ -29,6 +29,7 @@ export function bind(){
   const close=()=>{S.modal=null;render();if(detailFocusId!==null){document.querySelector(`[data-detail="${CSS.escape(String(detailFocusId))}"]`)?.focus();detailFocusId=null;}};
   qa('[data-detail]').forEach(b=>b.addEventListener('click',()=>{detailFocusId=b.dataset.detail;S.modal={type:"stockDetail",stockId:Number(b.dataset.detail)};render();}));
   q('#btnBrokerRead')?.addEventListener('click',refreshBrokerAccount);
+  qa('[data-broker-account]').forEach(el=>el.addEventListener('click',()=>selectBrokerAccount(el.dataset.brokerAccount)));
   q('#btnAnalysisCopy')?.addEventListener('click',async()=>{
     const data=analysisExport(S,S.acct),status=q('#exportStatus');
     try{await navigator.clipboard.writeText(data.text);if(status)status.textContent='분석용 잔고 복사 완료';}
