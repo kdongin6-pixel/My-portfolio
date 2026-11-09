@@ -236,9 +236,8 @@ export function scheduleAutoRefresh(){
   if(!getApiUrl())return;
   const delay=REFRESH_MS[getMarketPhase()]||300000;
   _arNextAt=Date.now()+delay;
-  _arTimer=setTimeout(async()=>{
-    await loadFromCloud(false);
-    if(S.tab==='market')loadMarketData(true);
+  _arTimer=setTimeout(()=>{
+    if(document.visibilityState==='visible'&&S.tab==='market')loadMarketData(true);
     scheduleAutoRefresh();
   },delay);
 }

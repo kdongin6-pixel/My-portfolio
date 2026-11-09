@@ -15,8 +15,12 @@ test('manual portfolio sync opts into fresh quotes', () => {
   assert.match(cloud, /syncSheets\(\)\s*\{\s*await loadFromCloud\(true\)/);
 });
 
-test('automatic refresh performs a fresh quote load', () => {
-  assert.match(automaticRefresh, /loadFromCloud\(false\)/);
+test('automatic portfolio quotes refresh on the visible 60-second fresh path only', () => {
+  assert.doesNotMatch(automaticRefresh, /loadFromCloud/);
+  const main=fs.readFileSync(new URL('../src/main.js',import.meta.url),'utf8');
+  assert.match(main,/setInterval\(refreshVisibleQuotes,60000\)/);
+  assert.match(main,/loadFromCloud\(false,\{fresh:true\}\)/);
+  assert.match(main,/document\.visibilityState!=='visible'/);
   assert.match(cloud,/setTimeout\(\(\)=>loadFromCloud\(false,\{fresh:true\}\),0\)/);
   assert.match(cloud,/if\(_loadPromise\)return _loadPromise/);
 });
