@@ -51,7 +51,7 @@ export function mkTabs(){
   const complete=coverage.confirmed===coverage.total&&coverage.covered===coverage.total,ready=S.readStatus==='success'||fl.length>0;
   d.innerHTML=`<div class="drawer-scrim" id="drawerScrim" hidden></div><aside id="drawer" class="drawer" aria-label="포트폴리오 메뉴" aria-hidden="true"><div class="drawer-head"><b>포트폴리오</b><button id="drawerClose" aria-label="메뉴 닫기">×</button></div>
     <div class="drawer-summary">총자산 ${ready?(complete?'₩':'부분합계 ₩')+fK(coverage.valueKRW+filtCashKRW()):'—'}<br>평가손익 ${ready&&complete?'₩'+fK(pnl)+' · '+fP(inv>0?pnl/inv*100:0):'미확인'}</div>
-    <h2>보유 종목</h2><div class="drawer-filters">${[['전체','전체'],['메리츠증권','메리츠'],['ISA','ISA']].map(([id,label])=>`<button class="flt ${S.acct===id?'on':''}" data-acct="${id}">${label}</button>`).join('')}</div>${holdingCards(S,sortedHoldings(fl))}
+    <h2>보유 종목</h2><div class="drawer-filters">${[['전체','전체'],['메리츠증권','메리츠'],['ISA','ISA']].map(([id,label])=>`<button class="flt ${S.acct===id?'on':''}" data-acct="${id}" aria-pressed="${S.acct===id}">${label}</button>`).join('')}</div>${holdingCards(S,sortedHoldings(fl))}
     <h2>메뉴</h2><nav class="drawer-nav" aria-label="주 메뉴">
     <button type="button" class="tab ${S.tab==='list'?'on':''}" data-tab="list" ${S.tab==='list'?'aria-current="page"':''}>종목</button>
     <button type="button" class="tab ${S.tab==='chart'?'on':''}" data-tab="chart" ${S.tab==='chart'?'aria-current="page"':''}>비중</button>

@@ -33,7 +33,7 @@ export function bind(){
     resizeHandler=()=>setDrawer(drawerOpen,false);
     window.addEventListener('resize',resizeHandler);
   }
-  setDrawer(drawerOpen&&!S.modal,drawerOpen&&!S.modal);
+  setDrawer(drawerOpen&&!S.modal,false);
   toggle?.addEventListener('click',()=>setDrawer(!drawer.classList.contains('open')));
   q('#drawerClose')?.addEventListener('click',()=>setDrawer(false));
   scrim?.addEventListener('click',()=>setDrawer(false));
@@ -149,6 +149,8 @@ export function bind(){
   qa("[data-goto-market]").forEach(el=>el.addEventListener("click",()=>{S.tab="market";render();loadMarketData();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
     drawerOpen=false;S.tab=el.dataset.tab;render();
+    if(desktop())document.querySelector(`#drawer [data-tab="${CSS.escape(S.tab)}"]`)?.focus({preventScroll:true});
+    else document.querySelector('#drawerToggle')?.focus({preventScroll:true});
     setBrokerAccountActive(S.tab==='broker');
     if(el.dataset.tab==="market")loadMarketData();
   }));
