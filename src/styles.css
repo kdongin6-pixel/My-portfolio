@@ -6,13 +6,13 @@ button{cursor:pointer;font-family:inherit;border:none;outline:none;background:no
 input,select,textarea{font-family:inherit;outline:none;color:var(--text)}
 
 .hdr{background:var(--raised);padding:16px;border-bottom:1px solid var(--border)}
-.hdr-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.hdr-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .hdr-title{font-size:1.15em;font-weight:800;color:var(--accent);letter-spacing:-.3px}
 .sync-btn{background:var(--accent-soft);border:1px solid var(--border);color:var(--accent);padding:8px 14px;border-radius:10px;font-size:max(12px,.82em);font-weight:700}
 .live-btn{background:var(--gain-soft)!important;border-color:var(--gain-soft)!important;color:var(--gain)!important}
 
-.asset-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
-.asset-card{background:var(--overlay-strong);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.asset-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
+.asset-card{background:var(--overlay-strong);border:1px solid var(--border);border-radius:12px;padding:12px}
 .ac-lbl{font-size:max(12px,.7em);color:var(--text-secondary);margin-bottom:3px}
 .ac-val{font-size:1.05em;font-weight:800;line-height:1.2}
 
@@ -34,8 +34,8 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--text)}
 .sort-select{background:var(--overlay-strong);border:1px solid var(--border);border-radius:20px;padding:7px 10px;font-size:max(12px,.82em);font-weight:700;color:var(--text);margin-left:auto;flex-shrink:0}
 .sort-dir-btn{background:var(--overlay-strong);border:1px solid var(--border);border-radius:20px;padding:7px 11px;font-size:max(12px,.82em);font-weight:700;color:var(--accent);flex-shrink:0}
 
-.cards{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;transition:.1s}
+.cards{padding:12px;display:flex;flex-direction:column;gap:8px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;transition:.1s}
 .card:active{transform:scale(.99);opacity:.9}
 
 .card-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;gap:8px}
