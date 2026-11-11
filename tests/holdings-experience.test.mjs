@@ -4,16 +4,17 @@ const s={id:1,name:'<Synthetic>',ticker:'TEST',acct:'ISA',curr:'KRW',qty:2,avg:8
 const state={stocks:[s],cash:{ISA:{KRW:0}},rate:1400,readStatus:'success',txns:[]};
 test('holdings expose quantity cost quote currency and provenance without order controls or false zero',()=>{
  const h=holdingCards(state,[s,{...s,id:2,cur:0}]);
- for(const word of ['수량','평단','조회가격','KRW','원가 대비','비중','거래시각 미제공','출처 미확인','data-detail'])assert.ok(h.includes(word),word);
- assert.doesNotMatch(h,/<Synthetic>|data-mode="buy"|data-mode="sell"|LIVE/);
- assert.match(h,/가격 미확인/);assert.match(dataNotice({...state,readStatus:'error'},true),/이전/);
- const d=holdingDetail(state,s);assert.match(d,/role="dialog"/);assert.match(d,/aria-modal="true"/);assert.match(d,/aria-label="닫기"/);assert.match(d,/원장 기록/);assert.match(d,/실계좌 탭/);assert.doesNotMatch(d,/계좌조회 별도 승인|계좌조회 없음/);
+ assert.match(h,/data-detail/); assert.match(h,/ISA/); assert.match(h,/25%/); assert.match(h,/시세 미확인/); assert.doesNotMatch(h,/<Synthetic>|data-mode="buy"|data-mode="sell"|LIVE/);
+ const d=holdingDetail(state,s); for(const word of ['수량','평단','조회가격','KRW','원가 대비','비중','거래시각 미제공','출처 미확인'])assert.ok(d.includes(word),word);
+ assert.match(holdingDetail(state,{...s,cur:0}),/가격 미확인/);assert.match(dataNotice({...state,readStatus:'error'},true),/이전/);
+ assert.match(d,/role="dialog"/);assert.match(d,/aria-modal="true"/);assert.match(d,/aria-label="닫기"/);assert.match(d,/원장 기록/);assert.match(d,/실계좌 탭/);assert.doesNotMatch(d,/계좌조회 별도 승인|계좌조회 없음/);
 });
 test('cached Meritz quote labels distinguish confirmed recent and older prices',()=>{
  const recent={...s,_quoteMetadata:{quoteSource:'meritz-openapi-cache',quoteRequestedAt:new Date().toISOString(),cached:true}};
  const old={...recent,_quoteMetadata:{...recent._quoteMetadata,quoteRequestedAt:new Date(Date.now()-11*60*1000).toISOString()}};
- assert.match(holdingCards({...state,stocks:[recent]},[recent]),/0분 전 확인 시세/);
- assert.match(holdingCards({...state,stocks:[old]},[old]),/이전 시세 · 11분 전/);
+ assert.match(holdingDetail({...state,stocks:[recent]},recent),/0분 전 확인 시세/);
+ assert.match(holdingDetail({...state,stocks:[old]},old),/이전 시세 · 11분 전/);
+ assert.match(holdingCards({...state,stocks:[old]},[old]),/시세 미확인/);
 });
 test('stock history uses sourced price points only and no fabricated sparkline',()=>{
  assert.match(priceHistoryPanel(state,s),/가격 이력 없음/);assert.doesNotMatch(priceHistoryPanel({...state,snapshots:[{date:'2026-01-01',totalKRW:100}]},s),/<svg/);

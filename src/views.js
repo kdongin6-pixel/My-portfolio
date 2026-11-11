@@ -7,6 +7,7 @@ import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
 import {getApiSecret} from './state.js';
 import {getGoogleClientId,getIdToken} from './auth.js';
 import {valuation,portfolioStatus} from './portfolio-read.js';
+import {valuationCashKRW} from './settlement-value.js';
 import {dataNotice,holdingCards,holdingDetail,esc} from './holdings-ui.js';
 import {getAnthropicKey,getShotFiles} from './vision.js';
 import {mkTodayStrip} from './market-ui.js';
@@ -28,37 +29,34 @@ export function mkHdr(){
   const d=document.createElement("div");d.className="hdr";
   d.innerHTML=`
     <div class="hdr-row1">
-      <div class="hdr-title">📊 포트폴리오 <span id="cloudBadge" style="font-size:.6em;color:#8b949e;margin-left:8px;font-weight:600">☁️</span><span style="font-size:.5em;color:#4b5563;margin-left:6px;font-weight:500;letter-spacing:.3px">${APP_VERSION}</span></div>
-      <button id="btnTrend" style="background:${S.tab==='trend'?'rgba(99,102,241,.25)':'rgba(99,102,241,.1)'};border:1px solid ${S.tab==='trend'?'#6366f1':'rgba(99,102,241,.3)'};color:${S.tab==='trend'?'#818cf8':'#6366f1'};border-radius:8px;padding:3px 9px;font-size:.72em;font-weight:700;cursor:pointer;white-space:nowrap">📈 추이</button>
-      <button class="sync-btn" id="btnSync">🔄 조회</button>
+      <div class="hdr-title">포트폴리오 <span id="cloudBadge" aria-label="연결 상태">●</span></div>
+      <button class="sync-btn" id="btnSync" aria-label="새로 조회">↻</button>
+      <details class="action-menu"><summary aria-label="작업 메뉴">⋯</summary><div class="action-sheet" role="group" aria-label="작업 메뉴"><button class="hdr-btn btn-add" id="btnAdd">+ 종목</button><button class="hdr-btn btn-shot" id="btnShot">매매인식</button><button class="hdr-btn" id="btnSettings">설정</button><button id="btnAnalysisCopy" class="hdr-btn">분석용 잔고 복사</button><button id="btnAnalysisCsv" class="hdr-btn">CSV 다운로드</button><span id="exportStatus" role="status"></span></div></details>
     </div>
     ${S.syncMsg?`<div class="msg-sync" style="background:${S.syncMsg.startsWith('✅')?'rgba(16,185,129,.15)':S.syncMsg.startsWith('❌')?'rgba(244,63,94,.15)':'rgba(245,158,11,.15)'};color:${S.syncMsg.startsWith('✅')?'#10b981':S.syncMsg.startsWith('❌')?'#f43f5e':'#fbbf24'}">${S.syncMsg}</div>`:''}
     ${dataNotice(S,!!getApiUrl()&&!!getApiSecret())}
-    <div class="asset-cards">
-      <div class="asset-card"><div class="ac-lbl">${complete?"총 자산":"확인 가능 자산 · 부분합계"}</div><div class="ac-val" style="font-size:.9em">${ready?"₩"+fK(tot):"—"}</div></div>
-      <div class="asset-card"><div class="ac-lbl">원가 대비 평가손익</div><div class="ac-val">${ready&&complete?"₩"+fK(pnl):"—"}</div></div>
-      <div class="asset-card"><div class="ac-lbl">원가 대비 수익률</div><div class="ac-val">${ready&&complete?fP(pct):"—"}</div></div>
-    </div>
-    <div class="btn-row">
-      <button class="hdr-btn btn-add" id="btnAdd">+ 종목</button>
-      <button class="hdr-btn btn-shot" id="btnShot">📷 매매인식</button>
-      <button class="hdr-btn" id="btnSettings" style="background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.25);color:#94a3b8;min-width:40px;flex:0">⚙️</button>
+    <div class="asset-hero">
+      <div class="ac-lbl">${complete?"총 자산":"확인 가능 자산 · 부분합계"}</div>
+      <div class="hero-total">${ready?"₩"+fK(tot):"—"}</div>
+      <div class="hero-pnl">원가 대비 평가손익 <span class="${ready&&complete?(pnl>=0?'pos':'neg'):''}">${ready&&complete?"₩"+fK(pnl):"—"} · ${ready&&complete?fP(pct):"—"}</span></div>
     </div>`;
   return d;
 }
 
 export function mkTabs(){
   const d=document.createElement("div");
-  d.innerHTML=`<div class="tabs">
-    <div class="tab ${S.tab==='list'?'on':''}" data-tab="list">📋 종목</div>
-    <button type="button" class="tab ${S.tab==='broker'?'on':''}" data-tab="broker" aria-label="실계좌 조회" ${S.tab==='broker'?'aria-current="page"':''}>🏦 실계좌</button>
-    <div class="tab ${S.tab==='chart'?'on':''}" data-tab="chart">📊 비중</div>
-    <div class="tab ${S.tab==='trend'?'on':''}" data-tab="trend">📈 추이</div>
-    <div class="tab ${S.tab==='analysis'?'on':''}" data-tab="analysis">🧭 분석</div>
-    <div class="tab ${S.tab==='market'?'on':''}" data-tab="market">🌐 시장</div>
-    <div class="tab ${S.tab==='journal'?'on':''}" data-tab="journal">📓 일지</div>
-    <div class="tab ${S.tab==='txn'?'on':''}" data-tab="txn">📒 내역</div>
-  </div>`;
+  d.innerHTML=`<nav class="tabs" aria-label="주 메뉴">
+    <button type="button" class="tab ${S.tab==='list'?'on':''}" data-tab="list" ${S.tab==='list'?'aria-current="page"':''}>종목</button>
+    <button type="button" class="tab ${S.tab==='chart'?'on':''}" data-tab="chart" ${S.tab==='chart'?'aria-current="page"':''}>비중</button>
+    <button type="button" class="tab ${S.tab==='trend'?'on':''}" data-tab="trend" ${S.tab==='trend'?'aria-current="page"':''}>추이</button>
+    <button type="button" class="tab ${S.tab==='analysis'?'on':''}" data-tab="analysis" ${S.tab==='analysis'?'aria-current="page"':''}>분석</button>
+    <details class="more-menu"><summary class="tab ${['broker','market','journal','txn'].includes(S.tab)?'on':''}">더보기</summary><div class="more-sheet" role="group" aria-label="더보기 메뉴">
+      <button type="button" class="tab ${S.tab==='broker'?'on':''}" data-tab="broker" ${S.tab==='broker'?'aria-current="page"':''}>실계좌</button>
+      <button type="button" class="tab ${S.tab==='market'?'on':''}" data-tab="market" ${S.tab==='market'?'aria-current="page"':''}>시장</button>
+      <button type="button" class="tab ${S.tab==='journal'?'on':''}" data-tab="journal" ${S.tab==='journal'?'aria-current="page"':''}>일지</button>
+      <button type="button" class="tab ${S.tab==='txn'?'on':''}" data-tab="txn" ${S.tab==='txn'?'aria-current="page"':''}>내역</button>
+    </div></details>
+  </nav>`;
   return d;
 }
 
@@ -185,25 +183,21 @@ export function mkList(){
 
   const todayStripHtml=mkTodayStrip();
 
-  const filtersHtml=`<div class="export-actions"><button id="btnAnalysisCopy" class="hdr-btn">분석용 잔고 복사</button><button id="btnAnalysisCsv" class="hdr-btn">CSV 다운로드</button><span id="exportStatus" role="status"></span></div>
-    <div class="filters">
+  const filtersHtml=`<div class="filters">
       <button class="flt ${S.acct==='전체'?'on':''}" data-acct="전체">전체</button>
       <button class="flt ${S.acct==='메리츠증권'?'on':''}" data-acct="메리츠증권">메리츠</button>
       <button class="flt ${S.acct==='ISA'?'on':''}" data-acct="ISA">ISA</button>
       <select class="sort-select" id="sortSelect">${sortOptions}</select>
       <button class="sort-dir-btn" id="sortDirBtn" title="정렬 방향">${S.sortDir==="desc"?"↓":"↑"}</button>
-    </div>
-    <div style="padding:6px 12px 0">
+    </div>`;
+  const balancesHtml=`<div style="padding:6px 12px 0">
       <div class="sum-card">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <div class="cg-item"><div class="cg-lbl">${v.confirmed<v.total?"종목 평가 · 부분합계":"종목 평가"}</div><div class="cg-val">${available?"₩"+fK(stockTot):"—"}</div></div>
-          <div class="cg-item"><div class="cg-lbl">원장 현금</div><div class="cg-val">${available?"₩"+fK(filtCashKRW()):"—"}</div></div>
-        </div>
+        ${accts.filter(acct=>S.acct==='전체'||S.acct===acct).map(acct=>{const av=valuation(fl.filter(s=>s.acct===acct),S.rate);return `<div class="account-summary"><b>${acct}</b> · ${av.confirmed<av.total||av.covered<av.total?'종목 평가 · 부분합계':'종목 평가'} ${available?'₩'+fK(av.valueKRW):'—'} · 원장 현금 ${available?'₩'+fK(valuationCashKRW(S,acct)):'—'}</div>`;}).join('')}
         ${cashSection}
       </div>
     </div>`;
 
-  d.innerHTML=`${todayStripHtml}${filtersHtml}${holdingCards(S,sorted)}${trendSection}`;
+  d.innerHTML=`${filtersHtml}${holdingCards(S,sorted)}${balancesHtml}${todayStripHtml}${trendSection}`;
   return d;
 }
 

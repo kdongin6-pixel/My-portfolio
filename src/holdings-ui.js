@@ -8,16 +8,22 @@ export function provenance(s){const q=quoteInfo(s),minutes=q.ageMs===null?null:M
 export function dataNotice(state,configured){
  const p=portfolioStatus(state,configured),labels={unconnected:'미연결 — 설정에서 원장 연결을 확인하세요',pending:'아직 조회하지 않음 — 잔고 0원이 아닙니다',loading:'불러오는 중 — 이전 자료는 아래 유지합니다',error:'조회 실패 — 이전 자료만 표시합니다',partial:'부분성공 — 미확인 가격을 정상 합계로 계산하지 않습니다',empty:'확인된 빈 원장 — 보유종목 없음 (현금 별도)',success:'원장 조회 완료'};
  const rateAt=displayKst(state.rateAsOf,'');
- return `<div class="data-notice" role="status"><b>${labels[p.state]}</b><br>시세 ${p.confirmed}/${p.total} 확인 · 평가 가능 ${p.covered}/${p.total} (이전 시세 포함)${p.confirmed<p.total?'<br>미확인: '+esc(p.rows.filter(r=>!r.quote.confirmed||r.valueKRW===null).map(r=>r.s.ticker||r.s.name).join(', ')):''}<br>원장 갱신 ${esc(displayKst(state.updatedAt))} · 환율 ${num(state.rate)} KRW/USD · ${rateAt?'기준 '+esc(rateAt):'기준시각 미확인 · 추정 환율'}</div>`;
+ const ledgerTime=displayKst(state.updatedAt,'');
+ const warnings=[...(!['success','empty'].includes(p.state)?[labels[p.state]]:[]),...(p.confirmed<p.total||p.covered<p.total?['미확인·이전 시세']:[]),...(!rateAt?['추정 환율']:[])];
+ return `<details class="notice-collapse"><summary>시세 ${p.confirmed}/${p.total} · 원장 ${esc(ledgerTime||'시각 미확인')} ${warnings.map(w=>`<span class="notice-warning">${esc(w)}</span>`).join('')}</summary><div class="data-notice" role="status"><b>${labels[p.state]}</b><br>시세 ${p.confirmed}/${p.total} 확인 · 평가 가능 ${p.covered}/${p.total} (이전 시세 포함)${p.confirmed<p.total||p.covered<p.total?'<br>미확인: '+esc(p.rows.filter(r=>!r.quote.confirmed||r.valueKRW===null).map(r=>r.s.ticker||r.s.name).join(', ')):''}<br>원장 갱신 ${esc(displayKst(state.updatedAt))} · 환율 ${num(state.rate)} KRW/USD · ${rateAt?'기준 '+esc(rateAt):'기준시각 미확인 · 추정 환율'}</div></details>`;
+}
+function holdingReturn(s,r){
+ const pnl=r.quote.valid?Number(s.qty)*(Number(s.cur)-Number(s.avg)):null;
+ const pct=pnl!==null&&positive(s.avg)?pnl/(Number(s.qty)*Number(s.avg))*100:null;
+ return {pnl,pct};
 }
 function metrics(state,s,list){
  const v=valuation(list,state.rate),r=valuation([s],state.rate).rows[0],complete=v.confirmed===v.total&&v.covered===v.total;
- const pnl=r.quote.valid?Number(s.qty)*(Number(s.cur)-Number(s.avg)):null;
- const pct=pnl!==null&&positive(s.avg)?pnl/(Number(s.qty)*Number(s.avg))*100:null;
+ const {pnl,pct}=holdingReturn(s,r);
  const items=[['보유수량',num(s.qty)+' 주'],['원장 평단',money(s.avg,s.curr)],['조회가격',r.quote.valid?money(s.cur,s.curr):'가격 미확인'],['평가금액',r.quote.valid?money(Number(s.qty)*Number(s.cur),s.curr):'미확인'],['원가 대비 평가손익',money(pnl,s.curr)+(pct===null?'':` (${num(pct)}%)`)],['주식 내 비중',complete&&v.valueKRW>0?num(r.valueKRW/v.valueKRW*100)+'%':'미확인 · 전체시세 필요']];
  return `<dl class="holding-metrics">${items.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
 }
-export function holdingCards(state,list){return `<div class="holding-cards">${list.filter(s=>positive(s.qty)).map(s=>`<article class="holding-card"><button class="holding-title" data-detail="${esc(s.id)}">${esc(s.ticker||s.name)} · ${esc(s.name)} <span aria-hidden="true">↗</span></button><div class="holding-tags">${esc(s.acct)} · ${esc(s.curr)} · ${esc(s.tag||'태그 없음')}</div>${metrics(state,s,list)}${provenance(s)}</article>`).join('')||'<div class="empty">보유행 없음 — 위 연결·조회 상태를 확인하세요.</div>'}</div>`;}
+export function holdingCards(state,list){return `<div class="holding-cards">${list.filter(s=>positive(s.qty)).map(s=>{const r=valuation([s],state.rate).rows[0];const {pct}=holdingReturn(s,r);return `<article class="holding-card"><button class="holding-title compact-holding" data-detail="${esc(s.id)}"><span class="holding-name">${esc(s.name)}<small>${esc(s.acct)} · ${esc(s.ticker||'')} ${r.quote.confirmed?'':' · 시세 미확인'}</small></span><span class="holding-value">${r.valueKRW===null?'미확인':money(r.valueKRW,'KRW')}<small class="${pct===null?'':pct>=0?'pos':'neg'}">${pct===null?'수익률 미확인':num(pct)+'%'}</small></span></button></article>`;}).join('')||'<div class="empty">보유행 없음 — 위 연결·조회 상태를 확인하세요.</div>'}</div>`;}
 export function priceHistoryPanel(state,s){
  const points=(s.priceHistory||state.priceHistory?.[s.ticker]||[]).filter(p=>p&&positive(p.price)&&/^\d{4}-\d{2}-\d{2}/.test(p.date)&&Number.isFinite(Date.parse(p.date))).map(p=>({...p,price:Number(p.price)})).sort((a,b)=>a.date.localeCompare(b.date));
  const source=s.priceHistorySource||state.priceHistorySource||null;

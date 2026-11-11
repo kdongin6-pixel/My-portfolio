@@ -11,7 +11,7 @@ const snapshot=()=>({provider:'meritz-openapi',readOnly:true,status:'success',qu
  currencies:section([{currency:'USD',balance:100,estimatedBalance:100,fxRate:1400}]),
  fills:section([{date:'2026-11-08',side:'sell',ticker:'U',name:'USD name',currency:'USD',quantity:1,price:12,amount:12,providerTime:'10:00'},{date:'2026-11-09',side:'buy',ticker:'K',name:'KRW name',currency:'KRW',quantity:1,price:1000,amount:1000,providerTime:'11:00'}])
 }});
-test('account-view release version is pinned',()=>assert.equal(APP_VERSION,'v0.12.0-isa-live'));
+test('account-view release version is pinned',()=>assert.equal(APP_VERSION,'v0.13.0-ui-declutter'));
 
 test('brokerSummary computes per-currency holdings, profit rates and estimated converted total',()=>{
  const r=brokerSummary(snapshot());assert.equal(r.currencies.KRW.marketValue,2400);assert.equal(r.currencies.KRW.cost,2000);assert.equal(r.currencies.KRW.pnl,400);assert.equal(r.currencies.KRW.pnlPct,20);assert.equal(r.currencies.USD.marketValue,36);assert.equal(r.currencies.USD.cost,30);assert.equal(r.currencies.USD.pnl,6);assert.equal(r.currencies.USD.pnlPct,20);assert.equal(r.totalKRW,197800);assert.equal(r.pnlKRW,8800);assert.equal(r.pnlPct,20);assert.equal(r.depositOrderable,3500);assert.equal(r.usdBalance,100);assert.equal(r.estimated,true);
