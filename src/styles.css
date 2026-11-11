@@ -29,7 +29,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--text)}
 
 .filters{display:flex;gap:8px;padding:12px 14px;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch}
 .filters::-webkit-scrollbar{display:none}
-.flt{padding:7px 16px;border-radius:20px;font-size:max(12px,.82em);font-weight:700;border:1px solid var(--border);color:var(--text-secondary);white-space:nowrap;background:transparent}
+.flt{padding:7px 16px;border-radius:20px;font-size:max(12px,.82em);font-weight:700;border:1px solid var(--border);color:var(--text-secondary);white-space:nowrap;background:transparent;min-width:44px;min-height:44px}
 .flt.on{background:var(--accent-soft);border-color:var(--border);color:var(--accent)}
 .sort-select{background:var(--overlay-strong);border:1px solid var(--border);border-radius:20px;padding:7px 10px;font-size:max(12px,.82em);font-weight:700;color:var(--text);margin-left:auto;flex-shrink:0}
 .sort-dir-btn{background:var(--overlay-strong);border:1px solid var(--border);border-radius:20px;padding:7px 11px;font-size:max(12px,.82em);font-weight:700;color:var(--accent);flex-shrink:0}
@@ -109,7 +109,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--text)}
 .tag-manage input{flex:1}
 .tag-row{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--overlay);border-radius:8px;margin-bottom:6px}
 .tag-row-name{font-size:max(12px,.88em);font-weight:600}
-.tag-row-del{background:var(--loss-soft);color:var(--loss);padding:4px 10px;border-radius:6px;font-size:max(12px,.75em);font-weight:700}
+.tag-row-del{background:var(--loss-soft);color:var(--loss);padding:4px 10px;border-radius:6px;font-size:max(12px,.75em);font-weight:700;min-width:44px;min-height:44px}
 
 .chart-wrap{padding:16px}
 .chart-box{max-width:300px;margin:0 auto 20px}
