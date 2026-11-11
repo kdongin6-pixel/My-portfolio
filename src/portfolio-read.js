@@ -9,7 +9,8 @@ export function displayKst(value,fallback='미확인'){
  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(value))return fallback;
  const date=new Date(value);if(!Number.isFinite(date.getTime()))return fallback;
  const parts=Object.fromEntries(kstFormatter.formatToParts(date).map(p=>[p.type,p.value]));
- return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} (KST)`;
+ const utc=date.toISOString().slice(0,16).replace('T',' ');
+ return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} (KST) · 기준 ${utc} (UTC)`;
 }
 const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
 export const positive=v=>finite(v)&&Number(v)>0;
