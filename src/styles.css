@@ -76,7 +76,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--text)}
 .cash-curr{font-size:max(12px,.85em);color:var(--accent);font-weight:700;margin-bottom:6px}
 .cash-amt{font-size:1.6em;font-weight:800;color:var(--text);margin-bottom:12px}
 .cash-btns{display:flex;gap:8px}
-.cash-btn{flex:1;padding:10px;border-radius:10px;font-size:max(12px,.85em);font-weight:800}
+.cash-btn{flex:1;padding:10px;border-radius:10px;font-size:max(12px,.85em);font-weight:800;min-width:44px;min-height:44px}
 .cash-btn-in{background:var(--gain-soft);border:1px solid var(--gain-soft);color:var(--text)}
 .cash-btn-out{background:var(--loss-soft);border:1px solid var(--loss-soft);color:var(--text)}
 .cash-section-title{font-size:max(12px,.95em);font-weight:700;color:var(--accent);margin:16px 0 8px;padding:0 4px}
@@ -88,7 +88,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--text)}
 .modal-bg{position:fixed;inset:0;background:var(--scrim);display:flex;align-items:flex-end;justify-content:center;z-index:100;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
 .modal{background:var(--raised);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 18px;max-height:88vh;overflow-y:auto}
 .modal-title{font-size:1.05em;font-weight:800;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;color:var(--text)}
-.modal-close{color:var(--text-secondary);font-size:1.5em;padding:0 4px;background:none;border:none}
+.modal-close{color:var(--text-secondary);font-size:1.5em;padding:0 4px;background:none;border:none;min-width:44px;min-height:44px}
 .field{margin-bottom:12px}
 .field label{display:block;font-size:max(12px,.78em);color:var(--text-secondary);margin-bottom:5px;font-weight:600}
 .field input,.field select,.field textarea{width:100%;background:var(--overlay-strong);border:1px solid var(--border);border-radius:10px;padding:11px 13px;font-size:max(12px,.93em);color:var(--text);font-family:inherit}
