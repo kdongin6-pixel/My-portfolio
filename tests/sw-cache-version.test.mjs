@@ -9,5 +9,5 @@ test('release worker cache name differs from saved live name',async()=>{
   assert.notEqual(cache,'pf-cache-v5-20261109-account-labels');
   assert.notEqual(cache,'pf-cache-v6-20261110-release1-saving');
   assert.notEqual(cache,'pf-cache-v10-20261110-live-account');
-  assert.equal(cache,'pf-cache-v12-20261111-ui-declutter');
+  assert.equal(cache,'pf-cache-v13-20261111-ui-polish');
 });

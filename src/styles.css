@@ -396,3 +396,36 @@ input,select,textarea{font-family:inherit;outline:none;color:#e6edf3}
 .action-sheet,.more-sheet{position:fixed;z-index:40;bottom:calc(64px + env(safe-area-inset-bottom));left:8px;right:8px;display:flex;flex-direction:column;gap:4px;padding:12px;background:#21262d;border:1px solid #475569;border-radius:16px;box-shadow:0 8px 30px #000b}.action-sheet button,.more-sheet .tab{width:100%;min-height:44px;text-align:left;flex:none;color:#e6edf3;background:transparent;border:0;border-radius:8px;padding:8px 12px}.action-sheet span{color:#cbd5e1;font-size:.8rem}.action-menu:not([open]) .action-sheet,.more-menu:not([open]) .more-sheet{display:none}
 .tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));overflow:visible;scroll-snap-type:none;min-height:60px;padding-bottom:env(safe-area-inset-bottom)}.tabs>.tab,.tabs>.more-menu>summary{display:grid;place-items:center;width:100%;min-width:0;min-height:56px;padding:0;background:transparent;border:0;color:#94a3b8;font-size:.8rem}.tabs .on{color:#c4b5fd;font-weight:800;background:#272442}.more-menu{min-width:0}.more-sheet .tab.on{color:#c4b5fd}.filters{position:static;flex-wrap:wrap;padding:8px 12px}.holding-cards{display:block;padding:0 12px}.holding-card{padding:0;border:0;border-radius:0;border-bottom:1px solid #30363d;background:transparent}.compact-holding{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:64px;padding:8px 4px}.holding-name,.holding-value{min-width:0}.holding-name small,.holding-value small{display:block;font-size:.72rem;font-weight:500;color:#aebed4}.holding-value{text-align:right;flex-shrink:0}.holding-value small.pos{color:#10b981}.holding-value small.neg{color:#f43f5e}
 .account-summary{padding:6px 0;color:#cbd5e1;font-size:.75rem;overflow-wrap:anywhere}
+
+/* WO-28: layered surfaces and a floating, thumb-friendly navigation bar. */
+body,.hdr{background:#0b1220;color:#e8eef8}
+.hdr{border-bottom-color:transparent}
+.asset-hero{background:#1b2940;border-radius:24px;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.holding-cards{padding:0 12px}
+.holding-card{margin-bottom:8px;background:#182438;border:0;border-radius:16px;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+.compact-holding{padding:8px 12px}
+.holding-value small.neg{color:#fb7185}
+.card,.broker-intro,.broker-section,.broker-summary,.analysis-section,.market-impact{border-color:rgba(148,163,184,.12);border-radius:16px}
+.card,.broker-section,.broker-summary,.analysis-section,.market-impact{background:#182438}
+.broker-intro,.analysis-hero{border-radius:24px}
+.chip,.chip-tag-edit,.journal-cat,.notice-warning{border-radius:12px}
+.hdr-btn,.sync-btn,.cbtn,.cash-btn,.mbtn,.export-actions button,.flt,.sort-select,.sort-dir-btn,.view-tog{border-radius:12px}
+.modal{border-radius:24px 24px 0 0;background:#202e44}
+.action-sheet,.more-sheet{bottom:calc(86px + env(safe-area-inset-bottom));left:12px;right:12px;background:#202e44;border:1px solid rgba(148,163,184,.14);border-radius:24px;box-shadow:0 12px 36px rgba(0,0,0,.45)}
+.action-sheet button,.more-sheet .tab{border-radius:12px}
+.more-sheet .tab.on{background:#373c70;color:#f0efff}
+.data-notice{background:#202e44;border-color:rgba(148,163,184,.14);color:#dbe5f3;border-radius:12px}
+.notice-warning,.broker-warning{color:#ffdc7a;background:#493713;border-radius:12px}
+.analysis-metric span,.event-date small{color:#aebed4}
+.btn-add,.cbtn-buy,.cbtn-sell,.cash-btn-in,.cash-btn-out,.chip-i{background:#303b62;border-color:#4a5789;color:#e3e8ff}
+.tabs{left:10px;right:10px;bottom:max(8px,env(safe-area-inset-bottom));min-height:0;padding:5px;gap:2px;background:rgba(27,39,59,.96);border:1px solid rgba(148,163,184,.14);border-radius:24px;box-shadow:0 10px 32px rgba(0,0,0,.45);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+.tabs>.tab,.tabs>.more-menu>summary{display:flex;flex-direction:column;justify-content:center;gap:2px;min-height:52px;padding:3px 0;border:0;border-radius:16px;color:#bbc8dc;font-size:.72rem;line-height:1.1}
+.tabs>.tab::before,.tabs>.more-menu>summary::before{font-size:1.1rem;line-height:1}
+.tabs>.tab[data-tab="list"]::before{content:'▤'}
+.tabs>.tab[data-tab="chart"]::before{content:'◔'}
+.tabs>.tab[data-tab="trend"]::before{content:'↗'}
+.tabs>.tab[data-tab="analysis"]::before{content:'◇'}
+.tabs>.more-menu>summary::before{content:'•••'}
+.tabs>.tab.on,.tabs>.more-menu>summary.on{background:#414a88;color:#fff;font-weight:800}
+.tabs :focus-visible,.action-sheet :focus-visible,.more-sheet :focus-visible{outline:2px solid #c7d2fe;outline-offset:-3px}
+#app{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
