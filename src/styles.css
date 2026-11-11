@@ -468,6 +468,23 @@ body,.hdr{background:var(--page);color:var(--text)}
 .drawer-nav .tab.on,.tabs>.tab.on,.tabs>.more-menu>summary.on{background:var(--accent-soft);color:var(--accent)}
 /* Accessible controls: keep keyboard focus and touch areas visible. */
 .drawer-nav .nav-icon{width:20px;height:20px;vertical-align:middle;margin-right:8px;flex:none}
+/* Keep navigation and actions fixed while holdings scroll independently. */
+.drawer{display:flex;flex-direction:column;overflow:hidden}
+.drawer-head,.drawer-summary,.drawer>h2,.drawer-nav,.drawer-actions{flex:none}
+.drawer-summary{padding:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.drawer h2{margin:8px 4px 4px;font-size:1rem}
+.drawer-nav{grid-template-columns:repeat(2,minmax(0,1fr))}
+.drawer-nav .tab{white-space:nowrap;padding:8px}
+.drawer-holdings{display:flex;flex-direction:column;flex:1 1 0;min-height:0}
+.drawer-filters{flex:none;flex-wrap:wrap;align-items:center;gap:4px}
+.drawer-filters button,.drawer-filters select{min-height:44px}
+.drawer-filters select{min-width:0;flex:1}
+.drawer-filters #drawerSortDir{min-width:44px}
+.drawer-holdings-scroll{min-height:0;flex:1 1 auto;overflow:auto;overscroll-behavior:contain}
+.drawer-actions{position:relative}
+.drawer-actions div{position:absolute;z-index:1;bottom:100%;left:0;right:0;max-height:50dvh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.drawer-actions summary{list-style:none;border-top:1px solid var(--border)}
+.drawer-actions summary::-webkit-details-marker{display:none}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sort-dir-btn{min-width:44px;min-height:44px}
 .cash-toggle-btn{min-height:44px}

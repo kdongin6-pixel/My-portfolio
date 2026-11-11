@@ -10,12 +10,14 @@ import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles
 import {render} from './render.js';
 import {analysisExport} from './portfolio-export.js';
 import {refreshBrokerAccount,setBrokerAccountActive,selectBrokerAccount} from './broker-account-ui.js';
-let detailFocusId=null,detailScrollY=0,detailDrawerScroll=null,drawerOpen=false,resizeHandler=null;
+let detailFocusId=null,detailScrollY=0,detailDrawerScroll=null,drawerOpen=false,resizeHandler=null,holdingsScrollTop=0;
 
 export function bind(){
   const q=s=>document.querySelector(s);
   const qa=s=>document.querySelectorAll(s);
   const drawer=q('#drawer'),toggle=q('#drawerToggle'),scrim=q('#drawerScrim');
+  const holdingsScroll=q('.drawer-holdings-scroll');
+  if(holdingsScroll){holdingsScroll.scrollTop=holdingsScrollTop;holdingsScroll.addEventListener('scroll',()=>{holdingsScrollTop=holdingsScroll.scrollTop;});}
   const desktop=()=>typeof matchMedia==='function'&&matchMedia('(min-width: 900px)').matches;
   const setDrawer=(open,focus=true)=>{
     if(!drawer)return;
@@ -42,7 +44,7 @@ export function bind(){
   drawer?.addEventListener('keydown',e=>{
     if(!drawer.classList.contains('open')||desktop())return;
     if(e.key==='Escape'){e.preventDefault();setDrawer(false);return;}
-    if(e.key==='Tab'){const controls=[...drawer.querySelectorAll('button,summary,select,a[href]')].filter(el=>el.getClientRects().length&&!el.disabled);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}
+    if(e.key==='Tab'){const controls=[...drawer.querySelectorAll('button,summary,select,a[href],[tabindex="0"]')].filter(el=>el.getClientRects().length&&!el.disabled&&(el.tagName==='SUMMARY'||!el.closest('details:not([open])')));const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}
   });
   const googleButton=q('#googleSignInButton');
   const drawGoogleButton=()=>{
@@ -55,8 +57,8 @@ export function bind(){
   };
   if(googleButton){drawGoogleButton();if(!window.google?.accounts?.id)window.addEventListener('google-identity-ready',drawGoogleButton,{once:true});}
   q('#googleSignOut')?.addEventListener('click',()=>{clearIdToken();S.modal={type:'settings'};render();});
-  const close=()=>{S.modal=null;if(detailDrawerScroll!==null)drawerOpen=true;render();if(detailFocusId!==null){const d=document.querySelector('#drawer');if(detailDrawerScroll!==null&&d)d.scrollTop=detailDrawerScroll;document.querySelector(`${detailDrawerScroll!==null?'#drawer ':''}[data-detail="${CSS.escape(String(detailFocusId))}"]`)?.focus({preventScroll:true});window.scrollTo(0,detailScrollY);detailFocusId=null;detailDrawerScroll=null;}};
-  qa('[data-detail]').forEach(b=>b.addEventListener('click',()=>{detailFocusId=b.dataset.detail;detailScrollY=window.scrollY;detailDrawerScroll=drawer?.contains(b)?drawer.scrollTop:null;S.modal={type:"stockDetail",stockId:Number(b.dataset.detail)};render();}));
+  const close=()=>{S.modal=null;if(detailDrawerScroll!==null)drawerOpen=true;render();if(detailFocusId!==null){const d=document.querySelector('.drawer-holdings-scroll');if(detailDrawerScroll!==null&&d)d.scrollTop=detailDrawerScroll;document.querySelector(`${detailDrawerScroll!==null?'#drawer ':''}[data-detail="${CSS.escape(String(detailFocusId))}"]`)?.focus({preventScroll:true});window.scrollTo(0,detailScrollY);detailFocusId=null;detailDrawerScroll=null;}};
+  qa('[data-detail]').forEach(b=>b.addEventListener('click',()=>{detailFocusId=b.dataset.detail;detailScrollY=window.scrollY;detailDrawerScroll=drawer?.contains(b)?holdingsScroll?.scrollTop??0:null;S.modal={type:"stockDetail",stockId:Number(b.dataset.detail)};render();}));
   qa('.session-section').forEach(section=>section.addEventListener('toggle',()=>section.querySelector('summary')?.setAttribute('aria-expanded',String(section.open))));
   q('#btnBrokerRead')?.addEventListener('click',refreshBrokerAccount);
   qa('[data-broker-account]').forEach(el=>el.addEventListener('click',()=>selectBrokerAccount(el.dataset.brokerAccount)));
@@ -145,7 +147,7 @@ export function bind(){
   q("#mc")?.addEventListener("click",close);
   q("#mc2")?.addEventListener("click",close);
   q("#mbg")?.addEventListener("click",e=>{if(e.target===q("#mbg"))close();});
-  qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{const inDrawer=drawer?.contains(el),scroll=drawer?.scrollTop,acct=el.dataset.acct;S.acct=acct;render();if(inDrawer){const d=document.querySelector('#drawer');if(d)d.scrollTop=scroll;[...document.querySelectorAll('#drawer .flt[data-acct]')].find(x=>x.dataset.acct===acct)?.focus({preventScroll:true});}}));
+  qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{const inDrawer=drawer?.contains(el),acct=el.dataset.acct;S.acct=acct;render();if(inDrawer)[...document.querySelectorAll('#drawer .flt[data-acct]')].find(x=>x.dataset.acct===acct)?.focus({preventScroll:true});}));
   qa("[data-goto-market]").forEach(el=>el.addEventListener("click",()=>{S.tab="market";render();loadMarketData();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
     drawerOpen=false;S.tab=el.dataset.tab;render();
@@ -160,6 +162,8 @@ export function bind(){
   qa("[data-cview]").forEach(el=>el.addEventListener("click",()=>{S.chartView=el.dataset.cview;render();}));
   q("#sortSelect")?.addEventListener("change",e=>{S.sortBy=e.target.value;render();});
   q("#sortDirBtn")?.addEventListener("click",()=>{S.sortDir=S.sortDir==="desc"?"asc":"desc";render();});
+  q('#drawerSort')?.addEventListener('change',e=>{S.sortBy=e.target.value;render();q('#drawerSort')?.focus({preventScroll:true});});
+  q('#drawerSortDir')?.addEventListener('click',()=>{S.sortDir=S.sortDir==='desc'?'asc':'desc';render();q('#drawerSortDir')?.focus({preventScroll:true});});
   q("#btnView")?.addEventListener("click",()=>{S.viewMode=S.viewMode==="table"?"card":"table";render();});
   qa("[data-action]").forEach(b=>b.addEventListener("click",e=>{
     e.stopPropagation();
