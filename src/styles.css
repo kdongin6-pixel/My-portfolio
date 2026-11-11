@@ -9,8 +9,7 @@ input,select,textarea{font-family:inherit;outline:none;color:var(--text)}
 .hdr-row1{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .hdr-title{font-size:1.15em;font-weight:800;color:var(--accent);letter-spacing:-.3px}
 .sync-btn{background:var(--accent-soft);border:1px solid var(--border);color:var(--accent);padding:8px 14px;border-radius:10px;font-size:max(12px,.82em);font-weight:700}
-.live-btn{background:var(--gain-soft)!important;border-color:var(--gain-soft)!important;color:var(--gain)!important;animation:livePulse 1.8s ease-in-out infinite}
-@keyframes livePulse{0%,100%{opacity:1}50%{opacity:.55}}
+.live-btn{background:var(--gain-soft)!important;border-color:var(--gain-soft)!important;color:var(--gain)!important}
 
 .asset-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
 .asset-card{background:var(--overlay-strong);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
@@ -467,3 +466,10 @@ body,.hdr{background:var(--page);color:var(--text)}
 /* Account and action affordances are neutral; gain/loss colors remain semantic. */
 .live-btn,.btn-add,.btn-shot,.cbtn-buy,.cbtn-sell,.cash-btn-in,.cash-btn-out,.chip-i{background:var(--raised)!important;border-color:var(--border)!important;color:var(--text)!important}
 .drawer-nav .tab.on,.tabs>.tab.on,.tabs>.more-menu>summary.on{background:var(--accent-soft);color:var(--accent)}
+/* Accessible controls: keep keyboard focus and touch areas visible. */
+.drawer-nav .nav-icon{width:20px;height:20px;vertical-align:middle;margin-right:8px;flex:none}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sort-dir-btn{min-width:44px;min-height:44px}
+.cash-toggle-btn{min-height:44px}
+.flt.on{border-color:var(--accent)}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}

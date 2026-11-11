@@ -13,6 +13,9 @@ import {getAnthropicKey,getShotFiles} from './vision.js';
 import {mkTodayStrip} from './market-ui.js';
 import {profileFor,analysisTag,calcStress,cycleCards,calcPerformanceAttribution,calcDayAttribution,calcRiskBudget,eventCards,RISK_BUDGETS} from './intelligence.js';
 
+const navIcons={list:'<path d="M4 6h16M4 12h16M4 18h16"/>',chart:'<path d="M12 3v9h9A9 9 0 1 1 12 3Z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15Z"/>',trend:'<path d="M4 18V6M4 18h16M7 14l4-4 3 2 5-6"/>',analysis:'<path d="M5 19V9M10 19V5M15 19v-7M20 19H3"/>',broker:'<path d="M3 9h18L12 4 3 9ZM5 10v7m5-7v7m4-7v7m5-7v7M3 20h18"/>',market:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',journal:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',txn:'<path d="M4 8h14l-3-3m5 11H6l3 3M18 8l-3 3M6 16l3-3"/>'};
+const navIcon=name=>`<svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${navIcons[name]}</svg>`;
+
 export function mkHdr(){
   if(S.tab==='broker'){
     const d=document.createElement('div');d.className='hdr';
@@ -53,15 +56,15 @@ export function mkTabs(){
     <div class="drawer-summary">총자산 ${ready?(complete?'₩':'부분합계 ₩')+fK(coverage.valueKRW+filtCashKRW()):'—'}<br>평가손익 ${ready&&complete?'₩'+fK(pnl)+' · '+fP(inv>0?pnl/inv*100:0):'미확인'}</div>
     <h2>보유 종목</h2><div class="drawer-filters">${[['전체','전체'],['메리츠증권','메리츠'],['ISA','ISA']].map(([id,label])=>`<button class="flt ${S.acct===id?'on':''}" data-acct="${id}" aria-pressed="${S.acct===id}">${label}</button>`).join('')}</div>${holdingCards(S,sortedHoldings(fl))}
     <h2>메뉴</h2><nav class="drawer-nav" aria-label="주 메뉴">
-    <button type="button" class="tab ${S.tab==='list'?'on':''}" data-tab="list" ${S.tab==='list'?'aria-current="page"':''}>종목</button>
-    <button type="button" class="tab ${S.tab==='chart'?'on':''}" data-tab="chart" ${S.tab==='chart'?'aria-current="page"':''}>비중</button>
-    <button type="button" class="tab ${S.tab==='trend'?'on':''}" data-tab="trend" ${S.tab==='trend'?'aria-current="page"':''}>추이</button>
-    <button type="button" class="tab ${S.tab==='analysis'?'on':''}" data-tab="analysis" ${S.tab==='analysis'?'aria-current="page"':''}>분석</button>
+    <button type="button" class="tab ${S.tab==='list'?'on':''}" data-tab="list" ${S.tab==='list'?'aria-current="page"':''}>${navIcon('list')} 종목</button>
+    <button type="button" class="tab ${S.tab==='chart'?'on':''}" data-tab="chart" ${S.tab==='chart'?'aria-current="page"':''}>${navIcon('chart')} 비중</button>
+    <button type="button" class="tab ${S.tab==='trend'?'on':''}" data-tab="trend" ${S.tab==='trend'?'aria-current="page"':''}>${navIcon('trend')} 추이</button>
+    <button type="button" class="tab ${S.tab==='analysis'?'on':''}" data-tab="analysis" ${S.tab==='analysis'?'aria-current="page"':''}>${navIcon('analysis')} 분석</button>
 
-      <button type="button" class="tab ${S.tab==='broker'?'on':''}" data-tab="broker" ${S.tab==='broker'?'aria-current="page"':''}>실계좌</button>
-      <button type="button" class="tab ${S.tab==='market'?'on':''}" data-tab="market" ${S.tab==='market'?'aria-current="page"':''}>시장</button>
-      <button type="button" class="tab ${S.tab==='journal'?'on':''}" data-tab="journal" ${S.tab==='journal'?'aria-current="page"':''}>일지</button>
-      <button type="button" class="tab ${S.tab==='txn'?'on':''}" data-tab="txn" ${S.tab==='txn'?'aria-current="page"':''}>내역</button>
+      <button type="button" class="tab ${S.tab==='broker'?'on':''}" data-tab="broker" ${S.tab==='broker'?'aria-current="page"':''}>${navIcon('broker')} 실계좌</button>
+      <button type="button" class="tab ${S.tab==='market'?'on':''}" data-tab="market" ${S.tab==='market'?'aria-current="page"':''}>${navIcon('market')} 시장</button>
+      <button type="button" class="tab ${S.tab==='journal'?'on':''}" data-tab="journal" ${S.tab==='journal'?'aria-current="page"':''}>${navIcon('journal')} 일지</button>
+      <button type="button" class="tab ${S.tab==='txn'?'on':''}" data-tab="txn" ${S.tab==='txn'?'aria-current="page"':''}>${navIcon('txn')} 내역</button>
   </nav><details class="drawer-actions"><summary>⋯ 작업</summary><div role="group" aria-label="작업 메뉴"><button id="btnAdd">+ 종목</button><button id="btnShot">매매인식</button><button id="btnSettings">설정</button><button id="btnAnalysisCopy">분석용 잔고 복사</button><button id="btnAnalysisCsv">CSV 다운로드</button></div></details></aside><div id="exportStatus" role="status" aria-live="polite"></div>`;
   return d;
 }
