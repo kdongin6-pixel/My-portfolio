@@ -22,6 +22,15 @@ test('stock history uses sourced price points only and no fabricated sparkline',
  const h=priceHistoryPanel({...state,txns:[{name:s.name,acct:'ISA',date:'2026-01-02',mode:'buy',qty:1,price:99}],events:[{ticker:'TEST',date:'2026-01-02',title:'Synthetic official',source:'issuer',asOf:'2026-01-01'}]}, {...s,priceHistory:history,priceHistorySource:'Synthetic provider'});
  assert.match(h,/<svg/);assert.match(h,/원장 매수/);assert.match(h,/Synthetic official/);assert.match(h,/수정주가.*미확인/);assert.match(h,/종목 가격/);
 });
+test('session detail defaults to summary and escapes transaction and journal content',()=>{
+ const h=holdingDetail({...state,txns:[{name:s.name,acct:'ISA',date:'<date>',mode:'buy',qty:1,price:99}],journal:[{stockName:s.name,date:'2026-01-01',content:'<memo>'}]},s);
+ assert.match(h,/<details class="session-section" open><summary aria-expanded="true">요약/);
+ assert.match(h,/<summary aria-expanded="false">거래내역/);
+ assert.match(h,/<summary aria-expanded="false">시세·차트/);
+ assert.match(h,/<summary aria-expanded="false">일지·메모/);
+ assert.match(h,/&lt;date&gt;/);assert.match(h,/&lt;memo&gt;/);assert.doesNotMatch(h,/<memo>|<date>/);
+ assert.doesNotMatch(holdingDetail(state,s),/일지·메모/);
+});
 test('market impact uses actual holding tags and separates source/asOf from query time',()=>{
  const h=marketImpact(state,[{key:'T10Y',price:4.2,source:'Treasury',asOf:'2026-01-01'},{key:'USDKRW',price:1400}]);
  for(const t of ['성장','할인율','원화 환산','Treasury','2026-01-01','기준시각 미확인','자동매매'])assert.ok(h.includes(t),t);

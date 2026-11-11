@@ -10,7 +10,7 @@ import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles
 import {render} from './render.js';
 import {analysisExport} from './portfolio-export.js';
 import {refreshBrokerAccount,setBrokerAccountActive,selectBrokerAccount} from './broker-account-ui.js';
-let detailFocusId=null;
+let detailFocusId=null,detailScrollY=0,drawerOpen=false;
 
 export function bind(){
   const q=s=>document.querySelector(s);
@@ -19,6 +19,7 @@ export function bind(){
   const desktop=typeof matchMedia==='function'&&matchMedia('(min-width: 900px)').matches;
   const setDrawer=(open,focus=true)=>{
     if(!drawer)return;
+    drawerOpen=open;
     drawer.classList.toggle('open',open);drawer.inert=!open&&!desktop;
     drawer.setAttribute('aria-hidden',String(!open&&!desktop));
     toggle?.setAttribute('aria-expanded',String(open||desktop));
@@ -26,7 +27,7 @@ export function bind(){
     if(open&&!desktop){drawer.setAttribute('role','dialog');drawer.setAttribute('aria-modal','true');if(focus)q('#drawerClose')?.focus();}
     else {drawer.removeAttribute('role');drawer.removeAttribute('aria-modal');if(focus&&!desktop)toggle?.focus();}
   };
-  setDrawer(false,false);
+  setDrawer(drawerOpen&&!S.modal,drawerOpen&&!S.modal);
   toggle?.addEventListener('click',()=>setDrawer(!drawer.classList.contains('open')));
   q('#drawerClose')?.addEventListener('click',()=>setDrawer(false));
   scrim?.addEventListener('click',()=>setDrawer(false));
@@ -48,22 +49,23 @@ export function bind(){
   };
   if(googleButton){drawGoogleButton();if(!window.google?.accounts?.id)window.addEventListener('google-identity-ready',drawGoogleButton,{once:true});}
   q('#googleSignOut')?.addEventListener('click',()=>{clearIdToken();S.modal={type:'settings'};render();});
-  const close=()=>{S.modal=null;render();if(detailFocusId!==null){document.querySelector(`[data-detail="${CSS.escape(String(detailFocusId))}"]`)?.focus();detailFocusId=null;}};
-  qa('[data-detail]').forEach(b=>b.addEventListener('click',()=>{detailFocusId=b.dataset.detail;S.modal={type:"stockDetail",stockId:Number(b.dataset.detail)};render();}));
+  const close=()=>{S.modal=null;render();if(detailFocusId!==null){document.querySelector(`[data-detail="${CSS.escape(String(detailFocusId))}"]:not(#drawer [data-detail])`)?.focus({preventScroll:true});window.scrollTo(0,detailScrollY);detailFocusId=null;}};
+  qa('[data-detail]').forEach(b=>b.addEventListener('click',()=>{detailFocusId=b.dataset.detail;detailScrollY=window.scrollY;S.modal={type:"stockDetail",stockId:Number(b.dataset.detail)};render();}));
+  qa('.session-section').forEach(section=>section.addEventListener('toggle',()=>section.querySelector('summary')?.setAttribute('aria-expanded',String(section.open))));
   q('#btnBrokerRead')?.addEventListener('click',refreshBrokerAccount);
   qa('[data-broker-account]').forEach(el=>el.addEventListener('click',()=>selectBrokerAccount(el.dataset.brokerAccount)));
   q('#btnAnalysisCopy')?.addEventListener('click',async()=>{
     const data=analysisExport(S,S.acct),status=q('#exportStatus');
-    try{await navigator.clipboard.writeText(data.text);if(status)status.textContent='분석용 잔고 복사 완료';}
+    try{await navigator.clipboard.writeText(data.text);if(status)status.textContent='분석용 잔고 복사 완료';setDrawer(false);}
     catch{S.modal={type:'exportText',text:data.text};render();}
   });
   q('#btnAnalysisCsv')?.addEventListener('click',()=>{
-    const data=analysisExport(S,S.acct),blob=new Blob([data.csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='portfolio-analysis.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);q('#exportStatus').textContent='CSV 생성 완료 — 개인 잔고가 포함되므로 보관에 주의하세요';
+    const data=analysisExport(S,S.acct),blob=new Blob([data.csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='portfolio-analysis.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);q('#exportStatus').textContent='CSV 생성 완료 — 개인 잔고가 포함되므로 보관에 주의하세요';setDrawer(false);
   });
   const dialog=q('.modal[role="dialog"]');
   if(dialog){dialog.focus();dialog.addEventListener('keydown',e=>{
     if(e.key==='Escape'){e.preventDefault();close();return;}
-    if(e.key==='Tab'){const controls=[...dialog.querySelectorAll('button,input,textarea,select,a[href]')].filter(el=>!el.disabled);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){e.preventDefault();last?.focus();}else if(!e.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){e.preventDefault();first?.focus();}}
+    if(e.key==='Tab'){const controls=[...dialog.querySelectorAll('button,input,textarea,select,a[href],summary')].filter(el=>!el.disabled&&el.getClientRects().length);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){e.preventDefault();last?.focus();}else if(!e.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){e.preventDefault();first?.focus();}}
   });}
 
   q("#btnTrend")?.addEventListener("click",()=>{S.tab="trend";render();});
@@ -137,10 +139,10 @@ export function bind(){
   q("#mc")?.addEventListener("click",close);
   q("#mc2")?.addEventListener("click",close);
   q("#mbg")?.addEventListener("click",e=>{if(e.target===q("#mbg"))close();});
-  qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{const wasDrawer=!!el.closest('#drawer');S.acct=el.dataset.acct;render();if(wasDrawer&&!desktop)document.querySelector('#drawerToggle')?.click();}));
+  qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{S.acct=el.dataset.acct;render();}));
   qa("[data-goto-market]").forEach(el=>el.addEventListener("click",()=>{S.tab="market";render();loadMarketData();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
-    S.tab=el.dataset.tab;render();
+    drawerOpen=false;S.tab=el.dataset.tab;render();
     setBrokerAccountActive(S.tab==='broker');
     if(el.dataset.tab==="market")loadMarketData();
   }));
