@@ -1,6 +1,6 @@
 // 서비스 워커 — 네트워크 우선, 오프라인 시 캐시 폴백
 // 캐시 대상: 같은 출처(앱 파일) + chart.js CDN. GAS API 요청은 캐시하지 않음.
-const CACHE='pf-cache-v14-20261112-ui-drawer';
+const CACHE='pf-cache-v15-20261112-ui-calm';
 
 self.addEventListener('install',e=>{
   self.skipWaiting();
