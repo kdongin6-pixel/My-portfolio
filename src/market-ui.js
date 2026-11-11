@@ -9,7 +9,7 @@ import {getMarketStatus,getMktFetchTime} from './cloud.js';
 function mkSparkSvg(weekly,daily,key,w,h,history){
   if(!w)w=68;if(!h)h=26;
   const up=(weekly||0)>=0;
-  const col=up?'#10b981':'#f43f5e';
+  const col=up?'var(--gain)':'var(--loss)';
   const gid='sg'+Math.abs((key||'X').split('').reduce((a,c)=>(a*31+c.charCodeAt(0))|0,0)%9999);
 
   let pts;
@@ -76,7 +76,7 @@ export function mkMarket(){
   if(S.marketLoading){
     d.innerHTML=`<div class="mkt-wrap">
       <div class="mkt-header">
-        <span style="font-size:max(12px,.95em);font-weight:800;color:#e6edf3">🌐 시장 현황</span>
+        <span style="font-size:max(12px,.95em);font-weight:800;color:var(--text)">🌐 시장 현황</span>
         <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
       </div>
       <div class="empty">⏳ 시장 데이터 로드 중...</div>
@@ -94,7 +94,7 @@ export function mkMarket(){
   if(!mdata.length){
     d.innerHTML=`<div class="mkt2-wrap">
       <div class="mkt2-hdr">
-        <span style="font-size:max(12px,.95em);font-weight:800;color:#e6edf3">🌐 시장 현황</span>
+        <span style="font-size:max(12px,.95em);font-weight:800;color:var(--text)">🌐 시장 현황</span>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
           <button class="mkt-refresh-btn" id="btnMktRefresh">🔄</button>
@@ -246,7 +246,7 @@ export function mkMarket(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
         <div style="min-width:0;flex:1">
           <div class="mkt2-etf-lbl">${c.label}</div>
-          <div style="font-size:max(12px,.65em);color:#6b7280;margin-bottom:2px">${c.sub||''}</div>
+          <div style="font-size:max(12px,.65em);color:var(--text-secondary);margin-bottom:2px">${c.sub||''}</div>
           <div class="mkt2-etf-price">${price?'$'+price.toFixed(2):'—'}</div>
           ${mktChgBadge(d_,false)}
         </div>
@@ -254,9 +254,9 @@ export function mkMarket(){
       </div>
     </div>`;
   }).join('');
-  const mkEtfTabBtn=(id,val,txt)=>`<button class="mkt-tab-btn${etfTab===val?' active':''}" id="${id}" data-etftab="${val}" style="flex:1;padding:6px 0;font-size:max(12px,.75em);font-weight:700;border:none;cursor:pointer;background:${etfTab===val?'rgba(99,102,241,.25)':'transparent'};color:${etfTab===val?'#818cf8':'#6b7280'}">${txt}</button>`;
+  const mkEtfTabBtn=(id,val,txt)=>`<button class="mkt-tab-btn${etfTab===val?' active':''}" id="${id}" data-etftab="${val}" style="flex:1;padding:6px 0;font-size:max(12px,.75em);font-weight:700;border:none;cursor:pointer;background:${etfTab===val?'var(--accent-soft)':'transparent'};color:${etfTab===val?'var(--accent)':'var(--text-secondary)'}">${txt}</button>`;
   const etfTabBar=`
-    <div style="display:flex;gap:0;background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;margin-bottom:8px">
+    <div style="display:flex;gap:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:8px">
       ${mkEtfTabBtn('btnMktEtf','etf','[ ETF ]')}
       ${mkEtfTabBtn('btnMktTheme','theme','테마별')}
       ${mkEtfTabBtn('btnMktSector','sector','섹터')}
@@ -284,10 +284,10 @@ export function mkMarket(){
 
   d.innerHTML=`<div class="mkt2-wrap">
     <div class="mkt2-hdr">
-      <span style="font-size:max(12px,.95em);font-weight:800;color:#e6edf3">🌐 시장 현황</span>
+      <span style="font-size:max(12px,.95em);font-weight:800;color:var(--text)">🌐 시장 현황</span>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
-        <button class="mkt-refresh-btn" id="btnMktRefresh" style="font-size:max(12px,.78em);color:#8b949e">조회 ${lastUpd} 🔄</button>
+        <button class="mkt-refresh-btn" id="btnMktRefresh" style="font-size:max(12px,.78em);color:var(--text-secondary)">조회 ${lastUpd} 🔄</button>
       </div>
     </div>
 

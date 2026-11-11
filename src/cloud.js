@@ -173,14 +173,14 @@ export function renderCloudBadge(){
   const el=document.getElementById("cloudBadge");
   if(!el)return;
   const icons={saving:"⏳",saved:"☁️",error:"⚠️","":"☁️"};
-  const colors={saving:"#fbbf24",saved:"#10b981",error:"#f43f5e","":"#8b949e"};
+  const colors={saving:"var(--warning)",saved:"var(--gain)",error:"var(--loss)","":"var(--text-secondary)"};
   const labels={
     saving:"동기화 중",
     saved:S.lastCloudSync?`${Math.floor((Date.now()-S.lastCloudSync)/1000)}초 전`:"동기화됨",
     error:"동기화 실패",
     "":"준비 중"
   };
-  el.style.color=colors[S.cloudStatus]||"#8b949e";
+  el.style.color=colors[S.cloudStatus]||"var(--text-secondary)";
   el.textContent=`${icons[S.cloudStatus]||"☁️"} ${labels[S.cloudStatus]||"준비 중"}${arCountdown()}`;
 }
 
@@ -216,9 +216,9 @@ export function getMarketStatus(){
   const kDay=now.getUTCDay();
   const kMins=now.getUTCHours()*60+now.getUTCMinutes();
   const krOpen=kDay>=1&&kDay<=5&&kMins<6*60+30;
-  if(usOpen)return{label:"🟢 미장 개장",color:"#10b981",bg:"rgba(16,185,129,.15)"};
-  if(krOpen)return{label:"🔵 한국장 개장",color:"#60a5fa",bg:"rgba(59,130,246,.15)"};
-  return{label:"⚫ 휴장",color:"#8b949e",bg:"rgba(148,163,184,.1)"};
+  if(usOpen)return{label:"🟢 미장 개장",color:"var(--gain)",bg:"var(--gain-soft)"};
+  if(krOpen)return{label:"🔵 한국장 개장",color:"var(--accent)",bg:"var(--accent-soft)"};
+  return{label:"⚫ 휴장",color:"var(--text-secondary)",bg:"var(--overlay-strong)"};
 }
 
 // US market phase detection — 뉴욕 현지 시각 기준, 서머타임 자동 반영

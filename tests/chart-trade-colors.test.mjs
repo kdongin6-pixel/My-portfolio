@@ -10,10 +10,10 @@ test('chart colors each ledger marker by its own buy or sell direction without m
  const circles=[...html.matchAll(/<circle\b[^>]*>[\s\S]*?<\/circle>/g)].map(m=>m[0]);
  assert.equal(circles.length,2);
  assert.match(circles[0],/data-trade="buy"/);
- assert.match(circles[0],/fill="#f87171"/);
+ assert.match(circles[0],/fill="var\(--chart-buy\)"/);
  assert.match(circles[0],/원장 매수 2026-01-01/);
  assert.match(circles[1],/data-trade="sell"/);
- assert.match(circles[1],/fill="#60a5fa"/);
+ assert.match(circles[1],/fill="var\(--chart-sell\)"/);
  assert.match(circles[1],/원장 매도 2026-01-03/);
  assert.equal(JSON.stringify({state,stock}),before);
 });
