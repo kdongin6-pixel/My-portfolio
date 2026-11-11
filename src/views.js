@@ -62,7 +62,7 @@ export function mkTabs(){
       <button type="button" class="tab ${S.tab==='market'?'on':''}" data-tab="market" ${S.tab==='market'?'aria-current="page"':''}>시장</button>
       <button type="button" class="tab ${S.tab==='journal'?'on':''}" data-tab="journal" ${S.tab==='journal'?'aria-current="page"':''}>일지</button>
       <button type="button" class="tab ${S.tab==='txn'?'on':''}" data-tab="txn" ${S.tab==='txn'?'aria-current="page"':''}>내역</button>
-  </nav><details class="drawer-actions"><summary>⋯ 작업</summary><div role="group" aria-label="작업 메뉴"><button id="btnAdd">+ 종목</button><button id="btnShot">매매인식</button><button id="btnSettings">설정</button><button id="btnAnalysisCopy">분석용 잔고 복사</button><button id="btnAnalysisCsv">CSV 다운로드</button><span id="exportStatus" role="status"></span></div></details></aside>`;
+  </nav><details class="drawer-actions"><summary>⋯ 작업</summary><div role="group" aria-label="작업 메뉴"><button id="btnAdd">+ 종목</button><button id="btnShot">매매인식</button><button id="btnSettings">설정</button><button id="btnAnalysisCopy">분석용 잔고 복사</button><button id="btnAnalysisCsv">CSV 다운로드</button></div></details></aside><div id="exportStatus" role="status" aria-live="polite"></div>`;
   return d;
 }
 
