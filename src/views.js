@@ -103,7 +103,7 @@ export function mkList(){
   cashCardsHtml+='</div>';
   let cashTxnHtml='';
   if(S.cashTxns.length===0){
-    cashTxnHtml='<div style="font-size:.8em;color:#8b949e;padding:10px 0 4px">입출금 내역이 없어요</div>';
+    cashTxnHtml='<div style="font-size:max(12px,.8em);color:#8b949e;padding:10px 0 4px">입출금 내역이 없어요</div>';
   }else{
     cashTxnHtml=`<div class="cash-section-title">📜 최근 입출금</div>`+
       S.cashTxns.slice(0,5).map(t=>`<div class="txn" style="margin-bottom:6px">
@@ -114,7 +114,7 @@ export function mkList(){
         <div class="txn-det">${fM(t.amount,t.curr)}${t.memo?` · ${t.memo}`:''}</div>
         <div class="txn-actions"><button class="cbtn cbtn-undo" data-cash-undo="${t.id}">↩️ 취소</button></div>
       </div>`).join('');
-    if(S.cashTxns.length>5)cashTxnHtml+=`<div style="text-align:center;padding:6px 0;color:#8b949e;font-size:.78em">+${S.cashTxns.length-5}건 더...</div>`;
+    if(S.cashTxns.length>5)cashTxnHtml+=`<div style="text-align:center;padding:6px 0;color:#8b949e;font-size:max(12px,.78em)">+${S.cashTxns.length-5}건 더...</div>`;
   }
   const cashSection=`
     <button class="cash-toggle-btn" id="btnCashToggle">
@@ -135,12 +135,12 @@ export function mkList(){
         const first=intra[0],last=intra[intra.length-1];
         const chg=last.totalKRW-first.totalKRW,chgPct=first.totalKRW>0?chg/first.totalKRW*100:0;
         trendSummaryHtml=`<div class="trend-summary">
-          <div class="ts-item"><div class="ts-lbl">총자산</div><div class="ts-val" style="font-size:.82em">₩${fK(last.totalKRW)}</div></div>
+          <div class="ts-item"><div class="ts-lbl">총자산</div><div class="ts-val" style="font-size:max(12px,.82em)">₩${fK(last.totalKRW)}</div></div>
           <div class="ts-item"><div class="ts-lbl">당일 변화</div><div class="ts-val ${chg>=0?'pos':'neg'}">${chg>=0?'+':''}${fKShort(chg)}</div></div>
           <div class="ts-item"><div class="ts-lbl">당일 수익률</div><div class="ts-val ${chgPct>=0?'pos':'neg'}">${fP(chgPct)}</div></div>
         </div>`;
       }else{
-        trendSummaryHtml='<div style="font-size:.8em;color:#8b949e;padding:8px 0 4px">⏳ 당일 데이터 수집 중</div>';
+        trendSummaryHtml='<div style="font-size:max(12px,.8em);color:#8b949e;padding:8px 0 4px">⏳ 당일 데이터 수집 중</div>';
       }
     }else{
       const now=new Date();let cutoff=new Date(0);
@@ -153,19 +153,19 @@ export function mkList(){
         const first=filtered[0],last=filtered[filtered.length-1];
         const chg=last.totalKRW-first.totalKRW,chgPct=first.totalKRW>0?chg/first.totalKRW*100:0;
         trendSummaryHtml=`<div class="trend-summary">
-          <div class="ts-item"><div class="ts-lbl">총자산</div><div class="ts-val" style="font-size:.82em">₩${fK(last.totalKRW)}</div></div>
+          <div class="ts-item"><div class="ts-lbl">총자산</div><div class="ts-val" style="font-size:max(12px,.82em)">₩${fK(last.totalKRW)}</div></div>
           <div class="ts-item"><div class="ts-lbl">기간 변화</div><div class="ts-val ${chg>=0?'pos':'neg'}">${chg>=0?'+':''}${fKShort(chg)}</div></div>
           <div class="ts-item"><div class="ts-lbl">기간 수익률</div><div class="ts-val ${chgPct>=0?'pos':'neg'}">${fP(chgPct)}</div></div>
         </div>`;
       }else{
-        trendSummaryHtml='<div style="font-size:.8em;color:#8b949e;padding:8px 0 4px">📭 스냅샷 없음 — 매일 방문 시 자동 기록돼요</div>';
+        trendSummaryHtml='<div style="font-size:max(12px,.8em);color:#8b949e;padding:8px 0 4px">📭 스냅샷 없음 — 매일 방문 시 자동 기록돼요</div>';
       }
     }
   }
   const trendSection=`<div class="trend-section">
     <div class="trend-section-hdr" id="btnTrendToggle">
       <span class="trend-section-title">📈 추이</span>
-      <span style="color:#8b949e;font-size:.82em">${S.showTrend?'▲ 접기':'▼ 펼치기'}</span>
+      <span style="color:#8b949e;font-size:max(12px,.82em)">${S.showTrend?'▲ 접기':'▼ 펼치기'}</span>
     </div>
     ${S.showTrend?`
       <div class="filters" style="padding:0 0 4px">${periodBtns}</div>
@@ -287,7 +287,7 @@ export function mkTrend(){
         <div class="ts-item"><div class="ts-lbl">당일 수익률</div><div class="ts-val ${changePct>=0?'pos':'neg'}">${fP(changePct)}</div></div>
       </div>`;
     }
-    const notice=intra.length<2?'<div class="empty" style="padding:20px">⏳ 당일 데이터 수집 중<br><br><span style="font-size:.85em">동기화할 때마다 30분 간격으로 기록됩니다</span></div>':'';
+    const notice=intra.length<2?'<div class="empty" style="padding:20px">⏳ 당일 데이터 수집 중<br><br><span style="font-size:max(12px,.85em)">동기화할 때마다 30분 간격으로 기록됩니다</span></div>':'';
     d.innerHTML=`
       <div class="filters">${btns}</div>
       <div class="trend-wrap">
@@ -301,14 +301,14 @@ export function mkTrend(){
           <div class="trend-chart-title">📈 수익률 추이 (오늘)</div>
           <div style="position:relative;height:180px;width:100%"><canvas id="trendPct"></canvas></div>
         </div>
-        <div style="font-size:.75em;color:#8b949e;text-align:center;padding:10px">기록된 포인트: ${intra.length}개 (30분 간격)</div>`:''}
+        <div style="font-size:max(12px,.75em);color:#8b949e;text-align:center;padding:10px">기록된 포인트: ${intra.length}개 (30분 간격)</div>`:''}
       </div>`;
     return d;
   }
 
   if(!S.snapshots||S.snapshots.length<1){
     d.innerHTML=`<div class="filters">${btns}</div>
-      <div class="empty">📭 스냅샷 데이터가 없어요<br><br><span style="font-size:.85em">매일 페이지에 한 번씩 방문하면<br>자동으로 기록돼서 추이를 볼 수 있어요</span></div>`;
+      <div class="empty">📭 스냅샷 데이터가 없어요<br><br><span style="font-size:max(12px,.85em)">매일 페이지에 한 번씩 방문하면<br>자동으로 기록돼서 추이를 볼 수 있어요</span></div>`;
     return d;
   }
 
@@ -346,7 +346,7 @@ export function mkTrend(){
         <div class="trend-chart-title">📈 누적 수익률 (%)</div>
         <div style="position:relative;height:180px;width:100%"><canvas id="trendPct"></canvas></div>
       </div>
-      <div style="font-size:.75em;color:#8b949e;text-align:center;padding:10px">기록된 일수: ${filtered.length}일 / 전체 ${S.snapshots.length}일</div>
+      <div style="font-size:max(12px,.75em);color:#8b949e;text-align:center;padding:10px">기록된 일수: ${filtered.length}일 / 전체 ${S.snapshots.length}일</div>
     </div>`;
   return d;
 }
@@ -362,7 +362,7 @@ export function mkJournal(){
   let journalCards='';
   const items=S.jFilter==="전체"?S.journal:S.journal.filter(j=>j.stockName===S.jFilter);
   if(items.length===0){
-    journalCards='<div class="empty">📭 일지가 없어요<br><br><span style="font-size:.85em">"+ 일지 추가" 버튼으로<br>매수 사유, 뉴스, 생각을 기록해보세요</span></div>';
+    journalCards='<div class="empty">📭 일지가 없어요<br><br><span style="font-size:max(12px,.85em)">"+ 일지 추가" 버튼으로<br>매수 사유, 뉴스, 생각을 기록해보세요</span></div>';
   }else{
     journalCards=items.map(j=>{
       const cat=JOURNAL_CATEGORIES[j.category]||JOURNAL_CATEGORIES.etc;
@@ -426,7 +426,7 @@ export function mkModal(){
     const c=S.cash[s?.acct]?.[s?.curr]||0;
     d.innerHTML=`<div class="modal">
       <div class="modal-title">${S.modal.mode==='buy'?'📈 매수 원장 기록':'📉 매도 원장 기록'} - ${s?.name}<button class="modal-close" id="mc">×</button></div>
-      <div style="font-size:.82em;color:#8b949e;margin-bottom:10px">💰 보유 현금: ${fM(c,s?.curr)}</div>
+      <div style="font-size:max(12px,.82em);color:#8b949e;margin-bottom:10px">💰 보유 현금: ${fM(c,s?.curr)}</div>
       <div class="field"><label>수량</label><input type="number" id="tq" placeholder="0" min="0"></div>
       <div class="field"><label>가격 (${s?.curr})</label><input type="number" id="tp" value="${s?.cur}" step="0.01"></div>
       <div class="field"><label>수수료 (${s?.curr}, 선택)</label><input type="number" id="tf" placeholder="0" min="0" step="0.01"></div>
@@ -462,7 +462,7 @@ export function mkModal(){
     const c=S.cash[acct]?.[curr]||0;
     d.innerHTML=`<div class="modal">
       <div class="modal-title">${mode==='in'?'⬆️ 입금':'⬇️ 출금'} - ${acct} ${curr}<button class="modal-close" id="mc">×</button></div>
-      <div style="font-size:.82em;color:#8b949e;margin-bottom:10px">현재 잔액: ${fM(c,curr)}</div>
+      <div style="font-size:max(12px,.82em);color:#8b949e;margin-bottom:10px">현재 잔액: ${fM(c,curr)}</div>
       <div class="field"><label>금액 (${curr})</label><input type="number" id="cashAmt" placeholder="0"></div>
       <div class="field"><label>메모 (선택)</label><input type="text" id="cashMemo" placeholder="예: 월급, 배당금"></div>
       <button class="mbtn mbtn-pri" id="exec">${mode==='in'?'입금':'출금'} 확인</button>
@@ -479,13 +479,13 @@ export function mkModal(){
     d.innerHTML=`<div class="modal">
       <div class="modal-title">🏷️ ${s?.name} 태그<button class="modal-close" id="mc">×</button></div>
       <div class="tag-list">${tagBtns}</div>
-      <div style="margin:14px 0 6px;font-size:.85em;color:#a5b4fc;font-weight:700">새 태그 만들기</div>
+      <div style="margin:14px 0 6px;font-size:max(12px,.85em);color:#a5b4fc;font-weight:700">새 태그 만들기</div>
       <div class="tag-manage">
         <input type="text" id="newTagName" placeholder="태그 이름">
         <input type="color" id="newTagColor" value="#6366f1" style="width:50px;padding:2px">
         <button class="mbtn mbtn-pri" id="addTagBtn" style="width:auto;padding:11px 14px;margin:0">+</button>
       </div>
-      <div style="margin:18px 0 6px;font-size:.85em;color:#a5b4fc;font-weight:700">태그 관리</div>
+      <div style="margin:18px 0 6px;font-size:max(12px,.85em);color:#a5b4fc;font-weight:700">태그 관리</div>
       <div>${S.tags.map(t=>`<div class="tag-row"><span class="tag-row-name" style="color:${S.tagColors[t]||'#94a3b8'}">● ${t}</span><button class="tag-row-del" data-del-tag="${t}">삭제</button></div>`).join('')}</div>
       <button class="mbtn mbtn-sec" id="mc2" style="margin-top:14px">닫기</button>
     </div>`;
@@ -516,23 +516,23 @@ export function mkModal(){
       <div class="field">
         <label>Google Apps Script 배포 URL</label>
         <input type="text" id="apiUrlInp" value="${esc(cur)}" placeholder="https://script.google.com/macros/s/...">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다. 이 기기에만 저장됩니다.</div>
+        <div style="font-size:max(12px,.72em);color:#8b949e;margin-top:5px;line-height:1.5">클라우드 동기화에 필요한 GAS 배포 URL입니다. 이 기기에만 저장됩니다.</div>
       </div>
       <div class="field">
         <label>공유 시크릿 · 읽기 전용 조회</label>
         <input type="password" id="apiSecretInp" value="${esc(secret)}" placeholder="SHARED_SECRET 입력" autocomplete="off">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">원장·시세 조회에만 사용합니다. 거래 원장 저장 인증에는 사용하지 않습니다.</div>
+        <div style="font-size:max(12px,.72em);color:#8b949e;margin-top:5px;line-height:1.5">원장·시세 조회에만 사용합니다. 거래 원장 저장 인증에는 사용하지 않습니다.</div>
       </div>
       <div class="field">
         <label>Google 로그인 · 원장 저장 권한</label>
         <input type="text" id="googleClientIdInp" value="${esc(googleClientId)}" placeholder="...apps.googleusercontent.com" autocomplete="off">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">공개 OAuth Client ID이며 Apps Script의 GOOGLE_OAUTH_CLIENT_ID와 같아야 합니다. 이 ID는 기기에 저장하고 로그인 토큰은 현재 브라우저 세션에만 보관합니다.</div>
-        ${googleSignedIn?'<div style="color:#10b981;font-size:.8em;margin:8px 0">✅ Google 로그인 완료 · 이 세션에서 원장 저장 가능</div><button class="mbtn mbtn-sec" id="googleSignOut">로그아웃</button>':'<div id="googleAuthStatus" style="font-size:.78em;color:#fbbf24;margin:8px 0">Client ID를 저장한 뒤 Google 로그인을 완료하세요.</div><div id="googleSignInButton"></div>'}
+        <div style="font-size:max(12px,.72em);color:#8b949e;margin-top:5px;line-height:1.5">공개 OAuth Client ID이며 Apps Script의 GOOGLE_OAUTH_CLIENT_ID와 같아야 합니다. 이 ID는 기기에 저장하고 로그인 토큰은 현재 브라우저 세션에만 보관합니다.</div>
+        ${googleSignedIn?'<div style="color:#10b981;font-size:max(12px,.8em);margin:8px 0">✅ Google 로그인 완료 · 이 세션에서 원장 저장 가능</div><button class="mbtn mbtn-sec" id="googleSignOut">로그아웃</button>':'<div id="googleAuthStatus" style="font-size:max(12px,.78em);color:#fbbf24;margin:8px 0">Client ID를 저장한 뒤 Google 로그인을 완료하세요.</div><div id="googleSignInButton"></div>'}
       </div>
       <div class="field">
         <label>Anthropic API 키 (📷 매매인식용, 선택)</label>
         <input type="password" id="anthropicKeyInp" value="${esc(akey)}" placeholder="sk-ant-...">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px;line-height:1.5">스크린샷 매매인식에 사용됩니다. 이 기기에만 저장됩니다.</div>
+        <div style="font-size:max(12px,.72em);color:#8b949e;margin-top:5px;line-height:1.5">스크린샷 매매인식에 사용됩니다. 이 기기에만 저장됩니다.</div>
       </div>
       <button class="mbtn mbtn-pri" id="saveApiUrl">저장</button>
       <button class="mbtn mbtn-sec" id="mc2">취소</button>
@@ -544,21 +544,21 @@ export function mkModal(){
     const n=getShotFiles().length;
     d.innerHTML=`<div class="modal">
       <div class="modal-title">📷 매매 스크린샷 인식<button class="modal-close" id="mc">×</button></div>
-      <div style="font-size:.78em;color:#8b949e;margin-bottom:12px;line-height:1.6">
+      <div style="font-size:max(12px,.78em);color:#8b949e;margin-bottom:12px;line-height:1.6">
         증권사 앱의 <b style="color:#f472b6">체결내역 / 거래내역 / 입출금</b> 화면 스크린샷을 올리면<br>
         Claude가 자동으로 읽어서 잔고에 반영합니다 (수수료·세금 포함).
       </div>
       ${hasKey?'':`<div class="field">
         <label>Anthropic API 키 (최초 1회 입력)</label>
         <input type="password" id="shotKeyInp" placeholder="sk-ant-...">
-        <div style="font-size:.72em;color:#8b949e;margin-top:5px">console.anthropic.com에서 발급 · 이 기기에만 저장</div>
+        <div style="font-size:max(12px,.72em);color:#8b949e;margin-top:5px">console.anthropic.com에서 발급 · 이 기기에만 저장</div>
       </div>`}
       <div class="field">
         <label>스크린샷 선택 (여러 장 가능)</label>
         <input type="file" id="shotFiles" accept="image/*" multiple>
-        <div style="font-size:.75em;color:#a5b4fc;margin-top:6px" id="shotCount">${n?`✅ ${n}장 선택됨`:''}</div>
+        <div style="font-size:max(12px,.75em);color:#a5b4fc;margin-top:6px" id="shotCount">${n?`✅ ${n}장 선택됨`:''}</div>
       </div>
-      <div id="shotStatus" style="font-size:.8em;color:#fbbf24;min-height:1.2em;margin-bottom:6px"></div>
+      <div id="shotStatus" style="font-size:max(12px,.8em);color:#fbbf24;min-height:1.2em;margin-bottom:6px"></div>
       <button class="mbtn mbtn-pri" id="execShotAnalyze">🔍 분석하기</button>
       <button class="mbtn mbtn-sec" id="mc2">닫기</button>
     </div>`;
@@ -582,15 +582,15 @@ export function mkModal(){
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid rgba(48,54,61,.6)">
         <input type="checkbox" data-shot-idx="${i}" ${t.checked?'checked':''} ${t.invalid?'disabled':''} style="margin-top:3px;width:17px;height:17px;accent-color:#6366f1">
         <div style="flex:1;min-width:0">
-          <div style="font-size:.88em;font-weight:700"><span style="color:${col}">${lbl}</span> ${t.name||t.acct}</div>
-          <div style="font-size:.8em;color:#e6edf3;margin-top:2px">${desc}</div>
-          <div style="font-size:.72em;margin-top:2px">${t.acct} · ${t.curr}${t.date?` · ${t.date}`:''} ${warn}</div>
+          <div style="font-size:max(12px,.88em);font-weight:700"><span style="color:${col}">${lbl}</span> ${t.name||t.acct}</div>
+          <div style="font-size:max(12px,.8em);color:#e6edf3;margin-top:2px">${desc}</div>
+          <div style="font-size:max(12px,.72em);margin-top:2px">${t.acct} · ${t.curr}${t.date?` · ${t.date}`:''} ${warn}</div>
         </div>
       </div>`;
     }).join('');
     d.innerHTML=`<div class="modal">
       <div class="modal-title">📋 인식 결과 확인<button class="modal-close" id="mc">×</button></div>
-      <div style="font-size:.78em;color:#8b949e;margin-bottom:6px">반영할 거래를 확인하고 체크하세요. 숫자가 틀렸으면 체크 해제 후 수동 입력해주세요.</div>
+      <div style="font-size:max(12px,.78em);color:#8b949e;margin-bottom:6px">반영할 거래를 확인하고 체크하세요. 숫자가 틀렸으면 체크 해제 후 수동 입력해주세요.</div>
       <div style="max-height:48vh;overflow-y:auto;margin-bottom:8px">${rows}</div>
       <button class="mbtn mbtn-pri" id="execShotApply">✅ 선택한 거래 반영</button>
       <button class="mbtn mbtn-sec" id="shotBack">← 다시 선택</button>
