@@ -32,7 +32,7 @@ test('real-account header never presents ledger totals or ledger-changing contro
  const r=runtime();Object.assign(r.context,{filt:()=>[],portfolioStatus:()=>({confirmed:0,total:0,covered:0,valueKRW:0}),filtCashKRW:()=>0,APP_VERSION:'synthetic',dataNotice:()=>'',fK:()=>'',fP:()=>''});
  new vm.Script(source('views.js')).runInContext(r.context);
  const h=vm.runInContext('mkHdr().innerHTML',r.context);
- assert.doesNotMatch(h,/btnAdd|btnShot|btnSync|총 자산|원가 대비/);assert.match(h,/btnSettings/);assert.match(h,/원장과 분리/);
+ assert.doesNotMatch(h,/btnAdd|btnShot|btnSync|총 자산|원가 대비/);assert.match(h,/drawerToggle/);assert.match(h,/원장과 분리/);
 });
 const queriedAt='2026-11-09T00:00:00.000Z';
 const section=(rows=[],extra={})=>({status:'success',rows,queriedAt,paginationComplete:true,errorCode:null,...extra});

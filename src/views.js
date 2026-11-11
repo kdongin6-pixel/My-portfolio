@@ -16,9 +16,10 @@ import {profileFor,analysisTag,calcStress,cycleCards,calcPerformanceAttribution,
 export function mkHdr(){
   if(S.tab==='broker'){
     const d=document.createElement('div');d.className='hdr';
-    d.innerHTML='<div class="hdr-row1"><div class="hdr-title">🏦 실계좌 · 조회 전용</div><button class="hdr-btn" id="btnSettings" aria-label="연결 설정">⚙️</button></div><p class="broker-meta">사용자 원장과 분리된 증권사 REST 조회</p>';
+    d.innerHTML='<div class="hdr-row1"><button class="drawer-toggle" id="drawerToggle" aria-label="메뉴 열기" aria-expanded="false" aria-controls="drawer">☰</button><div class="hdr-title">🏦 실계좌 · 조회 전용</div></div><p class="broker-meta">사용자 원장과 분리된 증권사 REST 조회</p>';
     return d;
   }
+
   const fl=filt(),coverage=portfolioStatus({...S,stocks:fl},!!getApiUrl()&&!!getApiSecret());
   const ready=S.readStatus==="success"||fl.length>0;
   const complete=coverage.confirmed===coverage.total&&coverage.covered===coverage.total;
@@ -29,9 +30,9 @@ export function mkHdr(){
   const d=document.createElement("div");d.className="hdr";
   d.innerHTML=`
     <div class="hdr-row1">
-      <div class="hdr-title">포트폴리오 <span id="cloudBadge" aria-label="연결 상태">●</span></div>
+      <button class="drawer-toggle" id="drawerToggle" aria-label="메뉴 열기" aria-expanded="false" aria-controls="drawer">☰</button><div class="hdr-title">포트폴리오</div><span id="cloudBadge" aria-label="연결 상태">●</span>
       <button class="sync-btn" id="btnSync" aria-label="새로 조회">↻</button>
-      <details class="action-menu"><summary aria-label="작업 메뉴">⋯</summary><div class="action-sheet" role="group" aria-label="작업 메뉴"><button class="hdr-btn btn-add" id="btnAdd">+ 종목</button><button class="hdr-btn btn-shot" id="btnShot">매매인식</button><button class="hdr-btn" id="btnSettings">설정</button><button id="btnAnalysisCopy" class="hdr-btn">분석용 잔고 복사</button><button id="btnAnalysisCsv" class="hdr-btn">CSV 다운로드</button><span id="exportStatus" role="status"></span></div></details>
+
     </div>
     ${S.syncMsg?`<div class="msg-sync" style="background:${S.syncMsg.startsWith('✅')?'rgba(16,185,129,.15)':S.syncMsg.startsWith('❌')?'rgba(244,63,94,.15)':'rgba(245,158,11,.15)'};color:${S.syncMsg.startsWith('✅')?'#10b981':S.syncMsg.startsWith('❌')?'#f43f5e':'#fbbf24'}">${S.syncMsg}</div>`:''}
     ${dataNotice(S,!!getApiUrl()&&!!getApiSecret())}
@@ -45,28 +46,28 @@ export function mkHdr(){
 
 export function mkTabs(){
   const d=document.createElement("div");
-  d.innerHTML=`<nav class="tabs" aria-label="주 메뉴">
+  const fl=filt(), coverage=portfolioStatus({...S,stocks:fl},!!getApiUrl()&&!!getApiSecret());
+  const inv=fl.reduce((a,s)=>a+(s.curr==='USD'?s.qty*s.avg*S.rate:s.qty*s.avg),0), pnl=coverage.valueKRW-inv;
+  const complete=coverage.confirmed===coverage.total&&coverage.covered===coverage.total,ready=S.readStatus==='success'||fl.length>0;
+  d.innerHTML=`<div class="drawer-scrim" id="drawerScrim" hidden></div><aside id="drawer" class="drawer" aria-label="포트폴리오 메뉴" aria-hidden="true"><div class="drawer-head"><b>포트폴리오</b><button id="drawerClose" aria-label="메뉴 닫기">×</button></div>
+    <div class="drawer-summary">총자산 ${ready?(complete?'₩':'부분합계 ₩')+fK(coverage.valueKRW+filtCashKRW()):'—'}<br>평가손익 ${ready&&complete?'₩'+fK(pnl)+' · '+fP(inv>0?pnl/inv*100:0):'미확인'}</div>
+    <h2>보유 종목</h2><div class="drawer-filters">${[['전체','전체'],['메리츠증권','메리츠'],['ISA','ISA']].map(([id,label])=>`<button class="flt ${S.acct===id?'on':''}" data-acct="${id}">${label}</button>`).join('')}</div>${holdingCards(S,sortedHoldings(fl))}
+    <h2>메뉴</h2><nav class="drawer-nav" aria-label="주 메뉴">
     <button type="button" class="tab ${S.tab==='list'?'on':''}" data-tab="list" ${S.tab==='list'?'aria-current="page"':''}>종목</button>
     <button type="button" class="tab ${S.tab==='chart'?'on':''}" data-tab="chart" ${S.tab==='chart'?'aria-current="page"':''}>비중</button>
     <button type="button" class="tab ${S.tab==='trend'?'on':''}" data-tab="trend" ${S.tab==='trend'?'aria-current="page"':''}>추이</button>
     <button type="button" class="tab ${S.tab==='analysis'?'on':''}" data-tab="analysis" ${S.tab==='analysis'?'aria-current="page"':''}>분석</button>
-    <details class="more-menu"><summary class="tab ${['broker','market','journal','txn'].includes(S.tab)?'on':''}">더보기</summary><div class="more-sheet" role="group" aria-label="더보기 메뉴">
+
       <button type="button" class="tab ${S.tab==='broker'?'on':''}" data-tab="broker" ${S.tab==='broker'?'aria-current="page"':''}>실계좌</button>
       <button type="button" class="tab ${S.tab==='market'?'on':''}" data-tab="market" ${S.tab==='market'?'aria-current="page"':''}>시장</button>
       <button type="button" class="tab ${S.tab==='journal'?'on':''}" data-tab="journal" ${S.tab==='journal'?'aria-current="page"':''}>일지</button>
       <button type="button" class="tab ${S.tab==='txn'?'on':''}" data-tab="txn" ${S.tab==='txn'?'aria-current="page"':''}>내역</button>
-    </div></details>
-  </nav>`;
+  </nav><details class="drawer-actions"><summary>⋯ 작업</summary><div role="group" aria-label="작업 메뉴"><button id="btnAdd">+ 종목</button><button id="btnShot">매매인식</button><button id="btnSettings">설정</button><button id="btnAnalysisCopy">분석용 잔고 복사</button><button id="btnAnalysisCsv">CSV 다운로드</button><span id="exportStatus" role="status"></span></div></details></aside>`;
   return d;
 }
 
-export function mkList(){
-  const fl=filt(),v=valuation(fl,S.rate),stockTot=v.valueKRW;
-  const available=S.readStatus==="success"||fl.length>0;
-  const d=document.createElement("div");
-
-  // 정렬
-  const sorted=[...fl].sort((a,b)=>{
+function sortedHoldings(fl){
+  return [...fl].sort((a,b)=>{
     const aInvK=a.curr==="USD"?a.qty*a.avg*S.rate:a.qty*a.avg;
     const bInvK=b.curr==="USD"?b.qty*b.avg*S.rate:b.qty*b.avg;
     const aEvK=evK(a),bEvK=evK(b);
@@ -77,6 +78,13 @@ export function mkList(){
     else if(S.sortBy==="wt"){av=aEvK;bv=bEvK;}
     return S.sortDir==="desc"?bv-av:av-bv;
   });
+}
+
+export function mkList(){
+  const fl=filt(),v=valuation(fl,S.rate),stockTot=v.valueKRW;
+  const available=S.readStatus==="success"||fl.length>0;
+  const d=document.createElement("div");
+  const sorted=sortedHoldings(fl);
 
   const SORT_LABELS={eval:"평가금액",pct:"수익률",pnl:"손익",wt:"비중"};
   const sortOptions=Object.entries(SORT_LABELS)

@@ -15,6 +15,28 @@ let detailFocusId=null;
 export function bind(){
   const q=s=>document.querySelector(s);
   const qa=s=>document.querySelectorAll(s);
+  const drawer=q('#drawer'),toggle=q('#drawerToggle'),scrim=q('#drawerScrim');
+  const desktop=typeof matchMedia==='function'&&matchMedia('(min-width: 900px)').matches;
+  const setDrawer=(open,focus=true)=>{
+    if(!drawer)return;
+    drawer.classList.toggle('open',open);drawer.inert=!open&&!desktop;
+    drawer.setAttribute('aria-hidden',String(!open&&!desktop));
+    toggle?.setAttribute('aria-expanded',String(open||desktop));
+    scrim.hidden=!open||desktop;
+    if(open&&!desktop){drawer.setAttribute('role','dialog');drawer.setAttribute('aria-modal','true');if(focus)q('#drawerClose')?.focus();}
+    else {drawer.removeAttribute('role');drawer.removeAttribute('aria-modal');if(focus&&!desktop)toggle?.focus();}
+  };
+  setDrawer(false,false);
+  toggle?.addEventListener('click',()=>setDrawer(!drawer.classList.contains('open')));
+  q('#drawerClose')?.addEventListener('click',()=>setDrawer(false));
+  scrim?.addEventListener('click',()=>setDrawer(false));
+  let touchX=null;drawer?.addEventListener('touchstart',e=>{touchX=e.touches[0]?.clientX;},{passive:true});
+  drawer?.addEventListener('touchend',e=>{if(touchX!==null&&touchX-e.changedTouches[0]?.clientX>60)setDrawer(false);touchX=null;},{passive:true});
+  drawer?.addEventListener('keydown',e=>{
+    if(!drawer.classList.contains('open')||desktop)return;
+    if(e.key==='Escape'){e.preventDefault();setDrawer(false);return;}
+    if(e.key==='Tab'){const controls=[...drawer.querySelectorAll('button,summary,select,a[href]')].filter(el=>el.getClientRects().length&&!el.disabled);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}
+  });
   const googleButton=q('#googleSignInButton');
   const drawGoogleButton=()=>{
     const button=q('#googleSignInButton');if(!button)return;
@@ -38,7 +60,7 @@ export function bind(){
   q('#btnAnalysisCsv')?.addEventListener('click',()=>{
     const data=analysisExport(S,S.acct),blob=new Blob([data.csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='portfolio-analysis.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);q('#exportStatus').textContent='CSV 생성 완료 — 개인 잔고가 포함되므로 보관에 주의하세요';
   });
-  const dialog=q('[role="dialog"]');
+  const dialog=q('.modal[role="dialog"]');
   if(dialog){dialog.focus();dialog.addEventListener('keydown',e=>{
     if(e.key==='Escape'){e.preventDefault();close();return;}
     if(e.key==='Tab'){const controls=[...dialog.querySelectorAll('button,input,textarea,select,a[href]')].filter(el=>!el.disabled);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){e.preventDefault();last?.focus();}else if(!e.shiftKey&&(document.activeElement===last||document.activeElement===dialog)){e.preventDefault();first?.focus();}}
@@ -115,7 +137,7 @@ export function bind(){
   q("#mc")?.addEventListener("click",close);
   q("#mc2")?.addEventListener("click",close);
   q("#mbg")?.addEventListener("click",e=>{if(e.target===q("#mbg"))close();});
-  qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{S.acct=el.dataset.acct;render();}));
+  qa(".flt[data-acct]").forEach(el=>el.addEventListener("click",()=>{const wasDrawer=!!el.closest('#drawer');S.acct=el.dataset.acct;render();if(wasDrawer&&!desktop)document.querySelector('#drawerToggle')?.click();}));
   qa("[data-goto-market]").forEach(el=>el.addEventListener("click",()=>{S.tab="market";render();loadMarketData();}));
   qa(".tab[data-tab]").forEach(el=>el.addEventListener("click",()=>{
     S.tab=el.dataset.tab;render();

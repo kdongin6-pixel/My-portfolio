@@ -448,3 +448,13 @@ body,.hdr{background:#0b1220;color:#e8eef8}
 .gs-name,.gs-sub{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
 .gs-td:first-child{overflow:visible}
 .mkt2-idx-price,.mkt2-rate-price,.mkt2-tech-price,.calendar-event small{white-space:normal;overflow-wrap:anywhere}
+
+/* Drawer navigation */
+#app{padding-bottom:env(safe-area-inset-bottom)}
+.hdr-row1{display:flex;align-items:center;gap:4px}.hdr-title{flex:1;text-align:center}.drawer-toggle,.drawer-head button{min-width:44px;min-height:44px;background:transparent;border:0;color:#e8eef8;font-size:1.35rem}.sync-btn{min-width:44px;min-height:44px}
+.drawer-scrim{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:100}.drawer-scrim[hidden]{display:none}
+.modal-bg{z-index:120}
+.drawer{position:fixed;z-index:101;inset:0 auto 0 0;width:min(330px,88vw);overflow:auto;overscroll-behavior:contain;padding:max(12px,env(safe-area-inset-top)) 12px max(20px,env(safe-area-inset-bottom));background:#182438;color:#e8eef8;transform:translateX(-105%);transition:transform .2s ease;box-sizing:border-box}.drawer.open{transform:translateX(0)}
+.drawer-head{display:flex;align-items:center;justify-content:space-between}.drawer-summary{padding:12px;background:#202e44;border-radius:12px;line-height:1.6}.drawer h2{font-size:1rem;margin:20px 4px 8px}.drawer-filters{display:flex;gap:6px}.drawer-filters button{min-height:44px}.drawer .holding-cards{padding:0}.drawer .holding-card{background:#202e44}.drawer-nav,.drawer-actions div{display:grid}.drawer-nav .tab,.drawer-actions button,.drawer-actions summary{display:block;text-align:left;min-height:44px;width:100%;padding:10px 12px;border:0;border-radius:12px;background:transparent;color:#e8eef8;font:inherit}.drawer-nav .tab.on{background:#414a88;color:#fff}.drawer-actions summary{cursor:pointer}.drawer :focus-visible,.drawer-toggle:focus-visible{outline:2px solid #c7d2fe;outline-offset:-2px}
+@media(min-width:900px){#app{padding-left:330px}.drawer{width:330px;transform:none;border-right:1px solid #30363d}.drawer-toggle,.drawer-head button{visibility:hidden}.drawer-scrim{display:none}}
+@media(prefers-reduced-motion:reduce){.drawer{transition:none}}
