@@ -1,4 +1,16 @@
 // Read-only presentation contracts. No DOM, storage, network or ledger writes.
+const kstFormatter=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+// A date without a time is not an instant; keep it as a date, not midnight UTC.
+export function displayKst(value,fallback='미확인'){
+ if(typeof value!=='string'||!value)return fallback;
+ const day=value.slice(0,10),check=new Date(day+'T00:00:00Z');
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(check.getTime())||check.toISOString().slice(0,10)!==day)return fallback;
+ if(value===day)return value;
+ if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/i.test(value))return fallback;
+ const date=new Date(value);if(!Number.isFinite(date.getTime()))return fallback;
+ const parts=Object.fromEntries(kstFormatter.formatToParts(date).map(p=>[p.type,p.value]));
+ return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute} (KST)`;
+}
 const finite=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
 export const positive=v=>finite(v)&&Number(v)>0;
 export const QUOTE_CONFIRM_WINDOW_MS=10*60*1000;

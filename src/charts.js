@@ -4,6 +4,7 @@
 import {S} from './state.js';
 import {fK,fP,evK,totK,filt} from './helpers.js';
 import {STOCK_PALETTE} from './constants.js';
+import {displayKst} from './portfolio-read.js';
 
 let _chartInstances=[];
 export function destroyCharts(){_chartInstances.forEach(c=>{try{c.destroy();}catch(e){}});_chartInstances=[];}
@@ -99,7 +100,7 @@ export function drawTrend(){
     const cutoff24=new Date();cutoff24.setDate(cutoff24.getDate()-1);
     const intra=(S.intradaySnaps||[]).filter(s=>new Date(s.dt)>=cutoff24);
     if(intra.length<2)return;
-    labels=intra.map(s=>{const t=new Date(s.dt);return t.getHours().toString().padStart(2,'0')+':'+t.getMinutes().toString().padStart(2,'0');});
+    labels=intra.map(s=>displayKst(s.dt));
     totals=intra.map(s=>s.totalKRW);
     pcts=intra.map(s=>s.pct);
   }else{

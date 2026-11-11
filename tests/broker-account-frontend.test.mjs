@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {existsSync,readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {analysisExport} from '../src/portfolio-export.js';
+import {displayKst} from '../src/portfolio-read.js';
 const path=new URL('../src/broker-account.js',import.meta.url);
 const broker=existsSync(path)?await import(path):{};
 const source=file=>readFileSync(new URL('../src/'+file,import.meta.url),'utf8').replace(/^import .*$/mg,'').replace(/^export /mg,'');
@@ -11,7 +12,7 @@ function runtime(){
  let calls=[],writes=[],brokerButton={listeners:{},addEventListener(type,fn){this.listeners[type]=fn;}},tab={dataset:{tab:'broker'},addEventListener(type,fn){this.click=fn;}};
  const app={innerHTML:'',children:[],appendChild(el){this.children.push(el);}};
  const document={visibilityState:'visible',getElementById:()=>app,createElement:()=>({innerHTML:'',className:''}),querySelector:s=>s==='#btnBrokerRead'?brokerButton:null,querySelectorAll:s=>s==='.tab[data-tab]'?[tab]:[]};
- const context=vm.createContext({...broker,S,document,getApiUrl:()=>'/api',getApiSecret:()=> 'synthetic',fetch:async(...args)=>{calls.push(args);return response(account());},localStorage:{setItem(...args){writes.push(args);}},destroyCharts(){},mkHdr:()=>({}),mkTabs:()=>({}),Date,Intl,console,setTimeout(){throw Error('unexpected timeout');},setInterval:()=>1,clearInterval(){}});
+ const context=vm.createContext({...broker,displayKst,S,document,getApiUrl:()=>'/api',getApiSecret:()=> 'synthetic',fetch:async(...args)=>{calls.push(args);return response(account());},localStorage:{setItem(...args){writes.push(args);}},destroyCharts(){},mkHdr:()=>({}),mkTabs:()=>({}),Date,Intl,console,setTimeout(){throw Error('unexpected timeout');},setInterval:()=>1,clearInterval(){}});
  const uiPath=new URL('../src/broker-account-ui.js',import.meta.url);
  new vm.Script(source('broker-account.js')).runInContext(context);
  if(existsSync(uiPath))new vm.Script(source('broker-account-ui.js')).runInContext(context);
