@@ -471,5 +471,6 @@ body,.hdr{background:var(--page);color:var(--text)}
 button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sort-dir-btn{min-width:44px;min-height:44px}
 .cash-toggle-btn{min-height:44px}
+.broker-switch button,.tag-pick,#addTagBtn{min-width:44px;min-height:44px}
 .flt.on{border-color:var(--accent)}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
