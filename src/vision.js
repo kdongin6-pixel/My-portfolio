@@ -146,6 +146,7 @@ export function applyParsed(items){
     }
 
     // 매수/매도
+    if(t.acct==="ISA"&&S.kisMirror?.active)return; // 증권사 연동이 ISA 거래를 직접 반영함 → 중복 방지
     let s=t.matchedId?S.stocks.find(x=>x.id===t.matchedId):null;
     if(!s&&t.type==='buy'){
       s={id:Math.max(0,...S.stocks.map(x=>x.id))+1,name:t.name,ticker:t.ticker,acct:t.acct,curr:t.curr,qty:0,avg:0,cur:t.price,tag:''};

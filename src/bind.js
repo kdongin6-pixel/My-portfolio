@@ -294,6 +294,7 @@ export function bind(){
         ticker:q("#aticker")?.value.trim()||"" // 💡 티커를 무조건 저장합니다
       };
 
+      if(data.acct==="ISA"&&S.kisMirror?.active)return alert("ISA 보유 종목은 증권사 연동으로 자동 반영됩니다. 직접 고쳐도 다음 반영 때 덮어써져요.");
       if(mt==="edit"){
         const s=S.stocks.find(x=>x.id===S.modal.stockId);
         if(s)Object.assign(s,data);

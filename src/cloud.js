@@ -103,7 +103,12 @@ export async function loadFromCloud(showAlert,options={}){
     if(data.rate&&data.rate>0)S.rate=data.rate;
     if(data.appData){
       const a=data.appData;
-      S.kisMirror=a.kisMirror&&typeof a.kisMirror==="object"&&typeof a.kisMirror.appliedAt==="string"?{appliedAt:a.kisMirror.appliedAt}:null;
+      {
+        const mir=a.snapshotAutomation?.history?.isaMirror,ran=Date.parse(a.snapshotAutomation?.lastCapturedAt),result=mir?(mir.ledgerStatus||mir.status):"";
+        const everApplied=!!(a.kisMirror&&typeof a.kisMirror==="object"&&typeof a.kisMirror.appliedAt==="string");
+        const fresh=Number.isFinite(ran)&&Date.now()-ran<3*3600*1000;
+        S.kisMirror=everApplied?{appliedAt:a.kisMirror.appliedAt,active:fresh&&(result==="applied"||result==="unchanged"),status:result,reason:(mir&&(mir.ledgerReason||mir.reason))||"",checkedAt:a.snapshotAutomation?.lastCapturedAt||null}:null;
+      }
       const merged=mergeCloudState(S,a,{baseRevision:S.cloudRevision,remoteRevision:data.savedAt});
       if(merged.overwroteLocal){
         // Stale local holdings/cash are replaced by the server's. Keep the old values so nothing is lost for good.
