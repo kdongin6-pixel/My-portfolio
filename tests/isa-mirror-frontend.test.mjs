@@ -114,7 +114,7 @@ test('undoing an ISA cash entry is blocked while the mirror is active, Meritz is
   assert.equal(S.cashTxns.length, 1);
 });
 
-test('cloud load turns the server status into an active flag only for a fresh, healthy mirror', () => {
+test('cloud load keeps the block through transient skips and lifts it for real stops', () => {
   const cloud = fs.readFileSync(new URL('../src/cloud.js', import.meta.url), 'utf8');
   const start = cloud.indexOf('const mir=a.snapshotAutomation');
   const block = cloud.slice(start - 10, cloud.indexOf('const merged=mergeCloudState'));
@@ -124,15 +124,26 @@ test('cloud load turns the server status into an active flag only for a fresh, h
     vm.runInContext('(function(a){' + block + '})', vm.createContext({S, Date: D, Number}))(a);
     return S.kisMirror;
   };
-  const base = (isaMirror, at = '2026-11-16T02:30:00.000Z') => ({kisMirror: {appliedAt: '2026-11-16T01:55:00.000Z'}, snapshotAutomation: {lastCapturedAt: at, history: {isaMirror}}});
-  assert.equal(run(base({status: 'unchanged'})).active, true);
-  assert.equal(run(base({status: 'applied'})).active, true);
-  assert.equal(run(base({status: 'history_rejected', ledgerStatus: 'applied'})).active, true);
-  const stopped = run(base({status: 'skipped', reason: 'unexplained_disappearance'}));
-  assert.deepEqual([stopped.active, stopped.reason], [false, 'unexplained_disappearance']);
+  const ok = '2026-11-16T02:30:00.000Z';
+  const base = (isaMirror, okAt = ok) => ({kisMirror: {appliedAt: '2026-11-16T01:55:00.000Z'},
+    snapshotAutomation: {lastCapturedAt: ok, isaMirrorOkAt: okAt, history: isaMirror === undefined ? {} : {isaMirror}}});
+  for (const healthy of [{status: 'unchanged'}, {status: 'applied'}, {status: 'history_rejected', ledgerStatus: 'applied'}, undefined]) {
+    assert.equal(run(base(healthy)).active, true, JSON.stringify(healthy));
+  }
+  for (const reason of ['state_changed_during_read', 'stale_read', 'no_read', 'timestamp_conflict']) {
+    assert.equal(run(base({status: 'skipped', reason})).active, true, reason);
+  }
+  for (const reason of ['unexplained_disappearance', 'disabled', 'manual_date_unparseable', 'pending_reconciliation', 'empty_holdings_unconfirmed']) {
+    const m = run(base({status: 'skipped', reason}));
+    assert.deepEqual([m.active, m.reason], [false, reason]);
+  }
   assert.equal(run(base({status: 'dry'})).active, false);
+  assert.equal(run(base({status: 'error'})).active, false);
   assert.equal(run(base({status: 'unchanged'}, '2026-11-15T20:00:00.000Z')).active, false);
-  assert.equal(run({snapshotAutomation: {lastCapturedAt: '2026-11-16T02:30:00.000Z', history: {isaMirror: {status: 'unchanged'}}}}), null);
+  const noStamp = base({status: 'unchanged'});
+  delete noStamp.snapshotAutomation.isaMirrorOkAt;
+  assert.equal(run(noStamp).active, false);
+  assert.equal(run({snapshotAutomation: {isaMirrorOkAt: ok, history: {isaMirror: {status: 'unchanged'}}}}), null);
 });
 
 test('the holdings notice shows why the ISA mirror stopped', async () => {
@@ -149,5 +160,8 @@ test('holding edit and screenshot import skip ISA while the mirror is active', (
   const bind = fs.readFileSync(new URL('../src/bind.js', import.meta.url), 'utf8');
   assert.match(bind, /data\.acct==="ISA"&&S\.kisMirror\?\.active\)return alert/);
   const vision = fs.readFileSync(new URL('../src/vision.js', import.meta.url), 'utf8');
-  assert.match(vision, /t\.acct==="ISA"&&S\.kisMirror\?\.active\)return;/);
+  assert.match(vision, /t\.acct==="ISA"&&S\.kisMirror\?\.active\)\{skippedIsa\+\+;return;\}/);
+  assert.match(vision, /if\(skippedIsa\)alert\(/);
+  const guard = vision.indexOf('skippedIsa++'), cash = vision.indexOf('S.cash[t.acct][t.curr]+=inMode');
+  assert.ok(guard > 0 && cash > guard, 'ISA rows are skipped before the cash branch runs');
 });

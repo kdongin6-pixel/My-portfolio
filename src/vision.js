@@ -131,7 +131,9 @@ export function applyParsed(items){
   let applied=0;
   const nowDate=new Date().toLocaleDateString('ko-KR');
   const nowTime=new Date().toLocaleTimeString('ko-KR');
+  let skippedIsa=0;
   items.forEach((t,i)=>{
+    if(t.acct==="ISA"&&S.kisMirror?.active){skippedIsa++;return;} // 증권사 연동이 ISA 거래·예수금을 직접 반영함 → 중복 방지
     if(!S.cash[t.acct])S.cash[t.acct]={USD:0,KRW:0};
 
     if(t.type==='deposit'||t.type==='dividend'||t.type==='withdraw'){
@@ -146,7 +148,6 @@ export function applyParsed(items){
     }
 
     // 매수/매도
-    if(t.acct==="ISA"&&S.kisMirror?.active)return; // 증권사 연동이 ISA 거래를 직접 반영함 → 중복 방지
     let s=t.matchedId?S.stocks.find(x=>x.id===t.matchedId):null;
     if(!s&&t.type==='buy'){
       s={id:Math.max(0,...S.stocks.map(x=>x.id))+1,name:t.name,ticker:t.ticker,acct:t.acct,curr:t.curr,qty:0,avg:0,cur:t.price,tag:''};
@@ -176,6 +177,7 @@ export function applyParsed(items){
     });
     applied++;
   });
+  if(skippedIsa)alert(`ISA 항목 ${skippedIsa}건은 증권사 연동으로 자동 반영되어 건너뛰었어요.`);
   save();
   return applied;
 }

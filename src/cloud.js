@@ -104,10 +104,14 @@ export async function loadFromCloud(showAlert,options={}){
     if(data.appData){
       const a=data.appData;
       {
-        const mir=a.snapshotAutomation?.history?.isaMirror,ran=Date.parse(a.snapshotAutomation?.lastCapturedAt),result=mir?(mir.ledgerStatus||mir.status):"";
+        const mir=a.snapshotAutomation?.history?.isaMirror,okAt=Date.parse(a.snapshotAutomation?.isaMirrorOkAt);
+        const result=mir?(mir.ledgerStatus||mir.status):"",why=(mir&&(mir.ledgerReason||mir.reason))||"";
         const everApplied=!!(a.kisMirror&&typeof a.kisMirror==="object"&&typeof a.kisMirror.appliedAt==="string");
-        const fresh=Number.isFinite(ran)&&Date.now()-ran<3*3600*1000;
-        S.kisMirror=everApplied?{appliedAt:a.kisMirror.appliedAt,active:fresh&&(result==="applied"||result==="unchanged"),status:result,reason:(mir&&(mir.ledgerReason||mir.reason))||"",checkedAt:a.snapshotAutomation?.lastCapturedAt||null}:null;
+        // The server stamps isaMirrorOkAt on every applied or unchanged run. Skips caused by a concurrent save or a slow run are transient.
+        const fresh=Number.isFinite(okAt)&&Date.now()-okAt<3*3600*1000;
+        const transient=["state_changed_during_read","stale_read","no_read","timestamp_conflict"];
+        const healthy=!mir||result==="applied"||result==="unchanged"||(result==="skipped"&&transient.includes(why));
+        S.kisMirror=everApplied?{appliedAt:a.kisMirror.appliedAt,active:fresh&&healthy,status:result,reason:why,checkedAt:a.snapshotAutomation?.isaMirrorOkAt||null}:null;
       }
       const merged=mergeCloudState(S,a,{baseRevision:S.cloudRevision,remoteRevision:data.savedAt});
       if(merged.overwroteLocal){
