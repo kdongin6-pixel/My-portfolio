@@ -8,7 +8,7 @@ import {getApiSecret} from './state.js';
 import {getGoogleClientId,getIdToken} from './auth.js';
 import {valuation,portfolioStatus} from './portfolio-read.js';
 import {valuationCashKRW} from './settlement-value.js';
-import {dataNotice,holdingCards,holdingDetail,esc} from './holdings-ui.js';
+import {dataNotice,holdingCards,holdingDetail,esc,saleResultText} from './holdings-ui.js';
 import {getAnthropicKey,getShotFiles} from './vision.js';
 import {mkTodayStrip} from './market-ui.js';
 import {profileFor,analysisTag,calcStress,cycleCards,calcPerformanceAttribution,calcDayAttribution,calcRiskBudget,eventCards,RISK_BUDGETS} from './intelligence.js';
@@ -407,11 +407,7 @@ export function mkTxn(){
     const el=document.createElement("div");el.className="txn";
     let detail=`${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}`;
     if(t.fee>0)detail+=` · 수수료 ${t.fee}`;
-    if(t.mode==='sell'){
-      const inv=t.prevAvg*t.qty;
-      const pct=inv>0?t.pnl/inv*100:0;
-      detail+=` · 실현손익 <span class="${t.pnl>=0?'pos':'neg'}">${t.pnl>=0?'+':''}${t.pnl.toFixed(2)} (${pct>=0?'+':''}${pct.toFixed(2)}%)</span>`;
-    }
+    if(t.mode==='sell')detail+=saleResultText(t);
     el.innerHTML=`<div class="txn-head">
       <span class="txn-name">${t.mode==='buy'?'📈':'📉'} ${t.name}</span>
       <span class="txn-date">${t.date} ${t.time||''}</span>

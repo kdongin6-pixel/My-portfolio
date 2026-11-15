@@ -20,6 +20,7 @@ export let S={
   cashTxns:[],
   txns:[],
   agentImports:[],
+  kisMirror:null,
   snapshots:[],
   intradaySnaps:[],
   journal:[],

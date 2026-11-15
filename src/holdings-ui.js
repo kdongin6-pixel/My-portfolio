@@ -13,6 +13,11 @@ export function dataNotice(state,configured){
  const rateClock=rateAt.match(/\d{4}-\d{2}-\d{2} (\d{2}:\d{2}) \(KST\)/)?.[1];
  return `<details class="notice-collapse"><summary><span class="notice-line">환율 ${num(state.rate)}${rateAt?'':' (추정)'} · 시세 ${p.confirmed}/${p.total}${rateClock?' · 환율 '+rateClock:''}</span>${warnings.length?`<span class="notice-warning" aria-label="${esc(warnings.join(' · '))}" title="${esc(warnings.join(' · '))}">주의</span>`:''}</summary><div class="data-notice" role="status"><b>${labels[p.state]}</b><br>시세 ${p.confirmed}/${p.total} 확인 · 평가 가능 ${p.covered}/${p.total} (이전 시세 포함)${p.confirmed<p.total||p.covered<p.total?'<br>미확인: '+esc(p.rows.filter(r=>!r.quote.confirmed||r.valueKRW===null).map(r=>r.s.ticker||r.s.name).join(', ')):''}<br>원장 갱신 ${esc(ledgerTime||displayKst(state.updatedAt))} · 환율 ${num(state.rate)} KRW/USD · ${rateAt?'기준 '+esc(rateAt):'기준시각 미확인 · 추정 환율'}</div></details>`;
 }
+export function saleResultText(t){
+ if(t.costBasisUnknown)return ' · 실현손익 원가 미확인';
+ const inv=Number(t.prevAvg)*Number(t.qty),pnl=Number(t.pnl)||0,pct=inv>0?pnl/inv*100:0;
+ return ` · 실현손익 <span class="${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${pnl.toFixed(2)} (${pct>=0?'+':''}${pct.toFixed(2)}%)</span>`;
+}
 function holdingReturn(s,r){
  const pnl=r.quote.valid?Number(s.qty)*(Number(s.cur)-Number(s.avg)):null;
  const pct=pnl!==null&&positive(s.avg)?pnl/(Number(s.qty)*Number(s.avg))*100:null;

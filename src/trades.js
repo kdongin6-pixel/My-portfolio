@@ -8,6 +8,7 @@ import {render} from './render.js';
 
 export function execTrade(id,mode,qty,price,fee){
   const s=S.stocks.find(x=>x.id===id);
+  if(s&&s.acct==="ISA"&&S.kisMirror)return alert("ISA 거래는 증권사 연동으로 자동 반영됩니다. 직접 입력하면 같은 거래가 중복 기록돼요.");
   const q=parseFloat(qty),p=parseFloat(price);
   const f=Math.max(0,parseFloat(fee)||0);
   if(!s||isNaN(q)||isNaN(p)||q<=0||p<=0)return alert("수량/가격 확인");
@@ -72,6 +73,7 @@ export function undoTrade(txnId){
 
 export function execCash(acct,curr,mode,amount,memo){
   const a=parseFloat(amount);
+  if(acct==="ISA"&&S.kisMirror)return alert("ISA 예수금은 증권사 값으로 자동 맞춰집니다. 직접 입력해도 다음 반영 때 덮어써져요.");
   if(isNaN(a)||a<=0)return alert("금액 확인");
   if(!S.cash[acct])S.cash[acct]={USD:0,KRW:0};
   if(mode==="out"&&S.cash[acct][curr]<a){
