@@ -513,4 +513,4 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .benchmark-view .bm-table .bm-gain{color:#c23b32}
 .benchmark-view .bm-table .bm-loss{color:#2f63b5}
 .benchmark-view .bm-empty{background:var(--bm-raised);padding:16px;margin:20px 0;border-radius:8px}
-@media(max-width:900px){.benchmark-view{padding:16px}.benchmark-view .bm-layout{grid-template-columns:1fr}.benchmark-view .bm-panel{padding:16px}}
+@media(max-width:900px){.benchmark-view{padding:16px}.benchmark-view .bm-layout{grid-template-columns:minmax(0,1fr)}.benchmark-view .bm-panel{padding:16px}}
