@@ -5,6 +5,7 @@ import {S} from './state.js';
 import {valuationCashKRW} from './settlement-value.js';
 
 export const fK=n=>Math.round(n).toLocaleString("ko-KR");
+export const stripEmoji=text=>text.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu,'').trim();
 export const fKShort=n=>{const a=Math.abs(n),s=n<0?'-':'';return a>=100000000?s+'₩'+(a/100000000).toFixed(1)+'억':a>=10000?s+'₩'+Math.round(a/10000)+'만':s+'₩'+fK(a);};
 export const fU=n=>n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 export const fP=n=>(n>=0?"+":"")+n.toFixed(2)+"%";

@@ -26,6 +26,35 @@
 .gs-name,.gs-sub,.mkt-item-price,.mkt2-comm-price,.mkt2-idx-price,.mkt2-rate-price,.mkt2-tech-price{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .data-notice,.quote-provenance,.analysis-empty{overflow-wrap:break-word;text-wrap:pretty}
 h1,h2,h3{text-wrap:balance}
+/* Load order: these phase-2 overrides follow src/styles.css; existing tests inspect them here. Inline table placement rules target tbody only and do not override thead grid-area rules in styles.css. Use at most one accent button per view. */
+.paper-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;min-width:0}
+.paper-section-heading{color:var(--text);font-size:1rem;font-weight:600;margin:0 0 12px}
+.paper-input{background:var(--raised);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px;min-height:44px;font:inherit}
+.paper-button{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:8px 12px;min-height:44px;font:inherit;font-weight:500;cursor:pointer}
+.paper-button-accent{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.paper-gain{color:var(--gain)}
+.paper-loss{color:var(--loss)}
+.paper-nums{font-variant-numeric:tabular-nums}
+.paper-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.paper-table{font-variant-numeric:tabular-nums}
+.paper-table th{position:sticky;top:0;background:var(--surface);z-index:1}
+@media(max-width:899px){
+  #app{padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+  .paper-grid{grid-template-columns:minmax(0,1fr)}
+  .paper-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0 0}
+  .paper-stats .asset-card{padding:12px}
+  .paper-stats .asset-card:first-child{grid-column:auto;padding:12px}
+  .paper-stats .asset-card:first-child .ac-val{font-size:1.25rem}
+  .paper-dashboard{gap:8px;padding-bottom:16px}
+  .paper-dashboard .paper-panel{padding:12px}
+  .paper-dashboard .paper-panel h2{margin-bottom:8px}
+  .paper-table tbody tr{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 8px;padding:8px 0}
+  .paper-table tbody td{min-width:0;overflow-wrap:anywhere}
+  .paper-table tbody td:nth-child(1){grid-area:1 / 1}
+  .paper-table tbody td:nth-child(2){grid-area:2 / 1;text-align:left;color:var(--text-secondary);font-size:12px}
+  .paper-table tbody td:nth-child(3){grid-area:1 / 2;text-align:right}
+  .paper-table tbody td:nth-child(4){grid-area:2 / 2;text-align:right}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://accounts.google.com/gsi/client" async onload="window.dispatchEvent(new Event('google-identity-ready'))"></script>

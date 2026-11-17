@@ -3,7 +3,8 @@
 // ═══════════════════════════════════════════
 import {S,getApiUrl} from './state.js';
 import {APP_VERSION,JOURNAL_CATEGORIES} from './constants.js';
-import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW} from './helpers.js';
+import {fK,fKShort,fP,fM,evK,totK,filt,filtCashKRW,stripEmoji} from './helpers.js';
+import {addPaperClass} from './broker-account-ui.js';
 import {getApiSecret} from './state.js';
 import {getGoogleClientId,getIdToken} from './auth.js';
 import {valuation,portfolioStatus} from './portfolio-read.js';
@@ -223,37 +224,38 @@ export function mkList(){
 
 export function mkCash(){
   const d=document.createElement("div");
+  d.className='paper-screen paper-nums';
   const accts=["메리츠증권","ISA"];
-  let html='<div class="cash-wrap">';
+  let html='<div class="cash-wrap paper-screen-grid">';
   accts.forEach(acct=>{
     const c=S.cash[acct]||{USD:0,KRW:0};
     ["USD","KRW"].forEach(curr=>{
-      html+=`<div class="cash-card">
-        <div class="cash-curr">${acct} · ${curr}${acct==='ISA'&&curr==='KRW'&&S.kisIsaSettlement?' · 결제 예수금':''}</div>
+      html+=`<div class="cash-card paper-card">
+        <div class="cash-curr paper-section-heading">${acct} · ${curr}${acct==='ISA'&&curr==='KRW'&&S.kisIsaSettlement?' · 결제 예수금':''}</div>
         <div class="cash-amt">${fM(c[curr]||0,curr)}</div>
         ${acct==='ISA'&&curr==='KRW'&&S.kisIsaSettlement?`<div class="cash-curr">D+2 추정 예수금 · 총자산 반영 ${fM(S.kisIsaSettlement.amount,'KRW')}</div>`:''}
         <div class="cash-btns">
-          <button class="cash-btn cash-btn-in" data-cash-in="${acct}|${curr}">+ 입금</button>
-          <button class="cash-btn cash-btn-out" data-cash-out="${acct}|${curr}">− 출금</button>
+          <button class="cash-btn paper-button ${acct==='메리츠증권'&&curr==='USD'?'paper-button-accent':''}" data-cash-in="${acct}|${curr}">+ 입금</button>
+          <button class="cash-btn paper-button" data-cash-out="${acct}|${curr}">− 출금</button>
         </div>
       </div>`;
     });
   });
-  html+='<div class="cash-section-title">📜 입출금 내역</div>';
+  html+='<div class="cash-section-title paper-section-heading">입출금 내역</div>';
   if(S.cashTxns.length===0){
     html+='<div class="empty">입출금 내역이 없어요</div>';
   }else{
     S.cashTxns.forEach(t=>{
-      html+=`<div class="txn">
+      html+=`<div class="txn paper-card">
         <div class="txn-head">
-          <span class="txn-name">${t.mode==='in'?'⬆️':'⬇️'} ${t.acct} ${t.curr} ${t.mode==='in'?'입금':'출금'}</span>
+          <span class="txn-name">${t.acct} ${t.curr} ${t.mode==='in'?'입금':'출금'}</span>
           <span class="txn-date">${t.date} ${t.time||''}</span>
         </div>
         <div class="txn-det">
           ${fM(t.amount,t.curr)}${t.memo?` · ${t.memo}`:''}
         </div>
         <div class="txn-actions">
-          <button class="cbtn cbtn-undo" data-cash-undo="${t.id}">↩️ 취소</button>
+          <button class="cbtn paper-button" data-cash-undo="${t.id}">취소</button>
         </div>
       </div>`;
     });
@@ -290,8 +292,9 @@ export function mkChart(){
 // ═══════════════════════════════════════════
 export function mkTrend(){
   const d=document.createElement("div");
+  d.className='paper-screen paper-nums';
   const periods=[["1D","1일"],["1W","1주"],["1M","1달"],["3M","3달"],["1Y","1년"],["ALL","전체"]];
-  const btns=periods.map(([k,l])=>`<button class="flt ${S.trendPeriod===k?'on':''}" data-period="${k}">${l}</button>`).join('');
+  const btns=periods.map(([k,l])=>`<button class="flt paper-button ${S.trendPeriod===k?'on paper-button-accent':''}" data-period="${k}">${l}</button>`).join('');
 
   if(S.trendPeriod==="1D"){
     const cutoff24=new Date();cutoff24.setDate(cutoff24.getDate()-1);
@@ -307,28 +310,28 @@ export function mkTrend(){
         <div class="ts-item"><div class="ts-lbl">당일 수익률</div><div class="ts-val ${changePct>=0?'pos':'neg'}">${fP(changePct)}</div></div>
       </div>`;
     }
-    const notice=intra.length<2?'<div class="empty" style="padding:20px">⏳ 당일 데이터 수집 중<br><br><span style="font-size:max(12px,.85em)">동기화할 때마다 30분 간격으로 기록됩니다</span></div>':'';
+    const notice=intra.length<2?'<div class="empty trend-full-row" style="padding:20px">당일 데이터 수집 중<br><br><span style="font-size:max(12px,.85em)">동기화할 때마다 30분 간격으로 기록됩니다</span></div>':'';
     d.innerHTML=`
       <div class="filters">${btns}</div>
-      <div class="trend-wrap">
+      <div class="trend-wrap paper-screen-grid">
         ${summary}${notice}
         ${intra.length>=2?`
-        <div class="trend-chart-box">
-          <div class="trend-chart-title">💰 총 자산 추이 (오늘)</div>
+        <div class="trend-chart-box paper-card">
+          <div class="trend-chart-title paper-section-heading">총 자산 추이 (오늘)</div>
           <div style="position:relative;height:220px;width:100%"><canvas id="trendTotal"></canvas></div>
         </div>
-        <div class="trend-chart-box">
-          <div class="trend-chart-title">📈 수익률 추이 (오늘)</div>
+        <div class="trend-chart-box paper-card">
+          <div class="trend-chart-title paper-section-heading">수익률 추이 (오늘)</div>
           <div style="position:relative;height:180px;width:100%"><canvas id="trendPct"></canvas></div>
         </div>
-        <div style="font-size:max(12px,.75em);color:var(--text-secondary);text-align:center;padding:10px">기록된 포인트: ${intra.length}개 (30분 간격)</div>`:''}
+        <div class="trend-full-row" style="font-size:max(12px,.75em);color:var(--text-secondary);text-align:center;padding:10px">기록된 포인트: ${intra.length}개 (30분 간격)</div>`:''}
       </div>`;
     return d;
   }
 
   if(!S.snapshots||S.snapshots.length<1){
     d.innerHTML=`<div class="filters">${btns}</div>
-      <div class="empty">📭 스냅샷 데이터가 없어요<br><br><span style="font-size:max(12px,.85em)">매일 페이지에 한 번씩 방문하면<br>자동으로 기록돼서 추이를 볼 수 있어요</span></div>`;
+      <div class="empty">스냅샷 데이터가 없어요<br><br><span style="font-size:max(12px,.85em)">매일 페이지에 한 번씩 방문하면<br>자동으로 기록돼서 추이를 볼 수 있어요</span></div>`;
     return d;
   }
 
@@ -356,45 +359,46 @@ export function mkTrend(){
 
   d.innerHTML=`
     <div class="filters">${btns}</div>
-    <div class="trend-wrap">
+    <div class="trend-wrap paper-screen-grid">
       ${summary}
-      <div class="trend-chart-box">
-        <div class="trend-chart-title">💰 총 자산 추이 (KRW)</div>
+      <div class="trend-chart-box paper-card">
+        <div class="trend-chart-title paper-section-heading">총 자산 추이 (KRW)</div>
         <div style="position:relative;height:220px;width:100%"><canvas id="trendTotal"></canvas></div>
       </div>
-      <div class="trend-chart-box">
-        <div class="trend-chart-title">📈 누적 수익률 (%)</div>
+      <div class="trend-chart-box paper-card">
+        <div class="trend-chart-title paper-section-heading">누적 수익률 (%)</div>
         <div style="position:relative;height:180px;width:100%"><canvas id="trendPct"></canvas></div>
       </div>
-      <div style="font-size:max(12px,.75em);color:var(--text-secondary);text-align:center;padding:10px">기록된 일수: ${filtered.length}일 / 전체 ${S.snapshots.length}일</div>
+      <div class="trend-full-row" style="font-size:max(12px,.75em);color:var(--text-secondary);text-align:center;padding:10px">기록된 일수: ${filtered.length}일 / 전체 ${S.snapshots.length}일</div>
     </div>`;
   return d;
 }
 
 // ═══════════════════════════════════════════
-// 📓 매매일지 탭
+// 매매일지 탭
 // ═══════════════════════════════════════════
 export function mkJournal(){
   const d=document.createElement("div");
+  d.className='paper-screen paper-nums';
   const stockNames=["전체",...new Set(S.journal.map(j=>j.stockName).filter(Boolean))];
-  const filtBtns=stockNames.map(n=>`<button class="flt ${S.jFilter===n?'on':''}" data-jfilt="${n}">${n}</button>`).join('');
+  const filtBtns=stockNames.map(n=>`<button class="flt paper-button ${S.jFilter===n?'on':''}" data-jfilt="${n}">${n}</button>`).join('');
 
   let journalCards='';
   const items=S.jFilter==="전체"?S.journal:S.journal.filter(j=>j.stockName===S.jFilter);
   if(items.length===0){
-    journalCards='<div class="empty">📭 일지가 없어요<br><br><span style="font-size:max(12px,.85em)">"+ 일지 추가" 버튼으로<br>매수 사유, 뉴스, 생각을 기록해보세요</span></div>';
+    journalCards='<div class="empty journal-empty">일지가 없어요<br><br><span style="font-size:max(12px,.85em)">"+ 일지 추가" 버튼으로<br>매수 사유, 뉴스, 생각을 기록해보세요</span></div>';
   }else{
     journalCards=items.map(j=>{
       const cat=JOURNAL_CATEGORIES[j.category]||JOURNAL_CATEGORIES.etc;
-      return `<div class="journal-item" style="border-left:3px solid ${cat.color}">
+      return `<div class="journal-item paper-card">
         <div class="journal-head">
-          <span class="journal-cat" style="background:${cat.color}22;color:${cat.color}">${cat.label}</span>
+          <span class="journal-cat paper-section-heading">${stripEmoji(cat.label)}</span>
           ${j.stockName?`<span class="journal-stock">${j.stockName}</span>`:''}
           <span class="journal-date">${j.date} ${j.time||''}</span>
         </div>
         <div class="journal-content">${j.content}</div>
         <div class="journal-actions">
-          <button class="cbtn cbtn-del" data-jdel="${j.id}">🗑 삭제</button>
+          <button class="cbtn paper-button" data-jdel="${j.id}">삭제</button>
         </div>
       </div>`;
     }).join('');
@@ -403,55 +407,56 @@ export function mkJournal(){
   d.innerHTML=`
     <div class="filters">${filtBtns}</div>
     <div style="padding:12px 12px 0">
-      <button class="mbtn mbtn-pri" id="btnAddJournal">+ 일지 추가</button>
+      <button class="mbtn paper-button paper-button-accent" id="btnAddJournal">+ 일지 추가</button>
     </div>
-    <div class="journal-list">${journalCards}</div>`;
+    <div class="journal-list paper-screen-grid">${journalCards}</div>`;
   return d;
 }
 
 export function mkTxn(){
   const root=document.createElement("div");
-  if(!S.txns.length){root.innerHTML='<div class="empty">📭 거래 내역이 없어요</div>';return root;}
+  root.className='paper-screen paper-nums';
+  if(!S.txns.length){root.innerHTML='<div class="empty">거래 내역이 없어요</div>';return root;}
   const accts=[['전체','전체'],['메리츠증권','메리츠'],['ISA','ISA']];
   const cur=accts.some(a=>a[0]===S.txnAcct)?S.txnAcct:'전체';
   const bar=document.createElement("div");bar.className="filters";
-  bar.innerHTML=accts.map(([key,label])=>`<button class="flt ${cur===key?'on':''}" data-txnacct="${key}">${label} ${key==='전체'?S.txns.length:S.txns.filter(t=>t.acct===key).length}</button>`).join('');
+  bar.innerHTML=accts.map(([key,label])=>`<button class="flt paper-button ${cur===key?'on paper-button-accent':''}" data-txnacct="${key}">${label} ${key==='전체'?S.txns.length:S.txns.filter(t=>t.acct===key).length}</button>`).join('');
   root.appendChild(bar);
   const rows=cur==='전체'?S.txns:S.txns.filter(t=>t.acct===cur);
   const d=document.createElement("div");
   root.appendChild(d);
-  if(!rows.length){d.innerHTML='<div class="empty">📭 이 계좌의 거래 내역이 없어요</div>';return root;}
-  d.className="txn-list";
+  if(!rows.length){d.innerHTML='<div class="empty">이 계좌의 거래 내역이 없어요</div>';return root;}
+  d.className="txn-list paper-screen-grid";
   rows.forEach(t=>{
-    const el=document.createElement("div");el.className="txn";
+    const el=document.createElement("div");el.className="txn paper-card";
     let detail=`${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}`;
     if(t.fee>0)detail+=` · 수수료 ${t.fee}`;
     if(t.mode==='sell')detail+=saleResultText(t);
     el.innerHTML=`<div class="txn-head">
-      <span class="txn-name">${t.mode==='buy'?'📈':'📉'} ${t.name}${t.acct?` <small>· ${t.acct==='메리츠증권'?'메리츠':t.acct}</small>`:''}</span>
+      <span class="txn-name paper-section-heading">${t.name}${t.acct?` <small>· ${t.acct==='메리츠증권'?'메리츠':t.acct}</small>`:''}</span>
       <span class="txn-date">${t.date} ${t.time||''}</span>
     </div>
     <div class="txn-det">${detail}</div>
-    <div class="txn-actions"><button class="cbtn cbtn-undo" data-txn-undo="${t.id}">↩️ 거래 취소</button></div>`;
+    <div class="txn-actions"><button class="cbtn paper-button" data-txn-undo="${t.id}">거래 취소</button></div>`;
     d.appendChild(el);
   });
   return root;
 }
 
 // ═══════════════════════════════════════════
-// 모달 (💡 수정 및 추가 모달에 티커 입력창 포함 완료)
+// 모달 (수정 및 추가 모달에 티커 입력창 포함 완료)
 // ═══════════════════════════════════════════
 export function mkModal(){
   const d=document.createElement("div");d.className="modal-bg";d.id="mbg";
-  if(S.modal.type==="stockDetail"||S.modal.type==="stockAction"){const s=S.stocks.find(x=>x.id===S.modal.stockId);if(s)d.innerHTML=holdingDetail(S,s);return d;}
+  if(S.modal.type==="stockDetail"||S.modal.type==="stockAction"){const s=S.stocks.find(x=>x.id===S.modal.stockId);if(s)d.innerHTML=paperModal(holdingDetail(S,s)).replace('paper-button" id="actBuy"','paper-button paper-button-accent" id="actBuy"');return d;}
 
-  if(S.modal.type==="exportText"){d.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-label="분석용 잔고 복사" tabindex="-1"><button id="mc" class="modal-close" aria-label="닫기">×</button><p>클립보드 접근이 차단되었습니다. 아래 텍스트를 직접 선택해 복사하세요.</p><textarea readonly aria-label="분석용 잔고" rows="14">${esc(S.modal.text)}</textarea><button id="mc2" class="mbtn mbtn-sec">닫기</button></div>`;return d;}
+  if(S.modal.type==="exportText"){d.innerHTML=paperModal(`<div class="modal" role="dialog" aria-modal="true" aria-label="분석용 잔고 복사" tabindex="-1"><button id="mc" class="modal-close" aria-label="닫기">×</button><p>클립보드 접근이 차단되었습니다. 아래 텍스트를 직접 선택해 복사하세요.</p><textarea readonly aria-label="분석용 잔고" rows="14">${esc(S.modal.text)}</textarea><button id="mc2" class="mbtn mbtn-pri">닫기</button></div>`);return d;}
   if(S.modal.type==="trade"){
     const s=S.stocks.find(x=>x.id===S.modal.stockId);
     const c=S.cash[s?.acct]?.[s?.curr]||0;
     d.innerHTML=`<div class="modal">
-      <div class="modal-title">${S.modal.mode==='buy'?'📈 매수 원장 기록':'📉 매도 원장 기록'} - ${s?.name}<button class="modal-close" id="mc">×</button></div>
-      <div style="font-size:max(12px,.82em);color:var(--text-secondary);margin-bottom:10px">💰 보유 현금: ${fM(c,s?.curr)}</div>
+      <div class="modal-title">${S.modal.mode==='buy'?'매수 원장 기록':'매도 원장 기록'} - ${s?.name}<button class="modal-close" id="mc">×</button></div>
+      <div style="font-size:max(12px,.82em);color:var(--text-secondary);margin-bottom:10px">보유 현금: ${fM(c,s?.curr)}</div>
       <div class="field"><label>수량</label><input type="number" id="tq" placeholder="0" min="0"></div>
       <div class="field"><label>가격 (${s?.curr})</label><input type="number" id="tp" value="${s?.cur}" step="0.01"></div>
       <div class="field"><label>수수료 (${s?.curr}, 선택)</label><input type="number" id="tf" placeholder="0" min="0" step="0.01"></div>
@@ -468,7 +473,7 @@ export function mkModal(){
     const defAcct=s?.acct||S.modal.defaultAcct||'메리츠증권';
     const tagOpts=S.tags.map(t=>`<option ${s?.tag===t?'selected':''}>${t}</option>`).join('');
     d.innerHTML=`<div class="modal">
-      <div class="modal-title">${isEdit?'✏️ 종목 수정':'+ 종목 추가'}<button class="modal-close" id="mc">×</button></div>
+      <div class="modal-title">${isEdit?'종목 수정':'+ 종목 추가'}<button class="modal-close" id="mc">×</button></div>
       <div class="field"><label>종목명</label><input type="text" id="an" placeholder="종목명" value="${s?.name||''}"></div>
       <div class="field"><label>티커명 (구글파이낸스용)</label><input type="text" id="aticker" placeholder="예: LLY 또는 005930" value="${s?.ticker||''}"></div>
       <div class="field"><label>계좌</label><select id="aa"><option ${defAcct==='메리츠증권'?'selected':''}>메리츠증권</option><option ${defAcct==='ISA'?'selected':''}>ISA</option></select></div>
@@ -486,7 +491,7 @@ export function mkModal(){
     const mode=S.modal.type==="cashIn"?"in":"out";
     const c=S.cash[acct]?.[curr]||0;
     d.innerHTML=`<div class="modal">
-      <div class="modal-title">${mode==='in'?'⬆️ 입금':'⬇️ 출금'} - ${acct} ${curr}<button class="modal-close" id="mc">×</button></div>
+      <div class="modal-title">${mode==='in'?'입금':'출금'} - ${acct} ${curr}<button class="modal-close" id="mc">×</button></div>
       <div style="font-size:max(12px,.82em);color:var(--text-secondary);margin-bottom:10px">현재 잔액: ${fM(c,curr)}</div>
       <div class="field"><label>금액 (${curr})</label><input type="number" id="cashAmt" placeholder="0"></div>
       <div class="field"><label>메모 (선택)</label><input type="text" id="cashMemo" placeholder="예: 월급, 배당금"></div>
@@ -502,7 +507,7 @@ export function mkModal(){
       return `<button class="tag-pick ${on?'on':''}" style="background:${c}22;color:${c}" data-pick-tag="${t}">${t}</button>`;
     }).join('');
     d.innerHTML=`<div class="modal">
-      <div class="modal-title">🏷️ ${s?.name} 태그<button class="modal-close" id="mc">×</button></div>
+      <div class="modal-title">${s?.name} 태그<button class="modal-close" id="mc">×</button></div>
       <div class="tag-list">${tagBtns}</div>
       <div style="margin:14px 0 6px;font-size:max(12px,.85em);color:var(--accent);font-weight:700">새 태그 만들기</div>
       <div class="tag-manage">
@@ -518,7 +523,7 @@ export function mkModal(){
 
   if(S.modal.type==="addJournal"){
     const stockOpts=`<option value="">선택 안 함</option>`+S.stocks.map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-    const catOpts=Object.entries(JOURNAL_CATEGORIES).map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('');
+    const catOpts=Object.entries(JOURNAL_CATEGORIES).map(([k,v])=>`<option value="${k}">${stripEmoji(v.label)}</option>`).join('');
     const preStockId=S.modal.stockId||"";
     d.innerHTML=`<div class="modal">
       <div class="modal-title">📓 일지 추가<button class="modal-close" id="mc">×</button></div>
@@ -591,18 +596,18 @@ export function mkModal(){
 
   if(S.modal.type==="screenshotConfirm"){
     const items=S.modal.parsed||[];
-    const typeInfo={buy:['📈 매수','var(--gain)'],sell:['📉 매도','var(--loss)'],deposit:['⬆️ 입금','var(--text-secondary)'],withdraw:['⬇️ 출금','var(--warning)'],dividend:['💵 배당','var(--accent)']};
+    const typeInfo={buy:['매수','var(--gain)'],sell:['매도','var(--loss)'],deposit:['입금','var(--text-secondary)'],withdraw:['출금','var(--warning)'],dividend:['배당','var(--accent)']};
     const rows=items.map((t,i)=>{
-      const [lbl,col]=typeInfo[t.type]||['❓ '+t.type,'var(--text-secondary)'];
+      const [lbl,col]=typeInfo[t.type]||[t.type,'var(--text-secondary)'];
       const isTrade=t.type==='buy'||t.type==='sell';
       const desc=isTrade
         ?`${t.qty}주 × ${fM(t.price,t.curr)}${t.fee?` · 수수료 ${fM(t.fee,t.curr)}`:''}`
         :`${fM(t.amount,t.curr)}`;
       let warn='';
-      if(t.invalid)warn='<span style="color:var(--loss)">⚠️ 값 인식 불가</span>';
-      else if(t.insufficient)warn='<span style="color:var(--loss)">⚠️ 보유수량 부족</span>';
-      else if(t.type==='sell'&&!t.matchedId)warn='<span style="color:var(--loss)">⚠️ 종목 미매칭</span>';
-      else if(t.isNew)warn='<span style="color:var(--warning)">🆕 신규 종목으로 추가</span>';
+      if(t.invalid)warn='<span style="color:var(--loss)">값 인식 불가</span>';
+      else if(t.insufficient)warn='<span style="color:var(--loss)">보유수량 부족</span>';
+      else if(t.type==='sell'&&!t.matchedId)warn='<span style="color:var(--loss)">종목 미매칭</span>';
+      else if(t.isNew)warn='<span style="color:var(--warning)">신규 종목으로 추가</span>';
       else if(t.matchedName)warn=`<span style="color:var(--text-secondary)">→ ${t.matchedName}</span>`;
       return `<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid var(--border)">
         <input type="checkbox" data-shot-idx="${i}" ${t.checked?'checked':''} ${t.invalid?'disabled':''} style="margin-top:3px;width:17px;height:17px;accent-color:var(--accent)">
@@ -623,13 +628,24 @@ export function mkModal(){
     </div>`;
   }
 
+  d.innerHTML=paperModal(d.innerHTML);
   return d;
+}
+
+function paperModal(html){
+  html=html.replace(/class="modal( |")/,'class="modal paper-card tabular-nums$1')
+    .replace('class="modal-title"','class="modal-title paper-section-heading"')
+    .replace(/class="mbtn mbtn-pri"/g,'class="mbtn mbtn-pri paper-button paper-button-accent"')
+    .replace(/class="mbtn mbtn-sec"/g,'class="mbtn mbtn-sec paper-button"')
+    .replace(/(⚙️ 설정|📓 일지 추가|📷 매매 스크린샷 인식|📋 인식 결과 확인|✅ Google 로그인 완료|📷 매매인식용|🔍 분석하기|✅ 선택한 거래 반영)/gu,s=>stripEmoji(s));
+  return addPaperClass(html,/<(?:input|select|textarea)\b[^>]*>/g,'paper-input');
 }
 
 // 새 기능 통합 분석 화면: 스냅샷·입출금·태그·일지를 읽기 전용으로 요약한다.
 export function mkAnalysis(){
   if(valuationUnavailable())return unavailableValuation();
   const d=document.createElement('div');
+  d.className='paper-screen paper-nums';
   const stocks=Array.isArray(S.stocks)?S.stocks:[];
   const cash=S.cash||{};
   const cashK=Object.values(cash).reduce((a,c)=>a+(Number(c?.KRW)||0)+(Number(c?.USD)||0)*S.rate,0);
@@ -649,7 +665,7 @@ export function mkAnalysis(){
   const tags={};ranked.forEach(({s,v})=>{const tag=s.tag||'태그 없음';tags[tag]=(tags[tag]||0)+v;});
   const tagCards=Object.entries(tags).sort((a,b)=>b[1]-a[1]).map(([tag,v])=>{const pct=total>0?v/total*100:0,color=S.tagColors?.[tag]||'var(--text-secondary)';return `<div class="analysis-mini-card"><div class="analysis-mini-top"><b style="color:${color}">● ${tag}</b><b>${pct.toFixed(1)}%</b></div><div class="analysis-bar"><i style="width:${Math.min(100,pct)}%;background:${color}"></i></div><small>₩${fK(v)}</small></div>`;}).join('')||'<div class="analysis-empty">태그가 붙은 종목이 없습니다.</div>';
   const thesis=(S.journal||[]).filter(j=>j.category==='buy_thesis'||j.category==='sell_thesis'||j.category==='earnings').slice(0,5);
-  const thesisCards=thesis.map(j=>{const c=JOURNAL_CATEGORIES[j.category]||JOURNAL_CATEGORIES.etc;return `<article class="thesis-card" style="border-left-color:${c.color}"><div><b style="color:${c.color}">${c.label}</b><span>${j.stockName||'전체'} · ${j.date||''}</span></div><p>${j.content||''}</p></article>`;}).join('')||'<div class="analysis-empty">아직 투자논지가 없습니다. 일지에서 매수논리·매도논리를 기록해보세요.</div>';
+  const thesisCards=thesis.map(j=>{const c=JOURNAL_CATEGORIES[j.category]||JOURNAL_CATEGORIES.etc;return `<article class="thesis-card" style="border-left-color:${c.color}"><div><b style="color:${c.color}">${stripEmoji(c.label)}</b><span>${j.stockName||'전체'} · ${j.date||''}</span></div><p>${j.content||''}</p></article>`;}).join('')||'<div class="analysis-empty">아직 투자논지가 없습니다. 일지에서 매수논리·매도논리를 기록해보세요.</div>';
   const latest=snaps[snaps.length-1];
   const stress=calcStress(stocks,S.rate,total);
   const cycle=cycleCards(stocks,S.rate).filter(x=>x.value>0);
@@ -682,17 +698,17 @@ export function mkAnalysis(){
   const calendarTitle=`${calendarYear}년 ${calendarMonthNum}월`;
   const calendarHtml=`<div class="event-calendar"><div class="calendar-toolbar"><b>${calendarTitle}</b><span>예정 ${events.length}건</span></div><div class="calendar-grid calendar-head">${weekdayHtml}</div><div class="calendar-grid calendar-body">${calendarCells.join('')}</div><div class="calendar-legend"><span><i class="legend-dot high"></i>영향도 높음</span><span><i class="legend-dot medium"></i>영향도 중간</span></div></div>`;
   const eventHtml=events.length?calendarHtml:'<div class="analysis-empty">등록된 예정 이벤트가 없습니다.</div>';
-  d.innerHTML=`<main class="analysis-wrap"><div class="analysis-hero"><div><span class="analysis-kicker">PORTFOLIO INTELLIGENCE</span><h2>🧭 한눈에 보는 분석</h2><p>실제 저장된 스냅샷·현금흐름·태그·일지만 사용합니다.</p></div><span class="analysis-fresh">${latest?`기준 ${latest.date}`:'스냅샷 없음'}</span></div>
-    <section class="analysis-section"><div class="analysis-section-title">📈 수익률</div><div class="analysis-grid three"><div class="analysis-metric"><small>시간가중수익률*</small><strong class="${(twr??0)>=0?'pos':'neg'}">${twr===null?'—':fP(twr)}</strong><span>${snaps.length}개 일별 스냅샷</span></div><div class="analysis-metric"><small>현재 총자산</small><strong>₩${fK(total)}</strong><span>주식 + 현금</span></div><div class="analysis-metric"><small>현금 비중</small><strong>${cashPct.toFixed(1)}%</strong><span>₩${fK(cashK)}</span></div></div><div class="analysis-note">* 입출금은 조정했으며, 일별 스냅샷·입출금이 장 마감 기준이라는 가정의 근사치입니다.</div></section>
-    <section class="analysis-section"><div class="analysis-section-title">💹 손익 기여도</div><div class="analysis-grid three"><div class="analysis-metric"><small>총 기여손익</small><strong class="${attribution.totalContribution>=0?'pos':'neg'}">${attribution.totalContribution>=0?'+':''}₩${fK(attribution.totalContribution)}</strong><span>현재 평가 + 실현손익</span></div><div class="analysis-metric"><small>최근 일간 변화</small><strong class="${(dayAttr.totalChange??0)>=0?'pos':'neg'}">${dayAttr.totalChange===null?'—':(dayAttr.totalChange>=0?'+':'')+'₩'+fK(dayAttr.totalChange)}</strong><span>${dayAttr.date||'스냅샷 부족'}</span></div><div class="analysis-metric"><small>실현손익</small><strong class="${attribution.realized>=0?'pos':'neg'}">${attribution.realized>=0?'+':''}₩${fK(attribution.realized)}</strong><span>거래 원장 기준</span></div></div><div class="analysis-mini-grid">${attributionHtml}</div><div class="analysis-note">원가·현재 평가액·거래 원장의 실현손익을 합산한 참고값입니다. 입출금과 평가시점 차이로 전체 자산 변화와 일치하지 않을 수 있습니다.</div><div class="analysis-subtitle">최근 일간 기여</div><div class="analysis-mini-grid">${dayAttrHtml}</div></section>
-    <section class="analysis-section"><div class="analysis-section-title">🛡️ 리스크 예산판</div><div class="analysis-grid three"><div class="analysis-metric"><small>현금 완충</small><strong>${risk.cashPct.toFixed(1)}%</strong><span>₩${fK(risk.cashValue)}</span></div><div class="analysis-metric"><small>레버리지 노출</small><strong>${risk.nav>0?(risk.leverageValue/risk.nav*100).toFixed(1):'0.0'}%</strong><span>기준 ${RISK_BUDGETS.leverage}%</span></div><div class="analysis-metric"><small>고변동 위성</small><strong>${risk.nav>0?(risk.highVolValue/risk.nav*100).toFixed(1):'0.0'}%</strong><span>레버리지·양자·디지털</span></div></div><div class="risk-budget-list">${riskHtml}</div><div class="analysis-note">기준선은 경보용 가정입니다. 자동 매도·자동 비중조정 신호가 아닙니다.</div></section>
-    <section class="analysis-section"><div class="analysis-section-title">📅 이벤트 리스크 캘린더</div><div class="event-list">${eventHtml}</div><div class="analysis-note">기본 일정은 수동 갱신 대상입니다. 이벤트 전 레버리지·금리 민감도·현금 완충을 점검하는 체크리스트로 사용합니다.</div></section>
-    <section class="analysis-section"><div class="analysis-section-title">⚠️ 위험 신호</div><div class="analysis-grid three"><div class="analysis-metric"><small>최대낙폭</small><strong class="${maxDd<0?'neg':'pos'}">${snaps.length>1?maxDd.toFixed(1)+'%':'—'}</strong><span>스냅샷 고점 대비</span></div><div class="analysis-metric"><small>최대 보유 비중</small><strong>${topPct.toFixed(1)}%</strong><span>${top?.s.name||'—'}</span></div><div class="analysis-metric"><small>종목 수</small><strong>${stocks.length}</strong><span>현재 보유 기준</span></div></div></section>
-    <section class="analysis-section"><div class="analysis-section-title">🏷️ 태그별 노출</div><div class="analysis-mini-grid">${tagCards}</div></section>
-    <section class="analysis-section"><div class="analysis-section-title">🧠 투자논지 <small>최근 기록</small></div><div class="thesis-list">${thesisCards}</div></section>
-    <section class="analysis-section"><div class="analysis-section-title">🎯 종목별 논지 카드</div><div class="thesis-list">${profileCards}</div><div class="analysis-note">기업 보고서의 논지·drivers·반증조건을 앱에서 확인하는 읽기 전용 요약입니다.</div></section>
-    <section class="analysis-section"><div class="analysis-section-title">🧪 스트레스 테스트 <small>가정 손실</small></div><div class="analysis-metric"><small>기본 스트레스 합계</small><strong class="neg">−₩${fK(Math.abs(stress.totalLoss))}</strong><span>${stress.totalLossPct.toFixed(1)}% · 태그별 단일충격 가정</span></div><div class="analysis-mini-grid">${stressTop}</div><div class="analysis-note">예측이나 자동매매 신호가 아닙니다. 레버리지·공통 팩터 손실을 중복 합산하지 않는 1차 민감도입니다.</div></section>
-    <section class="analysis-section"><div class="analysis-section-title">🔄 AI·반도체·전력·금융 사이클</div><div class="analysis-mini-grid">${cycleCardsHtml}</div><div class="analysis-note">현재 보유 태그와 등록된 기업 논지를 연결한 확인 목록입니다. 실제 사이클 판정은 공식 공시·산업 데이터 갱신 후 확정합니다.</div></section>
+  d.innerHTML=`<main class="analysis-wrap paper-screen-grid"><div class="analysis-hero paper-card"><div><span class="analysis-kicker">PORTFOLIO INTELLIGENCE</span><h2 class="paper-section-heading">한눈에 보는 분석</h2><p>실제 저장된 스냅샷·현금흐름·태그·일지만 사용합니다.</p></div><span class="analysis-fresh">${latest?`기준 ${latest.date}`:'스냅샷 없음'}</span></div>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">수익률</div><div class="analysis-grid three"><div class="analysis-metric"><small>시간가중수익률*</small><strong class="${(twr??0)>=0?'pos':'neg'}">${twr===null?'—':fP(twr)}</strong><span>${snaps.length}개 일별 스냅샷</span></div><div class="analysis-metric"><small>현재 총자산</small><strong>₩${fK(total)}</strong><span>주식 + 현금</span></div><div class="analysis-metric"><small>현금 비중</small><strong>${cashPct.toFixed(1)}%</strong><span>₩${fK(cashK)}</span></div></div><div class="analysis-note">* 입출금은 조정했으며, 일별 스냅샷·입출금이 장 마감 기준이라는 가정의 근사치입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">손익 기여도</div><div class="analysis-grid three"><div class="analysis-metric"><small>총 기여손익</small><strong class="${attribution.totalContribution>=0?'pos':'neg'}">${attribution.totalContribution>=0?'+':''}₩${fK(attribution.totalContribution)}</strong><span>현재 평가 + 실현손익</span></div><div class="analysis-metric"><small>최근 일간 변화</small><strong class="${(dayAttr.totalChange??0)>=0?'pos':'neg'}">${dayAttr.totalChange===null?'—':(dayAttr.totalChange>=0?'+':'')+'₩'+fK(dayAttr.totalChange)}</strong><span>${dayAttr.date||'스냅샷 부족'}</span></div><div class="analysis-metric"><small>실현손익</small><strong class="${attribution.realized>=0?'pos':'neg'}">${attribution.realized>=0?'+':''}₩${fK(attribution.realized)}</strong><span>거래 원장 기준</span></div></div><div class="analysis-mini-grid">${attributionHtml}</div><div class="analysis-note">원가·현재 평가액·거래 원장의 실현손익을 합산한 참고값입니다. 입출금과 평가시점 차이로 전체 자산 변화와 일치하지 않을 수 있습니다.</div><div class="analysis-subtitle">최근 일간 기여</div><div class="analysis-mini-grid">${dayAttrHtml}</div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">리스크 예산판</div><div class="analysis-grid three"><div class="analysis-metric"><small>현금 완충</small><strong>${risk.cashPct.toFixed(1)}%</strong><span>₩${fK(risk.cashValue)}</span></div><div class="analysis-metric"><small>레버리지 노출</small><strong>${risk.nav>0?(risk.leverageValue/risk.nav*100).toFixed(1):'0.0'}%</strong><span>기준 ${RISK_BUDGETS.leverage}%</span></div><div class="analysis-metric"><small>고변동 위성</small><strong>${risk.nav>0?(risk.highVolValue/risk.nav*100).toFixed(1):'0.0'}%</strong><span>레버리지·양자·디지털</span></div></div><div class="risk-budget-list">${riskHtml}</div><div class="analysis-note">기준선은 경보용 가정입니다. 자동 매도·자동 비중조정 신호가 아닙니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">이벤트 리스크 캘린더</div><div class="event-list">${eventHtml}</div><div class="analysis-note">기본 일정은 수동 갱신 대상입니다. 이벤트 전 레버리지·금리 민감도·현금 완충을 점검하는 체크리스트로 사용합니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">위험 신호</div><div class="analysis-grid three"><div class="analysis-metric"><small>최대낙폭</small><strong class="${maxDd<0?'neg':'pos'}">${snaps.length>1?maxDd.toFixed(1)+'%':'—'}</strong><span>스냅샷 고점 대비</span></div><div class="analysis-metric"><small>최대 보유 비중</small><strong>${topPct.toFixed(1)}%</strong><span>${top?.s.name||'—'}</span></div><div class="analysis-metric"><small>종목 수</small><strong>${stocks.length}</strong><span>현재 보유 기준</span></div></div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">태그별 노출</div><div class="analysis-mini-grid">${tagCards}</div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">투자논지 <small>최근 기록</small></div><div class="thesis-list">${thesisCards}</div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">종목별 논지 카드</div><div class="thesis-list">${profileCards}</div><div class="analysis-note">기업 보고서의 논지·drivers·반증조건을 앱에서 확인하는 읽기 전용 요약입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">스트레스 테스트 <small>가정 손실</small></div><div class="analysis-metric"><small>기본 스트레스 합계</small><strong class="neg">−₩${fK(Math.abs(stress.totalLoss))}</strong><span>${stress.totalLossPct.toFixed(1)}% · 태그별 단일충격 가정</span></div><div class="analysis-mini-grid">${stressTop}</div><div class="analysis-note">예측이나 자동매매 신호가 아닙니다. 레버리지·공통 팩터 손실을 중복 합산하지 않는 1차 민감도입니다.</div></section>
+    <section class="analysis-section"><div class="analysis-section-title paper-section-heading">AI·반도체·전력·금융 사이클</div><div class="analysis-mini-grid">${cycleCardsHtml}</div><div class="analysis-note">현재 보유 태그와 등록된 기업 논지를 연결한 확인 목록입니다. 실제 사이클 판정은 공식 공시·산업 데이터 갱신 후 확정합니다.</div></section>
     <section class="analysis-section analysis-disclaimer"><b>해석 주의</b><p>분석 수치는 기록된 데이터 범위 안에서만 계산됩니다. 태그는 사용자가 지정한 분류이며, 자동 ETF 룩스루나 투자 판단을 의미하지 않습니다.</p></section></main>`;
   return d;
 }

@@ -3,14 +3,26 @@
 // ═══════════════════════════════════════════
 import {S} from './state.js';
 import {marketImpact,esc} from './holdings-ui.js';
-import {fmtMktPrice} from './helpers.js';
+import {fmtMktPrice,stripEmoji} from './helpers.js';
 import {getMarketStatus,getMktFetchTime} from './cloud.js';
+
+function paperMarket(html){
+  return html.replace(/class="(mkt2-wrap|mkt-wrap)"/,'class="$1 tabular-nums"')
+    .replace(/class="(mkt2-(?:idx-card|vix-card|fg-card|rate-item|comm-card|etf-card|top-card)|empty)"/g,'class="$1 paper-card"')
+    .replace(/class="mkt2-stitle"/g,'class="mkt2-stitle paper-section-heading"')
+    .replace(/class="mkt-refresh-btn"/g,'class="mkt-refresh-btn paper-button paper-button-accent"')
+    .replace(/class="mkt-tab-btn/g,'class="paper-button mkt-tab-btn')
+    .replace(/<span style="[^"]*">🌐 시장 현황<\/span>/g,'<span class="paper-section-heading">시장 현황</span>')
+    .replace(/(시간표 추정 · )([^<]+)/g,(_,prefix,label)=>prefix+stripEmoji(label))
+    .replace(/(📊|💡|💹|🏆|📈|🔥) (?=(주요 지수|시장 심리|금리 & 환율|원자재 & 암호화폐|ETF · 테마 · 섹터|이슈 종목))/gu,'')
+    .replace('⏳ 시장 데이터 로드 중','시장 데이터 로드 중').replace('📭 데이터 없음','데이터 없음')
+    .replace('🔄 버튼을','새로고침 버튼을').replace('>🔄</button>','>새로고침</button>').replace(' 🔄</button>',' 새로고침</button>');
+}
 
 function mkSparkSvg(weekly,daily,key,w,h,history){
   if(!w)w=68;if(!h)h=26;
   const up=(weekly||0)>=0;
   const col=up?'var(--gain)':'var(--loss)';
-  const gid='sg'+Math.abs((key||'X').split('').reduce((a,c)=>(a*31+c.charCodeAt(0))|0,0)%9999);
 
   let pts;
   if(history&&history.length>=2&&history.every(v=>Number.isFinite(v)&&v>0)){
@@ -27,8 +39,7 @@ function mkSparkSvg(weekly,daily,key,w,h,history){
   }
 
   const line=pts.map((p,i)=>(i?'L':'M')+p[0]+','+p[1]).join('');
-  const fill='M'+pts[0][0]+','+h+' '+pts.map(p=>'L'+p[0]+','+p[1]).join(' ')+' L'+pts[pts.length-1][0]+','+h+'Z';
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block" role="img" aria-label="실제 가격 관측순서, 기간 미확인"><title>가격 관측순서 · 기간 미확인</title><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${col}" stop-opacity=".22"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs><path d="${fill}" fill="url(#${gid})"/><path d="${line}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:block" role="img" aria-label="실제 가격 관측순서, 기간 미확인"><title>가격 관측순서 · 기간 미확인</title><path d="${line}" fill="none" stroke="${col}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 
 function mktChgBadge(val,vixInv,extraCls){
@@ -71,6 +82,7 @@ export function mkTodayStrip(){
 // ═══════════════════════════════════════════
 export function mkMarket(){
   const d=document.createElement("div");
+  d.className='tabular-nums';
   const st=getMarketStatus();
 
   if(S.marketLoading){
@@ -78,9 +90,11 @@ export function mkMarket(){
       <div class="mkt-header">
         <span style="font-size:max(12px,.95em);font-weight:800;color:var(--text)">🌐 시장 현황</span>
         <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
+        <button class="mkt-refresh-btn" id="btnMktRefresh" disabled>새로고침</button>
       </div>
       <div class="empty">⏳ 시장 데이터 로드 중...</div>
     </div>`;
+    d.innerHTML=paperMarket(d.innerHTML);
     return d;
   }
 
@@ -102,6 +116,7 @@ export function mkMarket(){
       </div>
       <div class="empty">📭 데이터 없음<br><br><span style="font-size:max(12px,.85em)">🔄 버튼을 눌러 시장 데이터를 불러오세요<br>구글 시트 연결이 필요합니다</span></div>
     </div>`;
+    d.innerHTML=paperMarket(d.innerHTML);
     return d;
   }
 
@@ -323,5 +338,6 @@ export function mkMarket(){
       <div class="mkt2-top-grid">${issueCards}</div>
     </div>
   </div>`;
+  d.innerHTML=paperMarket(d.innerHTML);
   return d;
 }

@@ -23,7 +23,7 @@ test('dashboard renders controls, confirmed data and escaped names without chang
  const {S}=await import('../src/state.js');const {mkList,tableUI}=await import('../src/views.js');globalThis.setInterval=interval;
  const now=new Date().toISOString();S.stocks=[{id:1,name:'<종목>',ticker:'TEST',acct:'ISA',curr:'KRW',qty:2,avg:100,cur:110,_quoteMetadata:{quoteSource:'meritz-openapi',quoteRequestedAt:now}}];S.readStatus='success';
  const before=JSON.stringify(S.stocks),html=mkList().innerHTML;
- for(const text of ['계좌별 보유 비중','총 자산 추이','수익 상위 4종목','holdingSearch','holdingAccount','data-table-sort','&lt;종목&gt;','v0.19.0-ui-overhaul-1'])assert.ok(html.includes(text),text);
+ for(const text of ['계좌별 보유 비중','총 자산 추이','수익 상위 4종목','holdingSearch','holdingAccount','data-table-sort','&lt;종목&gt;','v0.20.0-ui-overhaul-2'])assert.ok(html.includes(text),text);
  assert.equal(JSON.stringify(S.stocks),before);tableUI.query='없는 종목';assert.match(mkList().innerHTML,/일치하는 보유 종목이 없습니다/);tableUI.query='';
 });
 test('header renders four stat cards and strips emoji from sync messages',async()=>{
