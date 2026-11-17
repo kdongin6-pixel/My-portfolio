@@ -13,6 +13,8 @@ let _syncMsgTimer=null;
 
 export function render(){
   destroyCharts();
+  // Keep typed settings values when a background load re-renders while the settings modal is open
+  const keepInputs=S.modal?.type==="settings"?["apiUrlInp","apiSecretInp","googleClientIdInp","anthropicKeyInp"].map(id=>[id,document.getElementById(id)?.value]).filter(([,v])=>v):[];
   const app=document.getElementById("app");
   app.innerHTML="";
   if(S.tab==="cash")S.tab="list";
@@ -34,6 +36,7 @@ export function render(){
   tabs.querySelector?.('.drawer-nav')?.insertAdjacentHTML('beforeend',`<button type="button" class="tab ${S.tab==='benchmark'?'on':''}" data-tab="benchmark" ${S.tab==='benchmark'?'aria-current="page"':''}><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18V6M4 18h16M7 14l4-4 3 2 5-6"/></svg> 벤치마크</button>`);
   app.appendChild(tabs); // 하단 고정 탭바
   if(S.modal)app.appendChild(mkModal());
+  keepInputs.forEach(([id,v])=>{const el=document.getElementById(id);if(el)el.value=v;});
   bind();
   if(S.tab==="chart")drawChart();
   if(S.tab==="list")drawTrend();
