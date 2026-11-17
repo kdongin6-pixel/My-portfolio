@@ -400,23 +400,32 @@ export function mkJournal(){
 }
 
 export function mkTxn(){
+  const root=document.createElement("div");
+  if(!S.txns.length){root.innerHTML='<div class="empty">📭 거래 내역이 없어요</div>';return root;}
+  const accts=[['전체','전체'],['메리츠증권','메리츠'],['ISA','ISA']];
+  const cur=accts.some(a=>a[0]===S.txnAcct)?S.txnAcct:'전체';
+  const bar=document.createElement("div");bar.className="filters";
+  bar.innerHTML=accts.map(([key,label])=>`<button class="flt ${cur===key?'on':''}" data-txnacct="${key}">${label} ${key==='전체'?S.txns.length:S.txns.filter(t=>t.acct===key).length}</button>`).join('');
+  root.appendChild(bar);
+  const rows=cur==='전체'?S.txns:S.txns.filter(t=>t.acct===cur);
   const d=document.createElement("div");
-  if(!S.txns.length){d.innerHTML='<div class="empty">📭 거래 내역이 없어요</div>';return d;}
+  root.appendChild(d);
+  if(!rows.length){d.innerHTML='<div class="empty">📭 이 계좌의 거래 내역이 없어요</div>';return root;}
   d.className="txn-list";
-  S.txns.forEach(t=>{
+  rows.forEach(t=>{
     const el=document.createElement("div");el.className="txn";
     let detail=`${t.mode==='buy'?'매수':'매도'} ${t.qty}주 × ${t.price}`;
     if(t.fee>0)detail+=` · 수수료 ${t.fee}`;
     if(t.mode==='sell')detail+=saleResultText(t);
     el.innerHTML=`<div class="txn-head">
-      <span class="txn-name">${t.mode==='buy'?'📈':'📉'} ${t.name}</span>
+      <span class="txn-name">${t.mode==='buy'?'📈':'📉'} ${t.name}${t.acct?` <small>· ${t.acct==='메리츠증권'?'메리츠':t.acct}</small>`:''}</span>
       <span class="txn-date">${t.date} ${t.time||''}</span>
     </div>
     <div class="txn-det">${detail}</div>
     <div class="txn-actions"><button class="cbtn cbtn-undo" data-txn-undo="${t.id}">↩️ 거래 취소</button></div>`;
     d.appendChild(el);
   });
-  return d;
+  return root;
 }
 
 // ═══════════════════════════════════════════

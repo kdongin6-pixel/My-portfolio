@@ -181,6 +181,7 @@ export function bind(){
     if(s){s.cur=parseFloat(e.target.value)||s.cur;save();render();}
   });
   qa(".flt[data-period]").forEach(el=>el.addEventListener("click",()=>{S.trendPeriod=el.dataset.period;render();}));
+  qa(".flt[data-txnacct]").forEach(el=>el.addEventListener("click",()=>{S.txnAcct=el.dataset.txnacct;render();}));
   qa(".flt[data-jfilt]").forEach(el=>el.addEventListener("click",()=>{S.jFilter=el.dataset.jfilt;render();}));
 
   q("#btnAddJournal")?.addEventListener("click",()=>{S.modal={type:"addJournal"};render();});

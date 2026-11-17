@@ -30,7 +30,7 @@ export let S={
   rate:1510,
   tab:"list",acct:"전체",wMode:"stock",modal:null,syncMsg:"",showCash:false,showTrend:false,
   trendPeriod:"1M",
-  jFilter:"전체",
+  jFilter:"전체",txnAcct:"전체",
   sortBy:"eval",sortDir:"desc",viewMode:"table",chartView:"donut",
   readStatus:"pending",quoteQuality:null,rateAsOf:null,
   cloudStatus:"",
