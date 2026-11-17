@@ -117,7 +117,7 @@ test('undoing an ISA cash entry is blocked while the mirror is active, Meritz is
 test('cloud load keeps the block through transient skips and lifts it for real stops', () => {
   const cloud = fs.readFileSync(new URL('../src/cloud.js', import.meta.url), 'utf8');
   const start = cloud.indexOf('const mir=a.snapshotAutomation');
-  const block = cloud.slice(start - 10, cloud.indexOf('const merged=mergeCloudState'));
+  const block = cloud.slice(cloud.lastIndexOf('{', start), cloud.indexOf('const merged=mergeCloudState'));
   const run = (a, now = Date.parse('2026-11-16T03:00:00Z')) => {
     const S = {};
     const D = class extends Date { static now() { return now; } };

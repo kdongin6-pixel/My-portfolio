@@ -491,3 +491,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .broker-switch button,.tag-pick,#addTagBtn{min-width:44px;min-height:44px}
 .flt.on{border-color:var(--accent)}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+.benchmark-view{--bm-bg:#f3f0e9;--bm-surface:#fbf9f4;--bm-raised:#ebe7de;--bm-text:#26231f;background:var(--bm-bg);color:var(--bm-text);padding:24px;min-height:80vh;font-weight:400}
+.benchmark-view .bm-header{max-width:1440px;margin:0 auto 24px}
+.benchmark-view .bm-header p,.benchmark-view .bm-panel>p{color:#68635b;font-size:13px}
+.benchmark-view h1{font-size:28px;font-weight:600;margin:8px 0}
+.benchmark-view h2{font-size:18px;font-weight:600;margin-bottom:4px}
+.benchmark-view .bm-layout{max-width:1440px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px}
+.benchmark-view .bm-panel{min-width:0;background:var(--bm-surface);border:1px solid var(--bm-raised);border-radius:12px;padding:20px}
+.benchmark-view .bm-chart{margin:20px 0}
+.benchmark-view .bm-chart svg{display:block;width:100%;height:auto}
+.benchmark-view .bm-axis,.benchmark-view .bm-legend{display:flex;justify-content:space-between;gap:8px;color:#68635b;font-size:12px}
+.benchmark-view .bm-legend{justify-content:flex-start;flex-wrap:wrap;margin-top:16px}
+.benchmark-view .bm-legend span{display:flex;align-items:center;gap:4px}
+.benchmark-view .bm-legend i{width:16px;height:4px}
+.benchmark-view .bm-table-wrap{overflow-x:auto;margin-top:16px}
+.benchmark-view .bm-table{width:100%;border-collapse:collapse;font-size:13px;text-align:right}
+.benchmark-view .bm-table th,.benchmark-view .bm-table td{padding:12px 8px;border-bottom:1px solid var(--bm-raised);white-space:nowrap;font-weight:400}
+.benchmark-view .bm-table th:first-child{text-align:left;font-weight:600}
+.benchmark-view .bm-table small,.benchmark-view .bm-note{display:block;font-size:12px;font-weight:400;color:#68635b;margin-top:4px}
+.benchmark-view .bm-table .bm-gain{color:#c23b32}
+.benchmark-view .bm-table .bm-loss{color:#2f63b5}
+.benchmark-view .bm-empty{background:var(--bm-raised);padding:16px;margin:20px 0;border-radius:8px}
+@media(max-width:900px){.benchmark-view{padding:16px}.benchmark-view .bm-layout{grid-template-columns:1fr}.benchmark-view .bm-panel{padding:16px}}

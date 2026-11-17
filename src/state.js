@@ -33,6 +33,7 @@ export let S={
   jFilter:"전체",txnAcct:"전체",
   sortBy:"eval",sortDir:"desc",viewMode:"table",chartView:"donut",
   readStatus:"pending",quoteQuality:null,rateAsOf:null,
+  benchmark:null,longHistory:null,longHistoryStatus:null,
   cloudStatus:"",
   lastCloudSync:null,
   autoSyncTimer:null,

@@ -42,6 +42,7 @@ export function portfolioStatus(s,configured,now){
 }
 export function applyQuoteResponse(state,data,queriedAt){
  state.quoteQuality=data.quoteQuality??null;
+ for(const key of ['benchmark','longHistory','longHistoryStatus'])if(Object.hasOwn(data,key))state[key]=data[key]??null;
  if(data.priceHistory && typeof data.priceHistory==='object' && !Array.isArray(data.priceHistory)){
   state.priceHistory=data.priceHistory;
   state.priceHistorySource=typeof data.priceHistorySource==='string'?data.priceHistorySource:null;
