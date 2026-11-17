@@ -43,6 +43,14 @@ export function portfolioStatus(s,configured,now){
 export function applyQuoteResponse(state,data,queriedAt){
  state.quoteQuality=data.quoteQuality??null;
  for(const key of ['benchmark','longHistory','longHistoryStatus'])if(Object.hasOwn(data,key))state[key]=data[key]??null;
+ // The server nests long history inside benchmark and reports returns as fractions; the view expects percent.
+ const nested=data.benchmark;
+ if(!Object.hasOwn(data,'longHistory')&&nested&&typeof nested==='object'&&nested.longHistory&&typeof nested.longHistory==='object'){
+  const pct=v=>typeof v==='number'&&Number.isFinite(v)?v*100:null,out={};
+  for(const [ticker,e] of Object.entries(nested.longHistory))out[ticker]=e&&typeof e==='object'?{...e,ret1y:pct(e.ret1y),ret3y:pct(e.ret3y),cagr:pct(e.cagr)}:null;
+  state.longHistory=out;
+  state.longHistoryStatus=nested.longHistoryStatus&&typeof nested.longHistoryStatus==='object'?nested.longHistoryStatus:null;
+ }
  if(data.priceHistory && typeof data.priceHistory==='object' && !Array.isArray(data.priceHistory)){
   state.priceHistory=data.priceHistory;
   state.priceHistorySource=typeof data.priceHistorySource==='string'?data.priceHistorySource:null;

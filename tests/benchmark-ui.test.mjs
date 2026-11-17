@@ -84,3 +84,17 @@ test('navigation uses the existing drawer binding and render flow',async()=>{
  assert.match(render,/data-tab="benchmark"/);assert.match(render,/renderBenchmarkView\(S,S\)/);
  assert.match(bind,/\.tab\[data-tab\]/);assert.match(bind,/S\.tab=el\.dataset\.tab/);
 });
+
+test('server payload with long history nested in benchmark is converted to percent and rendered',()=>{
+ const entry={asOf:'2026-11-16',ret1y:0.1012,ret3y:0.6435,cagr:0.1759,years:3.58,basis:'price'};
+ const data={benchmark:{SPY:[],QQQ:[],GLD:[],longHistory:{SPY:entry,QQQ:entry,GLD:{...entry,ret1y:-0.0613}},longHistoryStatus:{SPY:'ok',QQQ:'ok',GLD:'ok'}}};
+ const target={};
+ applyQuoteResponse({stocks:[],...target,quoteQuality:null},data,null);
+ const st={stocks:[]};applyQuoteResponse(st,data,null);
+ assert.ok(Math.abs(st.longHistory.SPY.ret1y-10.12)<1e-9);
+ assert.equal(st.longHistory.SPY.cagr,17.59);
+ const html=renderBenchmarkView(state,st);
+ for(const s of ['+10.12%','+64.35%','+17.59%','-6.13%'])assert.ok(html.includes(s),s);
+ const kept={stocks:[]};applyQuoteResponse(kept,{...data,longHistory:{SPY:history}},null);
+ assert.equal(kept.longHistory.SPY.ret1y,12);
+});
