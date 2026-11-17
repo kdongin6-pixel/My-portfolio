@@ -8,6 +8,7 @@ import {syncSheets,loadMarketData} from './cloud.js';
 import {execTrade,undoTrade,execCash,undoCashTxn,execJournal,delJournal} from './trades.js';
 import {getAnthropicKey,setAnthropicKey,setShotFiles,getShotFiles,clearShotFiles,parseScreenshots,applyParsed} from './vision.js';
 import {render} from './render.js';
+import {tableUI,sortTableBy} from './views.js';
 import {analysisExport} from './portfolio-export.js';
 import {refreshBrokerAccount,setBrokerAccountActive,selectBrokerAccount} from './broker-account-ui.js';
 let detailFocusId=null,detailScrollY=0,detailDrawerScroll=null,drawerOpen=false,resizeHandler=null,holdingsScrollTop=0;
@@ -81,6 +82,11 @@ export function bind(){
   q("#btnMktTheme")?.addEventListener("click",()=>{S.mktEtfTab="theme";render();});
   q("#btnMktSector")?.addEventListener("click",()=>{S.mktEtfTab="sector";render();});
   q("#btnSync")?.addEventListener("click",syncSheets);
+  const updateHoldingSearch=e=>{const pos=e.target.selectionStart;tableUI.query=e.target.value;if(e.isComposing)return;render();const input=document.querySelector('#holdingSearch');input?.focus({preventScroll:true});input?.setSelectionRange(pos,pos);};
+  q('#holdingSearch')?.addEventListener('input',updateHoldingSearch);
+  q('#holdingSearch')?.addEventListener('compositionend',updateHoldingSearch);
+  q('#holdingAccount')?.addEventListener('change',e=>{tableUI.account=e.target.value;render();document.querySelector('#holdingAccount')?.focus({preventScroll:true});});
+  qa('[data-table-sort]').forEach(b=>b.addEventListener('click',()=>{const key=b.dataset.tableSort;sortTableBy(key);render();document.querySelector(`[data-table-sort="${key}"]`)?.focus({preventScroll:true});}));
   q("#btnSettings")?.addEventListener("click",()=>{S.modal={type:"settings"};render();});
   q("#saveApiUrl")?.addEventListener("click",()=>{
     const url=q("#apiUrlInp")?.value?.trim();

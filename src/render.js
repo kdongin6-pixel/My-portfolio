@@ -36,7 +36,7 @@ export function render(){
   if(S.modal)app.appendChild(mkModal());
   bind();
   if(S.tab==="chart")drawChart();
-  if(S.tab==="list"&&S.showTrend)drawTrend();
+  if(S.tab==="list")drawTrend();
   if(S.tab==="trend")drawTrend();
   // 동기화 메시지는 배너로 자리를 계속 차지하지 않도록 잠시 후 자동으로 사라짐
   if(_syncMsgTimer)clearTimeout(_syncMsgTimer);

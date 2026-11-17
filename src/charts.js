@@ -94,6 +94,7 @@ export function drawChart(){
 }
 
 export function drawTrend(){
+  if(typeof Chart==='undefined')return;
   let labels,totals,pcts;
 
   if(S.trendPeriod==="1D"){
@@ -121,14 +122,14 @@ export function drawTrend(){
   const ctx1=document.getElementById("trendTotal");
   if(ctx1){
     const _c1=new Chart(ctx1,{type:"line",data:{labels,datasets:[{
-      label:"총자산",data:totals,borderColor:"#a5b4fc",backgroundColor:"rgba(99,102,241,.15)",
+      label:"총자산",data:totals,borderColor:"#8a6a2f",backgroundColor:"rgba(138,106,47,.08)",
       fill:true,tension:.3,pointRadius:totals.length<=14?3:0,pointHoverRadius:5,borderWidth:2
     }]},options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`₩${fK(c.parsed.y)}`}}},
       scales:{
-        x:{ticks:{color:"#8b949e",maxTicksLimit:6,font:{size:10}},grid:{color:"rgba(48,54,61,.5)"}},
-        y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>"₩"+(v/1000000).toFixed(0)+"M"},grid:{color:"rgba(48,54,61,.5)"}}
+        x:{ticks:{color:"#5e5951",maxTicksLimit:6,font:{size:10}},grid:{color:"rgba(38,35,31,.12)"}},
+        y:{ticks:{color:"#5e5951",font:{size:10},callback:v=>"₩"+(v/1000000).toFixed(0)+"M"},grid:{color:"rgba(38,35,31,.12)"}}
       }
     }});
     _chartInstances.push(_c1);
@@ -138,17 +139,17 @@ export function drawTrend(){
   if(ctx2){
     const _c2=new Chart(ctx2,{type:"line",data:{labels,datasets:[{
       label:"수익률",data:pcts,
-      borderColor:ctx=>{const v=ctx.parsed?.y;return v>=0?"#10b981":"#f43f5e";},
-      segment:{borderColor:c=>(c.p1.parsed.y>=0?"#10b981":"#f43f5e")},
-      backgroundColor:"rgba(16,185,129,.1)",
-      fill:{target:"origin",above:"rgba(16,185,129,.15)",below:"rgba(244,63,94,.15)"},
+      borderColor:ctx=>{const v=ctx.parsed?.y;return v>=0?"#c23b32":"#2f63b5";},
+      segment:{borderColor:c=>(c.p1.parsed.y>=0?"#c23b32":"#2f63b5")},
+      backgroundColor:"rgba(194,59,50,.08)",
+      fill:{target:"origin",above:"rgba(194,59,50,.08)",below:"rgba(47,99,181,.08)"},
       tension:.3,pointRadius:totals.length<=14?3:0,pointHoverRadius:5,borderWidth:2
     }]},options:{
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fP(c.parsed.y)}}},
       scales:{
-        x:{ticks:{color:"#8b949e",maxTicksLimit:6,font:{size:10}},grid:{color:"rgba(48,54,61,.5)"}},
-        y:{ticks:{color:"#8b949e",font:{size:10},callback:v=>v.toFixed(1)+"%"},grid:{color:"rgba(48,54,61,.5)"}}
+        x:{ticks:{color:"#5e5951",maxTicksLimit:6,font:{size:10}},grid:{color:"rgba(38,35,31,.12)"}},
+        y:{ticks:{color:"#5e5951",font:{size:10},callback:v=>v.toFixed(1)+"%"},grid:{color:"rgba(38,35,31,.12)"}}
       }
     }});
     _chartInstances.push(_c2);
