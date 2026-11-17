@@ -1,6 +1,6 @@
 import {quoteInfo,valuation,portfolioStatus,positive,displayKst} from './portfolio-read.js';
 export const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const num=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'미확인':Number(v).toLocaleString('ko-KR',{maximumFractionDigits:4});
+const num=v=>v===null||v===undefined||!Number.isFinite(Number(v))?'미확인':Number(v).toLocaleString('ko-KR',{maximumFractionDigits:2});
 const money=(v,c)=>`${num(v)} ${esc(c)}`;
 const modes={unknown:'유형 미확인',cache:'이전 시세 · 캐시',stale:'이전 시세',delayed:'지연 시세',realtime:'실시간 요청값 (스트리밍 아님)',close:'종가'};
 const sessions={unknown:'시장구간 미확인',regular:'정규장',pre:'장전',post:'장후',closed:'휴장'};

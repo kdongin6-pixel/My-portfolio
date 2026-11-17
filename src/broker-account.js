@@ -1,7 +1,7 @@
 import {displayKst} from './portfolio-read.js';
 // Real-account responses live only in this closure, never in portfolio state.
 const brokerEscape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const brokerNumber=value=>typeof value==='number'&&Number.isFinite(value)?value.toLocaleString('ko-KR',{maximumFractionDigits:8}):'미확인';
+const brokerNumber=value=>typeof value==='number'&&Number.isFinite(value)?value.toLocaleString('ko-KR',{maximumFractionDigits:2}):'미확인';
 const brokerText=value=>value===null||value===undefined||value===''?'미확인':brokerEscape(value);
 const brokerAmount=(value,currency='')=>typeof value==='number'&&Number.isFinite(value)?`${value.toLocaleString('ko-KR',{maximumFractionDigits:2})}${currency?` ${brokerEscape(currency)}`:''}`:'미확인';
 const sectionOK=s=>s?.status==='success'&&s.paginationComplete===true;
