@@ -16,5 +16,6 @@ test('release worker cache name differs from saved live name',async()=>{
   assert.notEqual(cache,'pf-cache-v20-20261118-ui-overhaul-2');
   assert.notEqual(cache,'pf-cache-v21-20261118-market-grid');
   assert.notEqual(cache,'pf-cache-v21-20261118-settings-keep');
-  assert.equal(cache,'pf-cache-v21-20261118-no-flash');
+  assert.notEqual(cache,'pf-cache-v21-20261118-no-flash');
+  assert.equal(cache,'pf-cache-v21-20261118-market-cache');
 });

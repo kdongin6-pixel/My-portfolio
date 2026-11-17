@@ -93,7 +93,8 @@ export function mkMarket(){
   const st=getMarketStatus();
   const statusLabel=st.label.includes('미장')?'미장 개장':st.label.includes('한국장')?'한국장 개장':'휴장';
 
-  if(S.marketLoading){
+  // Keep showing the data we have while a quiet refresh runs
+  if(S.marketLoading&&!(S.marketData&&S.marketData.length)){
     d.innerHTML=`<div class="mkt-wrap">
       <div class="mkt-header">
         <span class="paper-section-heading">시장 현황</span>
@@ -111,7 +112,9 @@ export function mkMarket(){
   const gv=key=>{const m=bk[key];return m||null;};
 
   const _mktFetchTime=getMktFetchTime();
-  const lastUpd=_mktFetchTime?new Date(_mktFetchTime).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'—';
+  // Show when the server collected the data, not when this phone asked for it
+  const asOfMs=Date.parse(S.marketAsOf||'');
+  const lastUpd=Number.isFinite(asOfMs)?new Date(asOfMs).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):_mktFetchTime?new Date(_mktFetchTime).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):'—';
 
   if(!mdata.length){
     d.innerHTML=`<div class="mkt2-wrap">
@@ -309,7 +312,7 @@ export function mkMarket(){
       <span class="paper-section-heading">시장 현황</span>
       <div style="display:flex;align-items:center;gap:8px">
         <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${statusLabel}</span>
-        <button class="mkt-refresh-btn" id="btnMktRefresh">조회 ${lastUpd} 새로고침</button>
+        <button class="mkt-refresh-btn" id="btnMktRefresh">${S.marketLoading?'갱신 중 · ':''}${Number.isFinite(asOfMs)?'수집':'조회'} ${lastUpd} 새로고침</button>
       </div>
     </div>
 

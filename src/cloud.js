@@ -271,7 +271,10 @@ export function getMktFetchTime(){return _mktFetchTime;}
 // 아니어도 리렌더한다.
 const shouldRerenderForMarket=()=>S.tab==="market"||S.tab==="list";
 
-export async function loadMarketData(force=false){
+// The server answers at once from its cache (any age). When that copy is older than
+// 5 minutes, a quiet second request with refresh:true rebuilds it without a spinner.
+const MARKET_STALE_MS=5*60*1000;
+export async function loadMarketData(force=false,{quiet=false}={}){
   if(S.marketLoading)return;
   const now=Date.now();
   if(!force&&_mktFetchTime&&now-_mktFetchTime<5*60*1000)return;
@@ -284,22 +287,27 @@ export async function loadMarketData(force=false){
     return;
   }
   S.marketLoading=true;
-  if(shouldRerenderForMarket())render();
+  if(!quiet&&shouldRerenderForMarket())render();
+  let refreshAfter=false;
   try{
     const res=await fetch(_url,{
       method:"POST",
       headers:{"Content-Type":"text/plain;charset=utf-8"},
-      body:JSON.stringify({secret:_secret,mode:"market"})
+      body:JSON.stringify({secret:_secret,mode:"market",...(force?{refresh:true}:{})})
     });
     if(!res.ok)throw new Error("시장 데이터 로드 실패");
     const data=await res.json();
     if(data.error==="unauthorized")throw new Error("인증 실패 — 공유 시크릿을 확인해주세요");
     S.marketData=data.market||[];
+    S.marketAsOf=data.asOf||null;
     _mktFetchTime=Date.now();
+    const age=Date.now()-Date.parse(data.asOf||'');
+    refreshAfter=!force&&!(age<MARKET_STALE_MS);
   }catch(e){
     console.error("Market data error:",e);
     _mktFetchTime=Date.now(); // Throttle retries on error (5 min cooldown)
   }
   S.marketLoading=false;
   if(shouldRerenderForMarket())render();
+  if(refreshAfter)setTimeout(()=>loadMarketData(true,{quiet:true}),0);
 }
