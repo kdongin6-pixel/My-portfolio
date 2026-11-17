@@ -7,7 +7,7 @@ const css=readFileSync(new URL('../src/styles.css',import.meta.url),'utf8');
 test('typography uses offline Korean system fallbacks and tabular figures',()=>{
   assert.match(css,/font-family:system-ui,'Apple SD Gothic Neo',Pretendard,'Noto Sans KR','Malgun Gothic',sans-serif/);
   assert.match(css,/font-variant-numeric:tabular-nums/);
-  assert.match(css,/\.hero-total\{font-size:2rem;line-height:1\.15;font-weight:850/);
+  assert.match(css,/\.hero-total\{font-size:2rem;line-height:1\.15;font-weight:600/);
   assert.doesNotMatch(css,/@import|@font-face/);
 });
 
