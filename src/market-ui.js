@@ -3,20 +3,27 @@
 // ═══════════════════════════════════════════
 import {S} from './state.js';
 import {marketImpact,esc} from './holdings-ui.js';
-import {fmtMktPrice,stripEmoji} from './helpers.js';
+import {fmtMktPrice} from './helpers.js';
 import {getMarketStatus,getMktFetchTime} from './cloud.js';
+import {MARKET_CFG} from './constants.js';
+import {squarify} from './treemap.js';
 
 function paperMarket(html){
   return html.replace(/class="(mkt2-wrap|mkt-wrap)"/,'class="$1 tabular-nums"')
     .replace(/class="(mkt2-(?:idx-card|vix-card|fg-card|rate-item|comm-card|etf-card|top-card)|empty)"/g,'class="$1 paper-card"')
     .replace(/class="mkt2-stitle"/g,'class="mkt2-stitle paper-section-heading"')
     .replace(/class="mkt-refresh-btn"/g,'class="mkt-refresh-btn paper-button paper-button-accent"')
-    .replace(/class="mkt-tab-btn/g,'class="paper-button mkt-tab-btn')
-    .replace(/<span style="[^"]*">🌐 시장 현황<\/span>/g,'<span class="paper-section-heading">시장 현황</span>')
-    .replace(/(시간표 추정 · )([^<]+)/g,(_,prefix,label)=>prefix+stripEmoji(label))
-    .replace(/(📊|💡|💹|🏆|📈|🔥) (?=(주요 지수|시장 심리|금리 & 환율|원자재 & 암호화폐|ETF · 테마 · 섹터|이슈 종목))/gu,'')
-    .replace('⏳ 시장 데이터 로드 중','시장 데이터 로드 중').replace('📭 데이터 없음','데이터 없음')
-    .replace('🔄 버튼을','새로고침 버튼을').replace('>🔄</button>','>새로고침</button>').replace(' 🔄</button>',' 새로고침</button>');
+    .replace(/class="mkt-tab-btn/g,'class="paper-button mkt-tab-btn');
+}
+
+export function mkMarketPanel(){
+  const data=S.marketData||[];
+  const keys=['IXIC','SPX','KOSPI','VIX','DXY','USDKRW','GOLD','BTC'];
+  return `<button class="today-strip" data-goto-market="1" aria-label="시장 현황 보기">${keys.map(key=>{
+    const c=MARKET_CFG.find(item=>item.key===key),m=data.find(item=>item.key===key);
+    const value=Number.isFinite(m?.price)&&m.price>0?fmtMktPrice(m.price,c.fmt)+(c.fmt==='krw'?'원':''):'—';
+    return `<span class="market-panel-item"><span>${c.label}</span><span class="market-panel-value">${value}</span></span>`;
+  }).join('')}</button>`;
 }
 
 function mkSparkSvg(weekly,daily,key,w,h,history){
@@ -84,15 +91,16 @@ export function mkMarket(){
   const d=document.createElement("div");
   d.className='tabular-nums';
   const st=getMarketStatus();
+  const statusLabel=st.label.includes('미장')?'미장 개장':st.label.includes('한국장')?'한국장 개장':'휴장';
 
   if(S.marketLoading){
     d.innerHTML=`<div class="mkt-wrap">
       <div class="mkt-header">
-        <span style="font-size:max(12px,.95em);font-weight:800;color:var(--text)">🌐 시장 현황</span>
-        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
+        <span class="paper-section-heading">시장 현황</span>
+        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${statusLabel}</span>
         <button class="mkt-refresh-btn" id="btnMktRefresh" disabled>새로고침</button>
       </div>
-      <div class="empty">⏳ 시장 데이터 로드 중...</div>
+      <div class="empty">시장 데이터 로드 중...</div>
     </div>`;
     d.innerHTML=paperMarket(d.innerHTML);
     return d;
@@ -108,13 +116,13 @@ export function mkMarket(){
   if(!mdata.length){
     d.innerHTML=`<div class="mkt2-wrap">
       <div class="mkt2-hdr">
-        <span style="font-size:max(12px,.95em);font-weight:800;color:var(--text)">🌐 시장 현황</span>
+        <span class="paper-section-heading">시장 현황</span>
         <div style="display:flex;align-items:center;gap:8px">
-          <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
-          <button class="mkt-refresh-btn" id="btnMktRefresh">🔄</button>
+          <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${statusLabel}</span>
+          <button class="mkt-refresh-btn" id="btnMktRefresh">새로고침</button>
         </div>
       </div>
-      <div class="empty">📭 데이터 없음<br><br><span style="font-size:max(12px,.85em)">🔄 버튼을 눌러 시장 데이터를 불러오세요<br>구글 시트 연결이 필요합니다</span></div>
+      <div class="empty">시장 데이터를 불러오지 못했습니다.<br>새로고침 버튼을 눌러 다시 시도해 주세요.</div>
     </div>`;
     d.innerHTML=paperMarket(d.innerHTML);
     return d;
@@ -242,14 +250,13 @@ export function mkMarket(){
     {key:'GOOGL',label:'GOOGL',sub:'AI 검색'},
     {key:'MSFT', label:'MSFT', sub:'AI 플랫폼'},
   ];
-  const sectorList=[
-    {key:'XLK', label:'기술',  sub:'XLK'}, {key:'XLC', label:'통신',  sub:'XLC'},
-    {key:'XLY', label:'임의소비',sub:'XLY'},{key:'XLP', label:'필수소비',sub:'XLP'},
-    {key:'XLV', label:'헬스케어',sub:'XLV'},{key:'XLF', label:'금융',  sub:'XLF'},
-    {key:'XLI', label:'산업재', sub:'XLI'},{key:'XLB', label:'소재',  sub:'XLB'},
-    {key:'XLE', label:'에너지', sub:'XLE'},{key:'XLU', label:'유틸리티',sub:'XLU'},
-    {key:'XLRE',label:'부동산', sub:'XLRE'},
-  ];
+  const sectorList=MARKET_CFG.filter(c=>c.sec==='섹터').map(c=>({...c,sub:c.key}));
+  const heatmap=squarify(sectorList.map(c=>({id:c.key,weight:1}))).map(r=>{
+    const sector=sectorList.find(c=>c.key===r.id),change=gv(r.id)?.daily;
+    const valid=Number.isFinite(change),color=!valid||change===0?'#8b8984':change>0?'#c23b32':'#2f63b5';
+    const pct=valid?`${change>0?'+':''}${change.toFixed(2)}%`:'—';
+    return `<div class="sector-tile" style="left:${r.x}%;top:${r.y}%;width:${r.w}%;height:${r.h}%;background:${color}" title="${sector.label} ${r.id} ${pct}"><span>${sector.label}</span><span>${pct}</span></div>`;
+  }).join('');
   const etfTab=S.mktEtfTab||'etf';
   const activeEtfList=etfTab==='theme'?themeList:etfTab==='sector'?sectorList:etfList;
   const etfCards=activeEtfList.map(c=>{
@@ -299,43 +306,48 @@ export function mkMarket(){
 
   d.innerHTML=`<div class="mkt2-wrap">
     <div class="mkt2-hdr">
-      <span style="font-size:max(12px,.95em);font-weight:800;color:var(--text)">🌐 시장 현황</span>
+      <span class="paper-section-heading">시장 현황</span>
       <div style="display:flex;align-items:center;gap:8px">
-        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${st.label}</span>
-        <button class="mkt-refresh-btn" id="btnMktRefresh" style="font-size:max(12px,.78em);color:var(--text-secondary)">조회 ${lastUpd} 🔄</button>
+        <span class="mkt-badge" style="color:${st.color};background:${st.bg}">시간표 추정 · ${statusLabel}</span>
+        <button class="mkt-refresh-btn" id="btnMktRefresh">조회 ${lastUpd} 새로고침</button>
       </div>
     </div>
 
     ${marketImpact(S,mdata)}
     <div class="mkt2-section">
-      <div class="mkt2-stitle">📊 주요 지수</div>
-      <div class="mkt2-idx-grid">${idxCards}</div>
+      <div class="mkt2-stitle">주요 지수</div>
+      <div class="mkt2-idx-grid market-grid">${idxCards}</div>
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">💡 시장 심리</div>
-      <div class="mkt2-sent-grid">${sentHtml}</div>
+      <div class="mkt2-stitle">시장 심리</div>
+      <div class="mkt2-sent-grid market-grid">${sentHtml}</div>
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">💹 금리 & 환율</div>
-      ${rateRows}
+      <div class="mkt2-stitle">금리 & 환율</div>
+      <div class="market-grid">${rateRows}</div>
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">🏆 원자재 & 암호화폐</div>
-      <div class="mkt2-comm-grid">${commCards}</div>
+      <div class="mkt2-stitle">원자재 & 암호화폐</div>
+      <div class="mkt2-comm-grid market-grid">${commCards}</div>
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">📈 ETF · 테마 · 섹터</div>
+      <div class="mkt2-stitle">섹터 ETF 히트맵</div>
+      <div class="sector-heatmap tabular-nums">${heatmap}</div>
+    </div>
+
+    <div class="mkt2-section">
+      <div class="mkt2-stitle">ETF · 테마 · 섹터</div>
       ${etfTabBar}
-      <div class="mkt2-etf-grid">${etfCards}</div>
+      <div class="mkt2-etf-grid market-grid">${etfCards}</div>
     </div>
 
     <div class="mkt2-section">
-      <div class="mkt2-stitle">🔥 이슈 종목</div>
-      <div class="mkt2-top-grid">${issueCards}</div>
+      <div class="mkt2-stitle">이슈 종목</div>
+      <div class="mkt2-top-grid market-grid">${issueCards}</div>
     </div>
   </div>`;
   d.innerHTML=paperMarket(d.innerHTML);

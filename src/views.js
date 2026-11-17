@@ -12,7 +12,7 @@ import {valuationCashKRW} from './settlement-value.js';
 import {dataNotice,holdingCards,holdingDetail,esc,saleResultText} from './holdings-ui.js';
 import {filterHoldings,sortHoldings,toggleSort,topGainLoss,returnPercent} from './holdings-table.js';
 import {getAnthropicKey,getShotFiles} from './vision.js';
-import {mkTodayStrip} from './market-ui.js';
+import {mkMarketPanel} from './market-ui.js';
 import {profileFor,analysisTag,calcStress,cycleCards,calcPerformanceAttribution,calcDayAttribution,calcRiskBudget,eventCards,RISK_BUDGETS} from './intelligence.js';
 
 const navIcons={list:'<path d="M4 6h16M4 12h16M4 18h16"/>',chart:'<path d="M12 3v9h9A9 9 0 1 1 12 3Z"/><path d="M15 3.5A9 9 0 0 1 20.5 9H15Z"/>',trend:'<path d="M4 18V6M4 18h16M7 14l4-4 3 2 5-6"/>',analysis:'<path d="M5 19V9M10 19V5M15 19v-7M20 19H3"/>',broker:'<path d="M3 9h18L12 4 3 9ZM5 10v7m5-7v7m4-7v7m5-7v7M3 20h18"/>',market:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',journal:'<path d="M5 4h14v16H5zM8 8h8M8 12h8M8 16h5"/>',txn:'<path d="M4 8h14l-3-3m5 11H6l3 3M18 8l-3 3M6 16l3-3"/>'};
@@ -191,7 +191,7 @@ export function mkList(){
     `:''}
   </div>`;
 
-  const todayStripHtml=mkTodayStrip();
+  const todayStripHtml=mkMarketPanel();
 
   const filtersHtml=`<div class="filters">
       <button class="flt ${S.acct==='전체'?'on':''}" data-acct="전체">전체</button>
